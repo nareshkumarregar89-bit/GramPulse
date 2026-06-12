@@ -14,12 +14,13 @@ import { useToast } from '../contexts/ToastContext';
 
 export function Families() {
   const navigate = useNavigate();
-  const { families, deleteFamily, darkMode } = useData();
+  const { families, deleteFamily, darkMode, t, language } = useData();
   const { addToast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
 
   const filteredFamilies = families.filter(family =>
-    family.familyHeadName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (family.familyHeadNameEnglish && family.familyHeadNameEnglish.toLowerCase().includes(searchQuery.toLowerCase())) ||
+    (family.familyHeadNameHindi && family.familyHeadNameHindi.includes(searchQuery)) ||
     family.mobile.includes(searchQuery) ||
     family.mohalla.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -104,12 +105,12 @@ export function Families() {
         <table className="w-full">
           <thead className={darkMode ? 'bg-gray-800' : 'bg-gray-50'}>
             <tr>
-              <th className="text-left px-6 py-4 text-sm font-semibold text-gray-900 dark:text-white">Family Head</th>
-              <th className="text-left px-6 py-4 text-sm font-semibold text-gray-900 dark:text-white">Mohalla</th>
-              <th className="text-left px-6 py-4 text-sm font-semibold text-gray-900 dark:text-white">Caste</th>
-              <th className="text-left px-6 py-4 text-sm font-semibold text-gray-900 dark:text-white">Mobile</th>
-              <th className="text-left px-6 py-4 text-sm font-semibold text-gray-900 dark:text-white">Members</th>
-              <th className="text-right px-6 py-4 text-sm font-semibold text-gray-900 dark:text-white">Actions</th>
+              <th className="text-left px-6 py-4 text-sm font-semibold text-gray-900 dark:text-white">{t('family_head')}</th>
+              <th className="text-left px-6 py-4 text-sm font-semibold text-gray-900 dark:text-white">{t('mohalla')}</th>
+              <th className="text-left px-6 py-4 text-sm font-semibold text-gray-900 dark:text-white">{t('caste')}</th>
+              <th className="text-left px-6 py-4 text-sm font-semibold text-gray-900 dark:text-white">{t('mobile')}</th>
+              <th className="text-left px-6 py-4 text-sm font-semibold text-gray-900 dark:text-white">{t('members')}</th>
+              <th className="text-right px-6 py-4 text-sm font-semibold text-gray-900 dark:text-white">{t('actions')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
@@ -118,11 +119,18 @@ export function Families() {
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-500 to-indigo-600 flex items-center justify-center text-white font-bold">
-                      {family.familyHeadName.charAt(0)}
+                      {(family.familyHeadNameEnglish || family.familyHeadNameHindi || 'U').charAt(0)}
                     </div>
                     <div>
-                      <p className="font-medium text-gray-900 dark:text-white">{family.familyHeadName}</p>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">{family.id}</p>
+                      <p className="font-medium text-gray-900 dark:text-white">
+                        {language === 'en' ? family.familyHeadNameEnglish : family.familyHeadNameHindi}
+                      </p>
+                      {family.familyHeadNameEnglish && family.familyHeadNameHindi && (
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          {language === 'en' ? family.familyHeadNameHindi : family.familyHeadNameEnglish}
+                        </p>
+                      )}
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{family.id}</p>
                     </div>
                   </div>
                 </td>
@@ -182,11 +190,18 @@ export function Families() {
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-full bg-gradient-to-br from-green-500 to-indigo-600 flex items-center justify-center text-white font-bold text-lg">
-                  {family.familyHeadName.charAt(0)}
+                  {(family.familyHeadNameEnglish || family.familyHeadNameHindi || 'U').charAt(0)}
                 </div>
                 <div>
-                  <p className="font-semibold text-gray-900 dark:text-white">{family.familyHeadName}</p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">{family.id}</p>
+                  <p className="font-semibold text-gray-900 dark:text-white">
+                    {language === 'en' ? family.familyHeadNameEnglish : family.familyHeadNameHindi}
+                  </p>
+                  {family.familyHeadNameEnglish && family.familyHeadNameHindi && (
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      {language === 'en' ? family.familyHeadNameHindi : family.familyHeadNameEnglish}
+                    </p>
+                  )}
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{family.id}</p>
                 </div>
               </div>
               <div className="relative">

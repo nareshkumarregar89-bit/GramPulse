@@ -2,15 +2,25 @@ import { mohallas } from "./mohallas";
 import { castes } from "./castes";
 
 const generateRandomFamily = (id) => {
-  const firstNames = [
+  const firstNamesEn = [
     "Rajesh", "Suresh", "Mahesh", "Ramesh", "Naresh", "Dinesh", "Mukesh", "Anil", "Sunil", "Manoj",
     "Amit", "Vikram", "Arjun", "Krishna", "Gopal", "Ram", "Shyam", "Mohan", "Sohan", "Rohan",
     "Priya", "Sita", "Gita", "Radha", "Meera", "Lakshmi", "Saraswati", "Parvati", "Durga", "Kali",
     "Neha", "Pooja", "Rani", "Maya", "Chhaya", "Jyoti", "Rashmi", "Shikha", "Anita", "Sunita"
   ];
-  const lastNames = [
+  const firstNamesHi = [
+    "राजेश", "सुरेश", "महेश", "रमेश", "नरेश", "दिनेश", "मुकेश", "अनिल", "सुनील", "मनोज",
+    "अमित", "विक्रम", "अर्जुन", "कृष्ण", "गोपाल", "राम", "श्याम", "मोहन", "सोहन", "रोहन",
+    "प्रिया", "सीता", "गीता", "राधा", "मीरा", "लक्ष्मी", "सरस्वती", "पार्वती", "दुर्गा", "काली",
+    "नेहा", "पूजा", "रानी", "माया", "छाया", "ज्योति", "रश्मि", "शिखा", "अनीता", "सुनीता"
+  ];
+  const lastNamesEn = [
     "Sharma", "Verma", "Gupta", "Singh", "Yadav", "Jain", "Meena", "Gurjar", "Jat", "Rajput",
     "Pandey", "Tiwari", "Mishra", "Chauhan", "Solanki", "Bhati", "Rathore", "Shekhawat", "Agarwal", "Goyal"
+  ];
+  const lastNamesHi = [
+    "शर्मा", "वर्मा", "गुप्ता", "सिंह", "यादव", "जैन", "मीणा", "गुर्जर", "जाट", "राजपूत",
+    "पांडेय", "तिवारी", "मिश्रा", "चौहान", "सोलंकी", "भाटी", "राठौर", "शेखावत", "अग्रवाल", "गोयल"
   ];
   const occupations = [
     "Farmer", "Labourer", "Shopkeeper", "Teacher", "Driver", "Carpenter", "Plumber", "Electrician", "Tailor", "Government Employee"
@@ -26,7 +36,10 @@ const generateRandomFamily = (id) => {
   const randomItem = (arr) => arr[Math.floor(Math.random() * arr.length)];
   const randomNumber = (min, max) => Math.floor(Math.random() * (max - min + 1) + min);
 
-  const familyHead = randomItem(firstNames) + " " + randomItem(lastNames);
+  const fnIdx = Math.floor(Math.random() * firstNamesEn.length);
+  const lnIdx = Math.floor(Math.random() * lastNamesEn.length);
+  const familyHeadEn = firstNamesEn[fnIdx] + " " + lastNamesEn[lnIdx];
+  const familyHeadHi = firstNamesHi[fnIdx] + " " + lastNamesHi[lnIdx];
   const mohalla = randomItem(mohallas);
   const caste = randomItem(castes);
   const memberCount = randomNumber(2, 8);
@@ -35,7 +48,8 @@ const generateRandomFamily = (id) => {
   // Add family head as first member
   members.push({
     id: `${id}-1`,
-    name: familyHead,
+    nameEnglish: familyHeadEn,
+    nameHindi: familyHeadHi,
     age: randomNumber(35, 60),
     gender: "Male",
     relation: "Head",
@@ -46,9 +60,11 @@ const generateRandomFamily = (id) => {
   });
 
   // Add spouse
+  const spouseFnIdx = Math.floor(Math.random() * 20) + 20;
   members.push({
     id: `${id}-2`,
-    name: randomItem(firstNames.filter(n => members[0].gender === "Male" ? !firstNames.slice(20).includes(n) : firstNames.slice(20).includes(n))) + " " + members[0].name.split(" ")[1],
+    nameEnglish: firstNamesEn[spouseFnIdx] + " " + lastNamesEn[lnIdx],
+    nameHindi: firstNamesHi[spouseFnIdx] + " " + lastNamesHi[lnIdx],
     age: randomNumber(30, 55),
     gender: "Female",
     relation: "Wife",
@@ -61,9 +77,11 @@ const generateRandomFamily = (id) => {
   // Add children
   for (let i = 2; i < memberCount; i++) {
     const gender = randomItem(genders);
+    const childFnIdx = Math.floor(Math.random() * 20) + (gender === "Male" ? 0 : 20);
     members.push({
       id: `${id}-${i + 1}`,
-      name: randomItem(gender === "Male" ? firstNames.slice(0, 20) : firstNames.slice(20)) + " " + members[0].name.split(" ")[1],
+      nameEnglish: firstNamesEn[childFnIdx] + " " + lastNamesEn[lnIdx],
+      nameHindi: firstNamesHi[childFnIdx] + " " + lastNamesHi[lnIdx],
       age: randomNumber(1, 25),
       gender,
       relation: gender === "Male" ? "Son" : "Daughter",
@@ -74,10 +92,13 @@ const generateRandomFamily = (id) => {
     });
   }
 
+  const fatherFnIdx = Math.floor(Math.random() * 20);
   return {
     id: `FAM-${String(id).padStart(4, '0')}`,
-    familyHeadName: familyHead,
-    fatherName: randomItem(firstNames) + " " + members[0].name.split(" ")[1],
+    familyHeadNameEnglish: familyHeadEn,
+    familyHeadNameHindi: familyHeadHi,
+    fatherNameEnglish: firstNamesEn[fatherFnIdx] + " " + lastNamesEn[lnIdx],
+    fatherNameHindi: firstNamesHi[fatherFnIdx] + " " + lastNamesHi[lnIdx],
     mobile: `+91 ${randomNumber(60000, 99999)} ${randomNumber(0, 9)}${randomNumber(0, 9)}${randomNumber(0, 9)}${randomNumber(0, 9)}${randomNumber(0, 9)}`,
     alternateMobile: `+91 ${randomNumber(60000, 99999)} ${randomNumber(0, 9)}${randomNumber(0, 9)}${randomNumber(0, 9)}${randomNumber(0, 9)}${randomNumber(0, 9)}`,
     mohalla,
@@ -91,7 +112,7 @@ const generateRandomFamily = (id) => {
     voterId: `${String.fromCharCode(65 + Math.floor(Math.random() * 26))}${String.fromCharCode(65 + Math.floor(Math.random() * 26))}${randomNumber(1000000, 9999999)}`,
     bankName: randomItem(banks),
     branch: `${mohalla} Branch`,
-    accountHolder: familyHead,
+    accountHolder: familyHeadEn,
     accountNumber: `${randomNumber(1000, 9999)} ${randomNumber(1000, 9999)} ${randomNumber(1000, 9999)}`,
     ifsc: `${randomItem(banks).substring(0, 4).toUpperCase()}0${randomNumber(100, 999)}`,
     monthlyIncome: randomNumber(5000, 50000),

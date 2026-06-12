@@ -8,7 +8,8 @@ import {
   BarChart3,
   Search,
   Settings,
-  Menu
+  Menu,
+  Trash2
 } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
 
@@ -16,6 +17,7 @@ const navItems = [
   { path: '/', icon: Home, labelKey: 'dashboard' },
   { path: '/survey', icon: FileText, labelKey: 'new_survey' },
   { path: '/families', icon: Users, labelKey: 'families' },
+  { path: '/deleted-records', icon: Trash2, labelKey: 'deleted_records' },
   { path: '/mohallas', icon: MapPin, labelKey: 'mohallas' },
   { path: '/castes', icon: UsersRound, labelKey: 'castes' },
   { path: '/reports', icon: BarChart3, labelKey: 'reports' },

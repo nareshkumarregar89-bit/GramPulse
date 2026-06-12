@@ -11,6 +11,7 @@ import { Castes } from './pages/Castes';
 import { Search } from './pages/Search';
 import { Reports } from './pages/Reports';
 import { Settings } from './pages/Settings';
+import { DeletedRecords } from './pages/DeletedRecords';
 import { ToastContainer } from './components/ToastContainer';
 
 function App() {
@@ -29,6 +30,7 @@ function App() {
               <Route path="/castes" element={<Castes />} />
               <Route path="/search" element={<Search />} />
               <Route path="/reports" element={<Reports />} />
+              <Route path="/deleted-records" element={<DeletedRecords />} />
               <Route path="/settings" element={<Settings />} />
             </Routes>
           </Layout>

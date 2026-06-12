@@ -28,7 +28,8 @@ const steps = [
 ];
 
 const emptyMember = {
-  name: '',
+  nameEnglish: '',
+  nameHindi: '',
   age: '',
   gender: 'Male',
   relation: '',
@@ -39,8 +40,10 @@ const emptyMember = {
 };
 
 const emptyFamily = {
-  familyHeadName: '',
-  fatherName: '',
+  familyHeadNameEnglish: '',
+  familyHeadNameHindi: '',
+  fatherNameEnglish: '',
+  fatherNameHindi: '',
   mobile: '',
   alternateMobile: '',
   mohalla: '',
@@ -73,9 +76,8 @@ const emptyFamily = {
 export function NewSurvey() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { families, mohallas, castes, addFamily, updateFamily, getFamilyById } = useData();
+  const { families, mohallas, castes, addFamily, updateFamily, getFamilyById, t, darkMode, language } = useData();
   const { addToast } = useToast();
-  const { darkMode } = useData();
   const [currentStep, setCurrentStep] = useState(1);
   const [family, setFamily] = useState(emptyFamily);
 
@@ -140,58 +142,70 @@ export function NewSurvey() {
       case 1:
         return (
           <div className="space-y-4">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Family Information</h2>
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">{t('family_info')}</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <InputField
-                label="Family Head Name"
-                value={family.familyHeadName}
-                onChange={(v) => setFamily(p => ({ ...p, familyHeadName: v }))}
+                label={t('family_head_english')}
+                value={family.familyHeadNameEnglish}
+                onChange={(v) => setFamily(p => ({ ...p, familyHeadNameEnglish: v }))}
                 required
               />
               <InputField
-                label="Father/Husband Name"
-                value={family.fatherName}
-                onChange={(v) => setFamily(p => ({ ...p, fatherName: v }))}
+                label={t('family_head_hindi')}
+                value={family.familyHeadNameHindi}
+                onChange={(v) => setFamily(p => ({ ...p, familyHeadNameHindi: v }))}
                 required
               />
               <InputField
-                label="Mobile Number"
+                label={t('father_husband_english')}
+                value={family.fatherNameEnglish}
+                onChange={(v) => setFamily(p => ({ ...p, fatherNameEnglish: v }))}
+                required
+              />
+              <InputField
+                label={t('father_husband_hindi')}
+                value={family.fatherNameHindi}
+                onChange={(v) => setFamily(p => ({ ...p, fatherNameHindi: v }))}
+                required
+              />
+              <InputField
+                label={t('mobile')}
                 value={family.mobile}
                 onChange={(v) => setFamily(p => ({ ...p, mobile: v }))}
                 required
               />
               <InputField
-                label="Alternate Mobile"
+                label={t('alternate_mobile')}
                 value={family.alternateMobile}
                 onChange={(v) => setFamily(p => ({ ...p, alternateMobile: v }))}
               />
               <SelectField
-                label="Mohalla"
+                label={t('mohalla')}
                 value={family.mohalla}
                 onChange={(v) => setFamily(p => ({ ...p, mohalla: v }))}
                 options={mohallas}
                 required
               />
               <SelectField
-                label="Caste"
+                label={t('caste')}
                 value={family.caste}
                 onChange={(v) => setFamily(p => ({ ...p, caste: v }))}
                 options={castes}
                 required
               />
               <InputField
-                label="House Number"
+                label={t('house_number')}
                 value={family.houseNumber}
                 onChange={(v) => setFamily(p => ({ ...p, houseNumber: v }))}
               />
               <InputField
-                label="PIN Code"
+                label={t('pin_code')}
                 value={family.pinCode}
                 onChange={(v) => setFamily(p => ({ ...p, pinCode: v }))}
               />
               <div className="md:col-span-2">
                 <TextAreaField
-                  label="Address"
+                  label={t('address')}
                   value={family.address}
                   onChange={(v) => setFamily(p => ({ ...p, address: v }))}
                 />
@@ -329,14 +343,15 @@ export function NewSurvey() {
                     )}
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <InputField label="Name" value={member.name} onChange={(v) => updateMember(index, 'name', v)} />
-                    <InputField label="Age" type="number" value={member.age} onChange={(v) => updateMember(index, 'age', v)} />
-                    <SelectField label="Gender" value={member.gender} onChange={(v) => updateMember(index, 'gender', v)} options={['Male', 'Female', 'Other']} />
-                    <InputField label="Relation" value={member.relation} onChange={(v) => updateMember(index, 'relation', v)} />
-                    <InputField label="Aadhaar" value={member.aadhaarNumber} onChange={(v) => updateMember(index, 'aadhaarNumber', v)} />
-                    <InputField label="Occupation" value={member.occupation} onChange={(v) => updateMember(index, 'occupation', v)} />
-                    <InputField label="Education" value={member.education} onChange={(v) => updateMember(index, 'education', v)} />
-                    <SelectField label="Marital Status" value={member.maritalStatus} onChange={(v) => updateMember(index, 'maritalStatus', v)} options={['Married', 'Unmarried', 'Divorced', 'Widow', 'Widower']} />
+                    <InputField label={t('member_name_english')} value={member.nameEnglish} onChange={(v) => updateMember(index, 'nameEnglish', v)} />
+                    <InputField label={t('member_name_hindi')} value={member.nameHindi} onChange={(v) => updateMember(index, 'nameHindi', v)} />
+                    <InputField label={t('age')} type="number" value={member.age} onChange={(v) => updateMember(index, 'age', v)} />
+                    <SelectField label={t('gender')} value={member.gender} onChange={(v) => updateMember(index, 'gender', v)} options={['Male', 'Female', 'Other']} />
+                    <InputField label={t('relation')} value={member.relation} onChange={(v) => updateMember(index, 'relation', v)} />
+                    <InputField label={t('aadhaar')} value={member.aadhaarNumber} onChange={(v) => updateMember(index, 'aadhaarNumber', v)} />
+                    <InputField label={t('occupation')} value={member.occupation} onChange={(v) => updateMember(index, 'occupation', v)} />
+                    <InputField label={t('member_education')} value={member.education} onChange={(v) => updateMember(index, 'education', v)} />
+                    <SelectField label={t('member_marital_status')} value={member.maritalStatus} onChange={(v) => updateMember(index, 'maritalStatus', v)} options={['Married', 'Unmarried', 'Divorced', 'Widow', 'Widower']} />
                   </div>
                 </div>
               ))}

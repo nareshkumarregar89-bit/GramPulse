@@ -9,6 +9,7 @@ const DataContext = createContext();
 
 export function DataProvider({ children }) {
   const [families, setFamilies] = useLocalStorage('grampulse-families', initialFamilies);
+  const [deletedFamilies, setDeletedFamilies] = useLocalStorage('grampulse-deleted-families', []);
   const [mohallas, setMohallas] = useLocalStorage('grampulse-mohallas', initialMohallas);
   const [castes, setCastes] = useLocalStorage('grampulse-castes', initialCastes);
   const [darkMode, setDarkMode] = useLocalStorage('grampulse-darkmode', false);
@@ -35,9 +36,28 @@ export function DataProvider({ children }) {
     setFamilies(families.map(f => f.id === id ? { ...f, ...updatedFamily } : f));
   };
 
-  // Delete a family
+  // Delete a family (move to deletedFamilies)
   const deleteFamily = (id) => {
-    setFamilies(families.filter(f => f.id !== id));
+    const familyToDelete = families.find(f => f.id === id);
+    if (familyToDelete) {
+      setDeletedFamilies([...deletedFamilies, { ...familyToDelete, deletedAt: new Date().toISOString() }]);
+      setFamilies(families.filter(f => f.id !== id));
+    }
+  };
+
+  // Restore a family
+  const restoreFamily = (id) => {
+    const familyToRestore = deletedFamilies.find(f => f.id === id);
+    if (familyToRestore) {
+      const { deletedAt, ...restoredFamily } = familyToRestore;
+      setFamilies([...families, restoredFamily]);
+      setDeletedFamilies(deletedFamilies.filter(f => f.id !== id));
+    }
+  };
+
+  // Permanently delete a family
+  const permanentlyDeleteFamily = (id) => {
+    setDeletedFamilies(deletedFamilies.filter(f => f.id !== id));
   };
 
   // Get family by id
@@ -103,6 +123,7 @@ export function DataProvider({ children }) {
   return (
     <DataContext.Provider value={{
       families,
+      deletedFamilies,
       mohallas,
       castes,
       darkMode,
@@ -113,6 +134,8 @@ export function DataProvider({ children }) {
       addFamily,
       updateFamily,
       deleteFamily,
+      restoreFamily,
+      permanentlyDeleteFamily,
       getFamilyById,
       addMohalla,
       deleteMohalla,
