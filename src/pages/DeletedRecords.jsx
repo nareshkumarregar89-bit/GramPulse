@@ -26,7 +26,7 @@ export function DeletedRecords() {
       </div>
 
       {deletedFamilies.length === 0 ? (
-        <div className={`p-12 rounded-2xl border text-center ${darkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}">
+        <div className={`p-12 rounded-2xl border text-center ${darkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
           <Trash2 className="w-16 h-16 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
             {language === 'en' ? 'No deleted records' : 'कोई हटाया हुआ रिकॉर्ड नहीं'}
@@ -74,6 +74,7 @@ export function DeletedRecords() {
                   <X className="w-4 h-4" />
                   {t('permanently_delete')}
                 </button>
+              </div>
               </div>
             </div>
           ))}
