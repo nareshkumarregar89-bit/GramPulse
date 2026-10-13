@@ -25,7 +25,7 @@ const navItems = [
   { path: '/settings', icon: Settings, labelKey: 'settings' },
 ];
 
-export function Sidebar({ isMobileOpen, setIsMobileSidebarOpen }) {
+export function Sidebar({ isMobileOpen, setIsMobileOpen }) {
   const { darkMode, t } = useData();
 
   const handleLinkClick = () => {
