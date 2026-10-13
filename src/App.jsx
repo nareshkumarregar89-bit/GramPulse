@@ -13,6 +13,7 @@ import { Reports } from './pages/Reports';
 import { Settings } from './pages/Settings';
 import { DeletedRecords } from './pages/DeletedRecords';
 import { ToastContainer } from './components/ToastContainer';
+import { InstallPwaPrompt } from './components/InstallPwaPrompt';
 
 function App() {
   return (
@@ -35,6 +36,7 @@ function App() {
             </Routes>
           </Layout>
           <ToastContainer />
+          <InstallPwaPrompt />
         </Router>
       </ToastProvider>
     </DataProvider>

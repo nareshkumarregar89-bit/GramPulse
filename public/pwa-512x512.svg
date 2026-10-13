@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#16a34a"/>
+      <stop offset="100%" stop-color="#4f46e5"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+  <!-- Background Rounded Rect -->
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  
+  <!-- Central Village / Survey Emblem -->
+  <g filter="url(#shadow)" fill="none" stroke="#ffffff" stroke-width="24" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Village House Outline -->
+    <path d="M256 120 L136 220 L136 380 L376 380 L376 220 Z"/>
+    <!-- Door -->
+    <path d="M226 380 L226 290 L286 290 L286 380"/>
+    <!-- Heartbeat / Survey Pulse Line -->
+    <path d="M80 340 L160 340 L195 290 L235 370 L275 320 L315 350 L355 330 L432 330" stroke="#facc15" stroke-width="20"/>
+  </g>
+</svg>
