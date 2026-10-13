@@ -1,4 +1,13 @@
-import React, { createContext, useContext, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useCallback, useMemo, useState, useEffect } from 'react';
+import { db } from '../firebase';
+import { 
+  collection, 
+  doc, 
+  onSnapshot, 
+  setDoc, 
+  deleteDoc, 
+  writeBatch 
+} from 'firebase/firestore';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { initialFamilies } from '../data/villageData';
 import { mohallas as initialMohallas } from '../data/mohallas';
@@ -44,6 +53,89 @@ export function DataProvider({ children }) {
   const [castes, setCastes] = useLocalStorage('grampulse-castes', initialCastes);
   const [darkMode, setDarkMode] = useLocalStorage('grampulse-darkmode', false);
   const [language, setLanguage] = useLocalStorage('grampulse-language', 'en');
+  const [isFirebaseConnected, setIsFirebaseConnected] = useState(false);
+
+  // Real-time Firestore sync for families
+  useEffect(() => {
+    try {
+      const unsubscribe = onSnapshot(collection(db, 'families'), async (snapshot) => {
+        setIsFirebaseConnected(true);
+        if (snapshot.empty) {
+          // Initialize empty Firestore with initial families
+          try {
+            const batch = writeBatch(db);
+            initialFamilies.slice(0, 30).forEach((fam) => {
+              const docRef = doc(db, 'families', fam.id);
+              batch.set(docRef, fam);
+            });
+            await batch.commit();
+          } catch (e) {
+            console.warn('Seeding initial families failed:', e);
+          }
+        } else {
+          const loaded = [];
+          snapshot.forEach(docSnap => {
+            loaded.push({ ...docSnap.data(), id: docSnap.id });
+          });
+          setFamilies(loaded);
+        }
+      }, (error) => {
+        console.error('Firestore families listener error:', error);
+      });
+
+      return () => unsubscribe();
+    } catch (e) {
+      console.error('Failed to initialize Firestore families listener:', e);
+    }
+  }, []);
+
+  // Real-time Firestore sync for deletedFamilies
+  useEffect(() => {
+    try {
+      const unsubscribe = onSnapshot(collection(db, 'deletedFamilies'), (snapshot) => {
+        const loaded = [];
+        snapshot.forEach(docSnap => {
+          loaded.push({ ...docSnap.data(), id: docSnap.id });
+        });
+        setDeletedFamilies(loaded);
+      }, (error) => {
+        console.error('Firestore deletedFamilies listener error:', error);
+      });
+
+      return () => unsubscribe();
+    } catch (e) {
+      console.error('Failed to initialize Firestore deletedFamilies listener:', e);
+    }
+  }, []);
+
+  // Real-time Firestore sync for settings (mohallas & castes)
+  useEffect(() => {
+    try {
+      const configDocRef = doc(db, 'settings', 'villageConfig');
+      const unsubscribe = onSnapshot(configDocRef, async (docSnap) => {
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          if (data.mohallas && Array.isArray(data.mohallas)) setMohallas(data.mohallas);
+          if (data.castes && Array.isArray(data.castes)) setCastes(data.castes);
+        } else {
+          try {
+            await setDoc(configDocRef, {
+              mohallas: initialMohallas,
+              castes: initialCastes
+            });
+          } catch (e) {
+            console.warn('Seeding settings failed:', e);
+          }
+        }
+      }, (error) => {
+        console.error('Firestore settings listener error:', error);
+      });
+
+      return () => unsubscribe();
+    } catch (e) {
+      console.error('Failed to initialize Firestore settings listener:', e);
+    }
+  }, []);
 
   const normalizedFamilies = useMemo(() => {
     return (families || []).map(normalizeFamily);
@@ -59,85 +151,160 @@ export function DataProvider({ children }) {
   }, [language]);
 
   // Add a family
-  const addFamily = (family) => {
+  const addFamily = async (family) => {
+    const maxNum = (families || []).reduce((max, f) => {
+      const match = f.id && String(f.id).match(/FAM-(\d+)/);
+      return match ? Math.max(max, parseInt(match[1], 10)) : max;
+    }, 0);
+    const newId = family.id || `FAM-${String(Math.max((families || []).length + 1, maxNum + 1)).padStart(4, '0')}`;
     const newFamily = {
       ...family,
-      id: `FAM-${String(families.length + 1).padStart(4, '0')}`,
+      id: newId,
       createdAt: new Date().toISOString()
     };
-    setFamilies([...families, newFamily]);
+    
+    // Immediate local state update
+    setFamilies(prev => [...prev.filter(f => f.id !== newId), newFamily]);
+
+    // Push to Firestore
+    try {
+      await setDoc(doc(db, 'families', newId), newFamily);
+    } catch (err) {
+      console.error('Firestore addFamily error:', err);
+    }
+
     return newFamily;
   };
 
   // Update a family
-  const updateFamily = (id, updatedFamily) => {
-    setFamilies(families.map(f => f.id === id ? { ...f, ...updatedFamily } : f));
+  const updateFamily = async (id, updatedFamily) => {
+    setFamilies(prev => prev.map(f => f.id === id ? { ...f, ...updatedFamily } : f));
+    try {
+      await setDoc(doc(db, 'families', id), updatedFamily, { merge: true });
+    } catch (err) {
+      console.error('Firestore updateFamily error:', err);
+    }
   };
 
   // Delete a family (move to deletedFamilies)
-  const deleteFamily = (id) => {
+  const deleteFamily = async (id) => {
     const familyToDelete = families.find(f => f.id === id);
     if (familyToDelete) {
-      setDeletedFamilies([...deletedFamilies, { ...familyToDelete, deletedAt: new Date().toISOString() }]);
-      setFamilies(families.filter(f => f.id !== id));
+      const deletedRecord = { ...familyToDelete, deletedAt: new Date().toISOString() };
+      setDeletedFamilies(prev => [...prev, deletedRecord]);
+      setFamilies(prev => prev.filter(f => f.id !== id));
+      try {
+        await setDoc(doc(db, 'deletedFamilies', id), deletedRecord);
+        await deleteDoc(doc(db, 'families', id));
+      } catch (err) {
+        console.error('Firestore deleteFamily error:', err);
+      }
     }
   };
 
   // Restore a family
-  const restoreFamily = (id) => {
+  const restoreFamily = async (id) => {
     const familyToRestore = deletedFamilies.find(f => f.id === id);
     if (familyToRestore) {
       const { deletedAt, ...restoredFamily } = familyToRestore;
-      setFamilies([...families, restoredFamily]);
-      setDeletedFamilies(deletedFamilies.filter(f => f.id !== id));
+      setFamilies(prev => [...prev, restoredFamily]);
+      setDeletedFamilies(prev => prev.filter(f => f.id !== id));
+      try {
+        await setDoc(doc(db, 'families', id), restoredFamily);
+        await deleteDoc(doc(db, 'deletedFamilies', id));
+      } catch (err) {
+        console.error('Firestore restoreFamily error:', err);
+      }
     }
   };
 
   // Permanently delete a family
-  const permanentlyDeleteFamily = (id) => {
-    setDeletedFamilies(deletedFamilies.filter(f => f.id !== id));
+  const permanentlyDeleteFamily = async (id) => {
+    setDeletedFamilies(prev => prev.filter(f => f.id !== id));
+    try {
+      await deleteDoc(doc(db, 'deletedFamilies', id));
+    } catch (err) {
+      console.error('Firestore permanentlyDeleteFamily error:', err);
+    }
   };
 
   // Get family by id
   const getFamilyById = (id) => {
-    return families.find(f => f.id === id);
+    return normalizedFamilies.find(f => f.id === id);
   };
 
   // Add mohalla
-  const addMohalla = (mohalla) => {
+  const addMohalla = async (mohalla) => {
     if (!mohallas.includes(mohalla)) {
-      setMohallas([...mohallas, mohalla]);
+      const nextMohallas = [...mohallas, mohalla];
+      setMohallas(nextMohallas);
+      try {
+        await setDoc(doc(db, 'settings', 'villageConfig'), { mohallas: nextMohallas }, { merge: true });
+      } catch (err) {
+        console.error('Firestore addMohalla error:', err);
+      }
     }
   };
 
   // Delete mohalla
-  const deleteMohalla = (mohalla) => {
-    setMohallas(mohallas.filter(m => m !== mohalla));
+  const deleteMohalla = async (mohalla) => {
+    const nextMohallas = mohallas.filter(m => m !== mohalla);
+    setMohallas(nextMohallas);
+    try {
+      await setDoc(doc(db, 'settings', 'villageConfig'), { mohallas: nextMohallas }, { merge: true });
+    } catch (err) {
+      console.error('Firestore deleteMohalla error:', err);
+    }
   };
 
   // Add caste
-  const addCaste = (caste) => {
+  const addCaste = async (caste) => {
     if (!castes.includes(caste)) {
-      setCastes([...castes, caste]);
+      const nextCastes = [...castes, caste];
+      setCastes(nextCastes);
+      try {
+        await setDoc(doc(db, 'settings', 'villageConfig'), { castes: nextCastes }, { merge: true });
+      } catch (err) {
+        console.error('Firestore addCaste error:', err);
+      }
     }
   };
 
   // Delete caste
-  const deleteCaste = (caste) => {
-    setCastes(castes.filter(c => c !== caste));
+  const deleteCaste = async (caste) => {
+    const nextCastes = castes.filter(c => c !== caste);
+    setCastes(nextCastes);
+    try {
+      await setDoc(doc(db, 'settings', 'villageConfig'), { castes: nextCastes }, { merge: true });
+    } catch (err) {
+      console.error('Firestore deleteCaste error:', err);
+    }
   };
 
   // Reset all data
-  const resetData = () => {
+  const resetData = async () => {
     setFamilies(initialFamilies);
     setMohallas(initialMohallas);
     setCastes(initialCastes);
+    try {
+      const batch = writeBatch(db);
+      initialFamilies.slice(0, 30).forEach((fam) => {
+        batch.set(doc(db, 'families', fam.id), fam);
+      });
+      batch.set(doc(db, 'settings', 'villageConfig'), {
+        mohallas: initialMohallas,
+        castes: initialCastes
+      });
+      await batch.commit();
+    } catch (err) {
+      console.error('Firestore resetData error:', err);
+    }
   };
 
   // Export data as JSON
   const exportData = () => {
     const data = {
-      families,
+      families: normalizedFamilies,
       mohallas,
       castes,
       exportedAt: new Date().toISOString()
@@ -152,10 +319,31 @@ export function DataProvider({ children }) {
   };
 
   // Import data from JSON
-  const importData = (data) => {
-    if (data.families) setFamilies(data.families);
-    if (data.mohallas) setMohallas(data.mohallas);
-    if (data.castes) setCastes(data.castes);
+  const importData = async (data) => {
+    if (data.families && Array.isArray(data.families)) {
+      setFamilies(data.families);
+      try {
+        const batch = writeBatch(db);
+        data.families.forEach((fam) => {
+          if (fam.id) batch.set(doc(db, 'families', fam.id), fam);
+        });
+        await batch.commit();
+      } catch (err) {
+        console.error('Firestore import families error:', err);
+      }
+    }
+    if (data.mohallas) {
+      setMohallas(data.mohallas);
+      try {
+        await setDoc(doc(db, 'settings', 'villageConfig'), { mohallas: data.mohallas }, { merge: true });
+      } catch (e) { /* ignore */ }
+    }
+    if (data.castes) {
+      setCastes(data.castes);
+      try {
+        await setDoc(doc(db, 'settings', 'villageConfig'), { castes: data.castes }, { merge: true });
+      } catch (e) { /* ignore */ }
+    }
   };
 
   return (
@@ -169,6 +357,7 @@ export function DataProvider({ children }) {
       language,
       setLanguage,
       t,
+      isFirebaseConnected,
       addFamily,
       updateFamily,
       deleteFamily,
