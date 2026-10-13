@@ -12,21 +12,25 @@ import {
   Trash2
 } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
+import { useAuth } from '../contexts/AuthContext';
 
 const navItems = [
   { path: '/', icon: Home, labelKey: 'dashboard' },
   { path: '/survey', icon: FileText, labelKey: 'new_survey' },
   { path: '/families', icon: Users, labelKey: 'families' },
-  { path: '/deleted-records', icon: Trash2, labelKey: 'deleted_records' },
   { path: '/mohallas', icon: MapPin, labelKey: 'mohallas' },
   { path: '/castes', icon: UsersRound, labelKey: 'castes' },
   { path: '/reports', icon: BarChart3, labelKey: 'reports' },
   { path: '/search', icon: Search, labelKey: 'search' },
-  { path: '/settings', icon: Settings, labelKey: 'settings' },
+  { path: '/deleted-records', icon: Trash2, labelKey: 'deleted_records', adminOnly: true },
+  { path: '/settings', icon: Settings, labelKey: 'settings', adminOnly: true },
 ];
 
 export function Sidebar({ isMobileOpen, setIsMobileOpen }) {
   const { darkMode, t } = useData();
+  const { isAdmin } = useAuth();
+
+  const visibleNavItems = navItems.filter(item => !item.adminOnly || isAdmin);
 
   const handleLinkClick = () => {
     if (setIsMobileOpen) {
@@ -54,7 +58,7 @@ export function Sidebar({ isMobileOpen, setIsMobileOpen }) {
         </div>
       </div>
       <nav className="p-4 space-y-1">
-        {navItems.map((item) => (
+        {visibleNavItems.map((item) => (
           <NavLink
             key={item.path}
             to={item.path}

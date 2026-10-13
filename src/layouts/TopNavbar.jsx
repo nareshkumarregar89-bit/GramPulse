@@ -7,12 +7,15 @@ import {
   Moon,
   Sun,
   Search,
-  User
+  User,
+  LogOut
 } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
+import { useAuth } from '../contexts/AuthContext';
 
 export function TopNavbar({ setIsMobileSidebarOpen }) {
   const { darkMode, setDarkMode, language, setLanguage, families, t } = useData();
+  const { currentUser, userProfile, isAdmin, logout } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const navigate = useNavigate();
 
@@ -91,18 +94,39 @@ export function TopNavbar({ setIsMobileSidebarOpen }) {
           {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
         </button>
 
-        <div className={`
-          hidden md:flex items-center gap-3 px-3 py-2 rounded-xl
-          ${darkMode ? 'bg-gray-800' : 'bg-gray-50'}
-        `}>
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-500 to-indigo-600 flex items-center justify-center text-white font-semibold text-sm">
-            AD
+        {currentUser && (
+          <div className="flex items-center gap-2">
+            <div className={`
+              flex items-center gap-2.5 px-3 py-1.5 rounded-xl border
+              ${darkMode ? 'bg-gray-800/80 border-gray-700' : 'bg-gray-50 border-gray-200'}
+            `}>
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-500 to-indigo-600 flex items-center justify-center text-white font-bold text-xs">
+                {userProfile?.name?.charAt(0)?.toUpperCase() || currentUser?.email?.charAt(0)?.toUpperCase() || 'U'}
+              </div>
+              <div className="hidden md:block text-left">
+                <p className="text-xs font-semibold text-gray-900 dark:text-white truncate max-w-[120px]">
+                  {userProfile?.name || currentUser?.email?.split('@')[0]}
+                </p>
+                <span className={`inline-block text-[10px] font-bold px-1.5 py-0.2 rounded ${
+                  isAdmin 
+                    ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400' 
+                    : 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
+                }`}>
+                  {isAdmin ? (language === 'hi' ? 'एडमिन' : 'Admin') : (language === 'hi' ? 'सर्वेयर' : 'Surveyor')}
+                </span>
+              </div>
+            </div>
+            <button
+              onClick={logout}
+              title={language === 'hi' ? 'लॉगआउट' : 'Logout'}
+              className={`p-2 rounded-xl transition-all ${
+                darkMode ? 'hover:bg-red-500/20 text-red-400' : 'hover:bg-red-50 text-red-600'
+              }`}
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
           </div>
-          <div className="hidden md:block">
-            <p className="text-sm font-medium text-gray-900 dark:text-white">Admin User</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400">Surveyor</p>
-          </div>
-        </div>
+        )}
       </div>
     </header>
   );

@@ -8,7 +8,8 @@ import {
   FileText,
   Banknote,
   Home,
-  Users
+  Users,
+  MapPin
 } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
 
@@ -185,6 +186,32 @@ export function FamilyProfile() {
           <ProfileItem label="House Number" value={family.houseNumber} />
           <ProfileItem label="PIN Code" value={family.pinCode} />
           <ProfileItem label="Address" value={family.address} className="md:col-span-2" />
+          {family.latitude && family.longitude && (
+            <div className="md:col-span-2 p-3.5 rounded-xl bg-green-500/10 border border-green-500/20 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">GPS Geotag Location (घर की लोकेशन)</p>
+                <p className="text-sm font-semibold font-mono text-green-700 dark:text-green-300 mt-0.5">
+                  {family.latitude}° N, {family.longitude}° E {family.gpsAccuracy && `(±${family.gpsAccuracy}m)`}
+                </p>
+              </div>
+              <a
+                href={`https://maps.google.com/?q=${family.latitude},${family.longitude}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3.5 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-all"
+              >
+                <MapPin className="w-3.5 h-3.5" />
+                Google Maps
+              </a>
+            </div>
+          )}
+          {family.surveyorName && (
+            <ProfileItem 
+              label="Surveyor (सर्वेयर)" 
+              value={`${family.surveyorName} ${family.surveyorEmail ? `(${family.surveyorEmail})` : ''}`} 
+              className="md:col-span-2" 
+            />
+          )}
         </div>
       </ProfileSection>
 

@@ -12,10 +12,14 @@ import {
   Image,
   CheckCircle,
   Plus,
-  X
+  X,
+  MapPin,
+  ExternalLink,
+  Navigation
 } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
 import { useToast } from '../contexts/ToastContext';
+import { useAuth } from '../contexts/AuthContext';
 
 const steps = [
   { id: 1, label: 'Family Info', icon: User },
@@ -70,6 +74,13 @@ const emptyFamily = {
   gasConnection: true,
   familyPhoto: null,
   housePhoto: null,
+  latitude: '',
+  longitude: '',
+  gpsAccuracy: '',
+  gpsTimestamp: '',
+  surveyorId: '',
+  surveyorName: '',
+  surveyorEmail: '',
   members: [{ ...emptyMember }]
 };
 
@@ -78,8 +89,11 @@ export function NewSurvey() {
   const navigate = useNavigate();
   const { families, mohallas, castes, addFamily, updateFamily, getFamilyById, t, darkMode, language } = useData();
   const { addToast } = useToast();
+  const { currentUser, userProfile } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const [family, setFamily] = useState(emptyFamily);
+  const [gpsLoading, setGpsLoading] = useState(false);
+  const [gpsError, setGpsError] = useState('');
 
   // Check if editing
   useEffect(() => {
@@ -103,13 +117,53 @@ export function NewSurvey() {
     }
   };
 
+  const handleCaptureGps = () => {
+    if (!navigator.geolocation) {
+      setGpsError(language === 'hi' ? 'आपके डिवाइस में जीपीएस समर्थित नहीं है।' : 'Geolocation is not supported by your browser.');
+      return;
+    }
+    setGpsLoading(true);
+    setGpsError('');
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude, accuracy } = pos.coords;
+        setFamily(prev => ({
+          ...prev,
+          latitude: latitude.toFixed(6),
+          longitude: longitude.toFixed(6),
+          gpsAccuracy: Math.round(accuracy),
+          gpsTimestamp: new Date().toISOString()
+        }));
+        setGpsLoading(false);
+        addToast(language === 'hi' ? 'जीपीएस लोकेशन सफलतापूर्वक प्राप्त हुई!' : 'GPS coordinates captured!', 'success');
+      },
+      (err) => {
+        setGpsLoading(false);
+        let msg = 'Failed to get location';
+        if (err.code === 1) msg = language === 'hi' ? 'लोकेशन की अनुमति अस्वीकृत की गई।' : 'Location permission denied.';
+        else if (err.code === 2) msg = language === 'hi' ? 'लोकेशन अनुपलब्ध है।' : 'Location unavailable.';
+        else if (err.code === 3) msg = language === 'hi' ? 'लोकेशन अनुरोध का समय समाप्त हुआ।' : 'Location request timed out.';
+        setGpsError(msg);
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
+    );
+  };
+
   const handleSubmit = () => {
+    const enrichedFamily = {
+      ...family,
+      surveyorId: family.surveyorId || currentUser?.uid || '',
+      surveyorName: family.surveyorName || userProfile?.name || currentUser?.email?.split('@')[0] || 'Admin',
+      surveyorEmail: family.surveyorEmail || currentUser?.email || '',
+      updatedAt: new Date().toISOString()
+    };
     if (id) {
-      updateFamily(id, family);
-      addToast('Family updated successfully!', 'success');
+      updateFamily(id, enrichedFamily);
+      addToast(language === 'hi' ? 'रिकॉर्ड सफलतापूर्वक अपडेट हुआ!' : 'Family updated successfully!', 'success');
     } else {
-      addFamily(family);
-      addToast('Family added successfully!', 'success');
+      addFamily(enrichedFamily);
+      addToast(language === 'hi' ? 'सर्वे सफलतापूर्वक सबमिट हुआ!' : 'Family added successfully!', 'success');
     }
     navigate('/families');
   };
@@ -209,6 +263,69 @@ export function NewSurvey() {
                   value={family.address}
                   onChange={(v) => setFamily(p => ({ ...p, address: v }))}
                 />
+              </div>
+
+              {/* GPS Geotagging Section */}
+              <div className="md:col-span-2 p-5 rounded-2xl border border-dashed border-green-500/50 bg-green-50/50 dark:bg-green-950/20">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <MapPin className="w-5 h-5 text-green-600 dark:text-green-400" />
+                      <h4 className="font-semibold text-gray-900 dark:text-white">
+                        {language === 'hi' ? 'घर की जीपीएस लोकेशन (GPS Geotagging)' : 'House GPS Location (Geotagging)'}
+                      </h4>
+                    </div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      {language === 'hi'
+                        ? 'गाँव के घर के सामने खड़े होकर वर्तमान जीपीएस लोकेशन कैप्चर करें।'
+                        : 'Capture exact GPS coordinates standing in front of the house.'}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleCaptureGps}
+                    disabled={gpsLoading}
+                    className="flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl text-xs font-semibold shadow-md transition-all shrink-0 disabled:opacity-60"
+                  >
+                    {gpsLoading ? (
+                      <>
+                        <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <span>{language === 'hi' ? 'लोकेशन ले रहे हैं...' : 'Capturing GPS...'}</span>
+                      </>
+                    ) : (
+                      <>
+                        <Navigation className="w-3.5 h-3.5" />
+                        <span>{language === 'hi' ? 'वर्तमान लोकेशन लें' : 'Capture Current GPS'}</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {gpsError && (
+                  <p className="mt-3 text-xs text-red-600 dark:text-red-400 font-medium">
+                    ⚠️ {gpsError}
+                  </p>
+                )}
+
+                {family.latitude && family.longitude && (
+                  <div className="mt-4 pt-3 border-t border-green-200 dark:border-green-800 flex flex-wrap items-center justify-between gap-2 text-xs">
+                    <div className="flex items-center gap-2 text-green-700 dark:text-green-300 font-mono font-medium">
+                      <span>✓ Lat: {family.latitude}</span>
+                      <span>•</span>
+                      <span>Lng: {family.longitude}</span>
+                      {family.gpsAccuracy && <span className="text-gray-500 font-sans">(±{family.gpsAccuracy}m)</span>}
+                    </div>
+                    <a
+                      href={`https://maps.google.com/?q=${family.latitude},${family.longitude}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-indigo-600 dark:text-indigo-400 hover:underline font-medium"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      {language === 'hi' ? 'गूगल मैप्स पर देखें' : 'View on Google Maps'}
+                    </a>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -386,6 +503,8 @@ export function NewSurvey() {
                 <ReviewItem label="Mobile" value={family.mobile} />
                 <ReviewItem label="Mohalla" value={family.mohalla} />
                 <ReviewItem label="Caste" value={family.caste} />
+                <ReviewItem label="GPS Location" value={family.latitude ? `${family.latitude}, ${family.longitude}` : 'Not captured'} />
+                <ReviewItem label="Surveyor" value={userProfile?.name || currentUser?.email || 'Admin'} />
                 <ReviewItem label="Bank" value={family.bankName} />
                 <ReviewItem label="Members" value={family.members.length} />
               </div>
