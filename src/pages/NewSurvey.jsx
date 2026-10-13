@@ -382,7 +382,7 @@ export function NewSurvey() {
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Review & Submit</h2>
             <div className={`p-6 rounded-2xl border ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <ReviewItem label="Family Head" value={family.familyHeadName} />
+                <ReviewItem label="Family Head" value={family.familyHeadNameEnglish || family.familyHeadNameHindi || family.familyHeadName} />
                 <ReviewItem label="Mobile" value={family.mobile} />
                 <ReviewItem label="Mohalla" value={family.mohalla} />
                 <ReviewItem label="Caste" value={family.caste} />

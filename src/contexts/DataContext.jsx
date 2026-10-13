@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useCallback } from 'react';
+import React, { createContext, useContext, useCallback, useMemo } from 'react';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { initialFamilies } from '../data/villageData';
 import { mohallas as initialMohallas } from '../data/mohallas';
@@ -7,6 +7,36 @@ import { translations } from '../utils/translations';
 
 const DataContext = createContext();
 
+const normalizeFamily = (f) => {
+  if (!f) return f;
+  const headNameEn = f.familyHeadNameEnglish || f.familyHeadName || '';
+  const headNameHi = f.familyHeadNameHindi || f.familyHeadName || '';
+  const headName = f.familyHeadName || headNameEn || headNameHi || 'Unknown';
+  const fatherNameEn = f.fatherNameEnglish || f.fatherName || '';
+  const fatherNameHi = f.fatherNameHindi || f.fatherName || '';
+  const fatherName = f.fatherName || fatherNameEn || fatherNameHi || '';
+
+  return {
+    ...f,
+    familyHeadName: headName,
+    familyHeadNameEnglish: headNameEn || headName,
+    familyHeadNameHindi: headNameHi || headName,
+    fatherName,
+    fatherNameEnglish: fatherNameEn || fatherName,
+    fatherNameHindi: fatherNameHi || fatherName,
+    members: (f.members || []).map((m, idx) => {
+      const nameEn = m.nameEnglish || m.name || `Member ${idx + 1}`;
+      const nameHi = m.nameHindi || m.name || `सदस्य ${idx + 1}`;
+      return {
+        ...m,
+        name: m.name || nameEn || nameHi,
+        nameEnglish: nameEn,
+        nameHindi: nameHi
+      };
+    })
+  };
+};
+
 export function DataProvider({ children }) {
   const [families, setFamilies] = useLocalStorage('grampulse-families', initialFamilies);
   const [deletedFamilies, setDeletedFamilies] = useLocalStorage('grampulse-deleted-families', []);
@@ -14,6 +44,14 @@ export function DataProvider({ children }) {
   const [castes, setCastes] = useLocalStorage('grampulse-castes', initialCastes);
   const [darkMode, setDarkMode] = useLocalStorage('grampulse-darkmode', false);
   const [language, setLanguage] = useLocalStorage('grampulse-language', 'en');
+
+  const normalizedFamilies = useMemo(() => {
+    return (families || []).map(normalizeFamily);
+  }, [families]);
+
+  const normalizedDeletedFamilies = useMemo(() => {
+    return (deletedFamilies || []).map(normalizeFamily);
+  }, [deletedFamilies]);
   
   // Translation function
   const t = useCallback((key) => {
@@ -122,8 +160,8 @@ export function DataProvider({ children }) {
 
   return (
     <DataContext.Provider value={{
-      families,
-      deletedFamilies,
+      families: normalizedFamilies,
+      deletedFamilies: normalizedDeletedFamilies,
       mohallas,
       castes,
       darkMode,

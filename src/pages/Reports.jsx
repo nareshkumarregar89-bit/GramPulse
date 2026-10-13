@@ -105,7 +105,7 @@ export function Reports() {
     const excelData = data.flatMap(family => {
       return family.members.map(member => ({
         'Family ID': family.id,
-        'Family Head Name': family.familyHeadName,
+        'Family Head Name': family.familyHeadNameEnglish || family.familyHeadNameHindi || family.familyHeadName || '',
         'Father/Husband Name': family.fatherName || '',
         'Mobile Number': family.mobile,
         'Alternate Mobile': family.alternateMobile || '',
@@ -198,7 +198,7 @@ export function Reports() {
       // Family Header
       doc.setFontSize(14);
       doc.setFont(undefined, 'bold');
-      doc.text(`${idx + 1}. Family: ${family.familyHeadName}`, 14, yPos);
+      doc.text(`${idx + 1}. Family: ${family.familyHeadNameEnglish || family.familyHeadNameHindi || family.familyHeadName || 'Family'}`, 14, yPos);
       yPos += 8;
       doc.setFont(undefined, 'normal');
       doc.setFontSize(10);

@@ -37,7 +37,7 @@ export function FamilyProfile() {
     printWindow.document.write(`
       <html>
         <head>
-          <title>${family.familyHeadName} - Family Details</title>
+          <title>${family.familyHeadNameEnglish || family.familyHeadNameHindi || family.familyHeadName || 'Family'} - Family Details</title>
           <style>
             body { font-family: Arial, sans-serif; padding: 40px; max-width: 800px; margin: 0 auto; }
             h1 { color: #16a34a; }
@@ -55,7 +55,7 @@ export function FamilyProfile() {
           
           <div class="section">
             <h2>Family Information</h2>
-            <p><span class="label">Family Head:</span> ${family.familyHeadName}</p>
+            <p><span class="label">Family Head:</span> ${family.familyHeadNameEnglish || family.familyHeadNameHindi || family.familyHeadName || '-'}</p>
             <p><span class="label">Father/Husband:</span> ${family.fatherName || '-'}</p>
             <p><span class="label">Mobile:</span> ${family.mobile}</p>
             <p><span class="label">Alternate Mobile:</span> ${family.alternateMobile || '-'}</p>
@@ -128,7 +128,9 @@ export function FamilyProfile() {
             <ChevronLeft className="w-6 h-6 text-gray-600 dark:text-gray-300" />
           </button>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{family.familyHeadName}</h1>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+              {family.familyHeadNameEnglish || family.familyHeadNameHindi || family.familyHeadName || 'Family'}
+            </h1>
             <p className="text-gray-600 dark:text-gray-400">{family.id}</p>
           </div>
         </div>
@@ -174,8 +176,8 @@ export function FamilyProfile() {
       {/* Family Information */}
       <ProfileSection title="Family Information" icon={User}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <ProfileItem label="Family Head Name" value={family.familyHeadName} />
-          <ProfileItem label="Father/Husband Name" value={family.fatherName} />
+          <ProfileItem label="Family Head Name" value={family.familyHeadNameEnglish || family.familyHeadNameHindi || family.familyHeadName} />
+          <ProfileItem label="Father/Husband Name" value={family.fatherNameEnglish || family.fatherNameHindi || family.fatherName} />
           <ProfileItem label="Mobile Number" value={family.mobile} />
           <ProfileItem label="Alternate Mobile" value={family.alternateMobile} />
           <ProfileItem label="Mohalla" value={family.mohalla} />
@@ -233,10 +235,12 @@ export function FamilyProfile() {
             >
               <div className="flex items-center gap-3 mb-3">
                 <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-500 to-indigo-600 flex items-center justify-center text-white font-bold">
-                  {member.name.charAt(0)}
+                  {(member.nameEnglish || member.nameHindi || member.name || 'M').charAt(0)}
                 </div>
                 <div>
-                  <h4 className="font-semibold text-gray-900 dark:text-white">{member.name}</h4>
+                  <h4 className="font-semibold text-gray-900 dark:text-white">
+                    {member.nameEnglish || member.nameHindi || member.name}
+                  </h4>
                   <p className="text-sm text-gray-500 dark:text-gray-400">{member.relation}</p>
                 </div>
               </div>

@@ -37,7 +37,7 @@ export function Families() {
     printWindow.document.write(`
       <html>
         <head>
-          <title>${family.familyHeadName} - Family Details</title>
+          <title>${family.familyHeadNameEnglish || family.familyHeadNameHindi || family.familyHeadName || 'Family'} - Family Details</title>
           <style>
             body { font-family: Arial, sans-serif; padding: 40px; }
             h1 { color: #16a34a; }
@@ -50,7 +50,7 @@ export function Families() {
           <div class="section">
             <h2>Family Information</h2>
             <p><span class="label">Family ID:</span> ${family.id}</p>
-            <p><span class="label">Family Head:</span> ${family.familyHeadName}</p>
+            <p><span class="label">Family Head:</span> ${family.familyHeadNameEnglish || family.familyHeadNameHindi || family.familyHeadName || '-'}</p>
             <p><span class="label">Mobile:</span> ${family.mobile}</p>
             <p><span class="label">Mohalla:</span> ${family.mohalla}</p>
             <p><span class="label">Caste:</span> ${family.caste}</p>

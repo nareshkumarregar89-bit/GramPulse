@@ -243,10 +243,14 @@ export function Dashboard() {
                 className={`flex items-center gap-4 p-3 rounded-xl cursor-pointer transition-colors ${darkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-50'}`}
               >
                 <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-500 to-indigo-600 flex items-center justify-center text-white font-bold">
-                  {family.familyHeadName.charAt(0)}
+                  {(family.familyHeadNameEnglish || family.familyHeadNameHindi || family.familyHeadName || 'F').charAt(0)}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-gray-900 dark:text-white truncate">{family.familyHeadName}</p>
+                  <p className="font-medium text-gray-900 dark:text-white truncate">
+                    {language === 'hi'
+                      ? (family.familyHeadNameHindi || family.familyHeadNameEnglish || family.familyHeadName || 'Unknown')
+                      : (family.familyHeadNameEnglish || family.familyHeadNameHindi || family.familyHeadName || 'Unknown')}
+                  </p>
                   <p className="text-sm text-gray-500 dark:text-gray-400">{family.mohalla}</p>
                 </div>
                 <div className="text-right">

@@ -18,14 +18,20 @@ export function Search() {
 
   const filteredFamilies = families.filter(family => {
     const matchesQuery = query === '' || (
-      family.familyHeadName.toLowerCase().includes(query.toLowerCase()) ||
-      family.mobile.includes(query) ||
+      (family.familyHeadName && family.familyHeadName.toLowerCase().includes(query.toLowerCase())) ||
+      (family.familyHeadNameEnglish && family.familyHeadNameEnglish.toLowerCase().includes(query.toLowerCase())) ||
+      (family.familyHeadNameHindi && family.familyHeadNameHindi.includes(query)) ||
+      (family.mobile && family.mobile.includes(query)) ||
       family.aadhaarNumber?.includes(query) ||
       family.janAadhaarNumber?.includes(query) ||
       family.rationCardNumber?.includes(query) ||
       family.bankName?.toLowerCase().includes(query.toLowerCase()) ||
       family.accountNumber?.includes(query) ||
-      family.members.some(m => m.name.toLowerCase().includes(query.toLowerCase()))
+      family.members.some(m => 
+        (m.name && m.name.toLowerCase().includes(query.toLowerCase())) ||
+        (m.nameEnglish && m.nameEnglish.toLowerCase().includes(query.toLowerCase())) ||
+        (m.nameHindi && m.nameHindi.includes(query))
+      )
     );
 
     const matchesMohalla = filters.mohalla === '' || family.mohalla === filters.mohalla;
@@ -142,10 +148,12 @@ export function Search() {
             <div className="flex flex-col md:flex-row md:items-center gap-4">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-full bg-gradient-to-br from-green-500 to-indigo-600 flex items-center justify-center text-white font-bold text-xl">
-                  {family.familyHeadName.charAt(0)}
+                  {(family.familyHeadNameEnglish || family.familyHeadNameHindi || family.familyHeadName || 'F').charAt(0)}
                 </div>
                 <div>
-                  <h3 className="font-semibold text-gray-900 dark:text-white">{family.familyHeadName}</h3>
+                  <h3 className="font-semibold text-gray-900 dark:text-white">
+                    {family.familyHeadNameEnglish || family.familyHeadNameHindi || family.familyHeadName || 'Unknown'}
+                  </h3>
                   <p className="text-sm text-gray-500 dark:text-gray-400">{family.id}</p>
                 </div>
               </div>

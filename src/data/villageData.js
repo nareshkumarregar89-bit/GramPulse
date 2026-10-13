@@ -48,6 +48,7 @@ const generateRandomFamily = (id) => {
   // Add family head as first member
   members.push({
     id: `${id}-1`,
+    name: familyHeadEn,
     nameEnglish: familyHeadEn,
     nameHindi: familyHeadHi,
     age: randomNumber(35, 60),
@@ -61,10 +62,13 @@ const generateRandomFamily = (id) => {
 
   // Add spouse
   const spouseFnIdx = Math.floor(Math.random() * 20) + 20;
+  const spouseNameEn = firstNamesEn[spouseFnIdx] + " " + lastNamesEn[lnIdx];
+  const spouseNameHi = firstNamesHi[spouseFnIdx] + " " + lastNamesHi[lnIdx];
   members.push({
     id: `${id}-2`,
-    nameEnglish: firstNamesEn[spouseFnIdx] + " " + lastNamesEn[lnIdx],
-    nameHindi: firstNamesHi[spouseFnIdx] + " " + lastNamesHi[lnIdx],
+    name: spouseNameEn,
+    nameEnglish: spouseNameEn,
+    nameHindi: spouseNameHi,
     age: randomNumber(30, 55),
     gender: "Female",
     relation: "Wife",
@@ -78,10 +82,13 @@ const generateRandomFamily = (id) => {
   for (let i = 2; i < memberCount; i++) {
     const gender = randomItem(genders);
     const childFnIdx = Math.floor(Math.random() * 20) + (gender === "Male" ? 0 : 20);
+    const childNameEn = firstNamesEn[childFnIdx] + " " + lastNamesEn[lnIdx];
+    const childNameHi = firstNamesHi[childFnIdx] + " " + lastNamesHi[lnIdx];
     members.push({
       id: `${id}-${i + 1}`,
-      nameEnglish: firstNamesEn[childFnIdx] + " " + lastNamesEn[lnIdx],
-      nameHindi: firstNamesHi[childFnIdx] + " " + lastNamesHi[lnIdx],
+      name: childNameEn,
+      nameEnglish: childNameEn,
+      nameHindi: childNameHi,
       age: randomNumber(1, 25),
       gender,
       relation: gender === "Male" ? "Son" : "Daughter",
@@ -93,12 +100,16 @@ const generateRandomFamily = (id) => {
   }
 
   const fatherFnIdx = Math.floor(Math.random() * 20);
+  const fatherNameEn = firstNamesEn[fatherFnIdx] + " " + lastNamesEn[lnIdx];
+  const fatherNameHi = firstNamesHi[fatherFnIdx] + " " + lastNamesHi[lnIdx];
   return {
     id: `FAM-${String(id).padStart(4, '0')}`,
+    familyHeadName: familyHeadEn,
     familyHeadNameEnglish: familyHeadEn,
     familyHeadNameHindi: familyHeadHi,
-    fatherNameEnglish: firstNamesEn[fatherFnIdx] + " " + lastNamesEn[lnIdx],
-    fatherNameHindi: firstNamesHi[fatherFnIdx] + " " + lastNamesHi[lnIdx],
+    fatherName: fatherNameEn,
+    fatherNameEnglish: fatherNameEn,
+    fatherNameHindi: fatherNameHi,
     mobile: `+91 ${randomNumber(60000, 99999)} ${randomNumber(0, 9)}${randomNumber(0, 9)}${randomNumber(0, 9)}${randomNumber(0, 9)}${randomNumber(0, 9)}`,
     alternateMobile: `+91 ${randomNumber(60000, 99999)} ${randomNumber(0, 9)}${randomNumber(0, 9)}${randomNumber(0, 9)}${randomNumber(0, 9)}${randomNumber(0, 9)}`,
     mohalla,
