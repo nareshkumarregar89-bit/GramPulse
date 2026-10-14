@@ -66,6 +66,15 @@ export function DataProvider({ children }) {
   const [language, setLanguage] = useLocalStorage('grampulse-language', 'en');
   const [isFirebaseConnected, setIsFirebaseConnected] = useState(false);
 
+  // Sync dark class on html root element for Tailwind dark: variants
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [darkMode]);
+
   // Real-time Firestore sync for families
   useEffect(() => {
     try {

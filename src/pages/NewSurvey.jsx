@@ -22,13 +22,13 @@ import { useToast } from '../contexts/ToastContext';
 import { useAuth } from '../contexts/AuthContext';
 
 const steps = [
-  { id: 1, label: 'Family Info', icon: User },
-  { id: 2, label: 'Documents', icon: FileText },
-  { id: 3, label: 'Bank Details', icon: Banknote },
-  { id: 4, label: 'House Info', icon: Home },
-  { id: 5, label: 'Members', icon: Users },
-  { id: 6, label: 'Photos', icon: Image },
-  { id: 7, label: 'Review', icon: CheckCircle },
+  { id: 1, label: 'Family Info', labelHi: 'परिवार विवरण', icon: User },
+  { id: 2, label: 'Documents', labelHi: 'दस्तावेज़', icon: FileText },
+  { id: 3, label: 'Bank Details', labelHi: 'बैंक विवरण', icon: Banknote },
+  { id: 4, label: 'House Info', labelHi: 'आवास विवरण', icon: Home },
+  { id: 5, label: 'Members', labelHi: 'सदस्य', icon: Users },
+  { id: 6, label: 'Photos', labelHi: 'फ़ोटो', icon: Image },
+  { id: 7, label: 'Review', labelHi: 'समीक्षा', icon: CheckCircle },
 ];
 
 const emptyMember = {
@@ -549,63 +549,111 @@ export function NewSurvey() {
       </div>
 
       {/* Progress Steps */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between">
-          {steps.map((step, index) => (
-            <div key={step.id} className="flex flex-col items-center">
-              <div
-                className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold transition-all ${
-                  currentStep > step.id
-                    ? 'bg-green-500 text-white'
-                    : currentStep === step.id
-                      ? 'bg-gradient-to-r from-green-500 to-indigo-600 text-white scale-110'
-                      : darkMode
-                        ? 'bg-gray-800 text-gray-500'
-                        : 'bg-gray-200 text-gray-500'
-                }`}
-              >
-                {currentStep > step.id ? <Check className="w-5 h-5" /> : step.id}
-              </div>
-              <p className={`mt-2 text-xs font-medium text-center ${currentStep >= step.id ? 'text-gray-900 dark:text-white' : 'text-gray-500'}`}>
-                {step.label}
-              </p>
+      <div className="mb-6">
+        {/* Mobile Stepper */}
+        <div className="block md:hidden">
+          <div className={`p-4 rounded-2xl border mb-3 ${darkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'} shadow-xs`}>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold uppercase tracking-wider text-green-600 dark:text-green-400">
+                {language === 'hi' ? `चरण ${currentStep} / ${steps.length}` : `Step ${currentStep} of ${steps.length}`}
+              </span>
+              <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-green-500/10 text-green-600 dark:text-green-400">
+                {Math.round((currentStep / steps.length) * 100)}%
+              </span>
             </div>
-          ))}
+            <div className="flex items-center gap-2 mb-3">
+              {(() => {
+                const stepObj = steps.find(s => s.id === currentStep) || steps[0];
+                const StepIcon = stepObj.icon || User;
+                return (
+                  <>
+                    <div className="p-1.5 rounded-lg bg-green-500/15 text-green-600 dark:text-green-400">
+                      <StepIcon className="w-4 h-4" />
+                    </div>
+                    <h2 className="text-base font-bold text-gray-900 dark:text-white truncate">
+                      {language === 'hi' ? stepObj.labelHi : stepObj.label}
+                    </h2>
+                  </>
+                );
+              })()}
+            </div>
+            {/* Step mini-pills */}
+            <div className="grid grid-cols-7 gap-1.5">
+              {steps.map((step) => (
+                <div
+                  key={step.id}
+                  className={`h-1.5 rounded-full transition-all duration-300 ${
+                    currentStep > step.id
+                      ? 'bg-green-500'
+                      : currentStep === step.id
+                        ? 'bg-gradient-to-r from-green-500 to-indigo-600'
+                        : darkMode ? 'bg-gray-800' : 'bg-gray-200'
+                  }`}
+                />
+              ))}
+            </div>
+          </div>
         </div>
-        <div className="relative mt-4 h-1 bg-gray-200 dark:bg-gray-800 rounded-full">
-          <div
-            className="absolute top-0 left-0 h-full bg-gradient-to-r from-green-500 to-indigo-600 rounded-full transition-all"
-            style={{ width: `${((currentStep - 1) / (steps.length - 1)) * 100}%` }}
-          />
+
+        {/* Desktop Stepper */}
+        <div className="hidden md:block">
+          <div className="flex items-center justify-between">
+            {steps.map((step) => (
+              <div key={step.id} className="flex flex-col items-center">
+                <div
+                  className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold transition-all ${
+                    currentStep > step.id
+                      ? 'bg-green-500 text-white'
+                      : currentStep === step.id
+                        ? 'bg-gradient-to-r from-green-500 to-indigo-600 text-white scale-110 shadow-md shadow-green-500/20'
+                        : darkMode
+                          ? 'bg-gray-800 text-gray-400'
+                          : 'bg-gray-100 text-gray-500'
+                  }`}
+                >
+                  {currentStep > step.id ? <Check className="w-5 h-5" /> : step.id}
+                </div>
+                <p className={`mt-2 text-xs font-medium text-center ${currentStep >= step.id ? 'text-gray-900 dark:text-white font-semibold' : 'text-gray-500'}`}>
+                  {language === 'hi' ? step.labelHi : step.label}
+                </p>
+              </div>
+            ))}
+          </div>
+          <div className="relative mt-4 h-1.5 bg-gray-200 dark:bg-gray-800 rounded-full overflow-hidden">
+            <div
+              className="absolute top-0 left-0 h-full bg-gradient-to-r from-green-500 to-indigo-600 rounded-full transition-all duration-300"
+              style={{ width: `${((currentStep - 1) / (steps.length - 1)) * 100}%` }}
+            />
+          </div>
         </div>
       </div>
 
-      <div className={`p-6 rounded-2xl border ${darkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
+      <div className={`p-4 sm:p-6 rounded-2xl border transition-colors ${darkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'} shadow-xs`}>
         {renderStep()}
       </div>
 
-      <div className="flex justify-between mt-6">
+      <div className="flex justify-between items-center mt-6 gap-3">
         <button
           onClick={handlePrev}
           disabled={currentStep === 1}
-          className={`flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all ${
+          className={`flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl font-medium text-sm sm:text-base transition-all ${
             currentStep === 1
-              ? 'opacity-50 cursor-not-allowed'
+              ? 'opacity-40 cursor-not-allowed'
               : darkMode
                 ? 'bg-gray-800 text-white hover:bg-gray-700'
                 : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
           }`}
         >
-          <ChevronLeft className="w-5 h-5" />
-          Previous
+          <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
+          <span>{language === 'hi' ? 'पिछला' : 'Previous'}</span>
         </button>
         {currentStep < steps.length && (
           <button
             onClick={handleNext}
-            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-500 to-indigo-600 text-white rounded-xl font-medium hover:shadow-lg hover:shadow-green-500/25 transition-all"
+            className="flex items-center justify-center gap-2 px-5 sm:px-7 py-2.5 sm:py-3 bg-gradient-to-r from-green-500 to-indigo-600 text-white rounded-xl font-medium text-sm sm:text-base hover:shadow-lg hover:shadow-green-500/25 transition-all"
           >
-            Next
-            <ChevronRight className="w-5 h-5" />
+            <span>{language === 'hi' ? 'अगला' : 'Next'}</span>
+            <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
         )}
       </div>

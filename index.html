@@ -11,6 +11,18 @@
     <meta name="apple-mobile-web-app-title" content="GramPulse" />
     <link rel="apple-touch-icon" href="/logo.png" />
     <title>GramPulse | Village Survey Management</title>
+    <script>
+      (function() {
+        try {
+          var isDark = localStorage.getItem('grampulse-darkmode');
+          if (isDark === 'true') {
+            document.documentElement.classList.add('dark');
+          } else {
+            document.documentElement.classList.remove('dark');
+          }
+        } catch(e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

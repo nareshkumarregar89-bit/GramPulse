@@ -9,20 +9,20 @@ export function Layout({ children }) {
   const { darkMode } = useData();
 
   return (
-    <div className={`min-h-screen ${darkMode ? 'bg-gray-950' : 'bg-gray-50'}`}>
+    <div className={`min-h-screen ${darkMode ? 'bg-gray-950 text-white' : 'bg-gray-50 text-gray-900'} transition-colors duration-200`}>
       <Sidebar isMobileOpen={isMobileSidebarOpen} setIsMobileOpen={setIsMobileSidebarOpen} />
       
       {/* Mobile sidebar overlay */}
       {isMobileSidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-30 md:hidden"
+          className="fixed inset-0 bg-black/60 backdrop-blur-xs z-30 md:hidden"
           onClick={() => setIsMobileSidebarOpen(false)}
         />
       )}
 
       <div className="md:ml-64">
         <TopNavbar setIsMobileSidebarOpen={setIsMobileSidebarOpen} />
-        <main className="p-4 md:p-6 pb-24 md:pb-6">
+        <main className="p-3.5 sm:p-5 md:p-6 pb-28 md:pb-8 max-w-7xl mx-auto">
           {children}
         </main>
       </div>
