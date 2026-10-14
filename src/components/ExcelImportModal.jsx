@@ -43,7 +43,7 @@ export function ExcelImportModal({ isOpen, onClose }) {
 
   // Generate & Download sample Excel template
   const handleDownloadTemplate = () => {
-    const sampleVillage = allowedVillages[0] || 'रामपुरा (Rampura)';
+    const sampleVillage = allowedVillages[0] || 'समोड़ी (Samodi)';
     const sampleRows = [
       {
         'Village Name': sampleVillage,

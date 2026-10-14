@@ -8,15 +8,16 @@ import {
   BarChart3,
   Search,
   Settings,
-  Menu,
   Trash2,
   UserCheck,
-  User
+  User,
+  ShieldCheck,
+  Building2
 } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
 import { useAuth } from '../contexts/AuthContext';
 
-const navItems = [
+const generalNavItems = [
   { path: '/', icon: Home, labelKey: 'dashboard' },
   { path: '/survey', icon: FileText, labelKey: 'new_survey' },
   { path: '/families', icon: Users, labelKey: 'families' },
@@ -25,16 +26,19 @@ const navItems = [
   { path: '/reports', icon: BarChart3, labelKey: 'reports' },
   { path: '/search', icon: Search, labelKey: 'search' },
   { path: '/profile', icon: User, labelKey: 'profile' },
-  { path: '/users', icon: UserCheck, labelKey: 'user_management', adminOnly: true },
-  { path: '/deleted-records', icon: Trash2, labelKey: 'deleted_records', adminOnly: true },
-  { path: '/settings', icon: Settings, labelKey: 'settings', adminOnly: true },
+];
+
+const adminNavItems = [
+  { path: '/admin', icon: ShieldCheck, labelKey: 'admin_panel' },
+  { path: '/admin/villages', icon: Building2, labelKey: 'village_management' },
+  { path: '/users', icon: UserCheck, labelKey: 'user_management' },
+  { path: '/deleted-records', icon: Trash2, labelKey: 'deleted_records' },
+  { path: '/settings', icon: Settings, labelKey: 'settings' },
 ];
 
 export function Sidebar({ isMobileOpen, setIsMobileOpen }) {
-  const { darkMode, t } = useData();
+  const { darkMode, language, t } = useData();
   const { isAdmin } = useAuth();
-
-  const visibleNavItems = navItems.filter(item => !item.adminOnly || isAdmin);
 
   const handleLinkClick = () => {
     if (setIsMobileOpen) {
@@ -48,47 +52,92 @@ export function Sidebar({ isMobileOpen, setIsMobileOpen }) {
       ${isMobileOpen ? 'translate-x-0' : '-translate-x-full'}
       md:translate-x-0
       ${darkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}
-      border-r
+      border-r flex flex-col justify-between
     `}>
-      <div className="h-16 flex items-center px-6 border-b border-gray-200 dark:border-gray-800">
-        <div className="flex items-center gap-3">
-          <img 
-            src="/logo.png" 
-            alt="GramPulse Logo" 
-            className="w-10 h-10 object-contain rounded-xl shadow-sm" 
-          />
-          <div>
-            <h1 className="text-lg font-bold text-gray-900 dark:text-white">GramPulse</h1>
-            <p className="text-xs text-gray-500 dark:text-gray-400">Village Survey System</p>
+      <div>
+        {/* Brand Header */}
+        <div className="h-16 flex items-center px-6 border-b border-gray-200 dark:border-gray-800">
+          <div className="flex items-center gap-3">
+            <img 
+              src="/logo.png" 
+              alt="GramPulse Logo" 
+              className="w-10 h-10 object-contain rounded-xl shadow-xs" 
+            />
+            <div>
+              <h1 className="text-lg font-bold text-gray-900 dark:text-white">GramPulse</h1>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Village Survey System</p>
+            </div>
           </div>
         </div>
+
+        {/* Navigation list */}
+        <nav className="p-4 space-y-1 overflow-y-auto max-h-[calc(100vh-8.5rem)] scrollbar-hide">
+          {/* General Survey Items (Available to all authenticated users) */}
+          {generalNavItems.map((item) => (
+            <NavLink
+              key={item.path}
+              to={item.path}
+              onClick={handleLinkClick}
+              end={item.path === '/'}
+              className={({ isActive }) => `
+                flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-all text-sm font-medium
+                ${isActive
+                  ? 'bg-gradient-to-r from-green-500 to-indigo-600 text-white shadow-md shadow-green-500/20'
+                  : darkMode
+                    ? 'text-gray-400 hover:text-white hover:bg-gray-800'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                }
+              `}
+            >
+              <item.icon className="w-4 h-4 shrink-0" />
+              <span>{t(item.labelKey)}</span>
+            </NavLink>
+          ))}
+
+          {/* Secure Admin Section (Strictly restricted to Admin role) */}
+          {isAdmin && (
+            <div className="pt-3 mt-3 border-t border-gray-200 dark:border-gray-800">
+              <div className="px-3 pb-2 flex items-center justify-between">
+                <span className="text-[10px] font-extrabold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
+                  {language === 'hi' ? 'प्रशासनिक नियंत्रण' : 'Admin Controls'}
+                </span>
+                <span className="text-[9px] px-1.5 py-0.5 rounded font-black bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
+                  ADMIN
+                </span>
+              </div>
+
+              <div className="space-y-1">
+                {adminNavItems.map((item) => (
+                  <NavLink
+                    key={item.path}
+                    to={item.path}
+                    onClick={handleLinkClick}
+                    end={item.path === '/admin'}
+                    className={({ isActive }) => `
+                      flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-all text-sm font-medium
+                      ${isActive
+                        ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/25 font-semibold'
+                        : darkMode
+                          ? 'text-gray-400 hover:text-white hover:bg-gray-800'
+                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                      }
+                    `}
+                  >
+                    <item.icon className="w-4 h-4 shrink-0" />
+                    <span>{t(item.labelKey)}</span>
+                  </NavLink>
+                ))}
+              </div>
+            </div>
+          )}
+        </nav>
       </div>
-      <nav className="p-4 space-y-1 overflow-y-auto max-h-[calc(100vh-8.5rem)] scrollbar-hide">
-        {visibleNavItems.map((item) => (
-          <NavLink
-            key={item.path}
-            to={item.path}
-            onClick={handleLinkClick}
-            end={item.path === '/'}
-            className={({ isActive }) => `
-              flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-base font-medium
-              ${isActive
-                ? 'bg-gradient-to-r from-green-500 to-indigo-600 text-white shadow-lg shadow-green-500/25'
-                : darkMode
-                  ? 'text-gray-400 hover:text-white hover:bg-gray-800'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-              }
-            `}
-          >
-            <item.icon className="w-5 h-5" />
-            {t(item.labelKey)}
-          </NavLink>
-        ))}
-      </nav>
-      <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200 dark:border-gray-800">
+
+      {/* Footer Branding */}
+      <div className="p-4 border-t border-gray-200 dark:border-gray-800">
         <div className="text-center text-xs text-gray-500 dark:text-gray-400">
-          <p>© 2026 GramPulse</p>
-          <p className="mt-1">Smart Village Survey & Family Records</p>
+          <p className="font-semibold">GramPulse v2.0</p>
+          <p className="mt-0.5 text-[10px]">Smart Village Survey & Family Records</p>
         </div>
       </div>
     </aside>

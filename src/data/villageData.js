@@ -136,6 +136,8 @@ const generateRandomFamily = (id) => {
     gasConnection: Math.random() > 0.5,
     familyPhoto: null,
     housePhoto: null,
+    village: id % 2 === 0 ? 'समोड़ी (Samodi)' : 'कोटड़ी (Kotdi)',
+    villageId: id % 2 === 0 ? 'samodi' : 'kotdi',
     members,
     createdAt: new Date(Date.now() - Math.floor(Math.random() * 365 * 24 * 60 * 60 * 1000)).toISOString()
   };

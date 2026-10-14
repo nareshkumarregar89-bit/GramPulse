@@ -109,7 +109,7 @@ export function PrintDocument({
                       )}
                     </td>
                     <td className="border border-gray-800 px-2 py-1 text-gray-800">{father}</td>
-                    <td className="border border-gray-800 px-2 py-1 text-gray-800">{f.village || 'रामपुरा'}</td>
+                    <td className="border border-gray-800 px-2 py-1 text-gray-800">{f.village || '-'}</td>
                     <td className="border border-gray-800 px-2 py-1 text-gray-800">{f.mohalla || '-'}</td>
                     <td className="border border-gray-800 px-2 py-1 text-gray-800">{f.caste || '-'}</td>
                     <td className="border border-gray-800 px-2 py-1 font-mono text-gray-800">{f.mobile || '-'}</td>
@@ -165,7 +165,7 @@ export function PrintDocument({
                           {language === 'hi' ? 'परिवार सर्वेक्षण प्रपत्र एवं विवरण पत्र' : 'FAMILY SURVEY DOSSIER & RECORD CARD'}
                         </h2>
                         <p className="text-xs font-semibold text-gray-700">
-                          {language === 'hi' ? 'ग्राम पंचायत:' : 'Gram Panchayat:'} <span className="font-bold underline">{fam.village || 'रामपुरा'}</span> | 
+                          {language === 'hi' ? 'ग्राम पंचायत:' : 'Gram Panchayat:'} <span className="font-bold underline">{fam.village || '-'}</span> | 
                           {language === 'hi' ? ' मोहल्ला:' : ' Mohalla:'} <span className="font-bold underline">{fam.mohalla || '-'}</span>
                         </p>
                       </div>
@@ -344,7 +344,7 @@ export function PrintDocument({
                     <div className="text-center">
                       <div className="w-44 border-b border-gray-800 pb-1"></div>
                       <p className="mt-1 font-bold">{language === 'hi' ? 'सरपंच / ग्राम विकास अधिकारी मुहर' : 'Gram Panchayat Seal'}</p>
-                      <p className="text-[10px] text-gray-600">{fam.village || 'रामपुरा'}</p>
+                      <p className="text-[10px] text-gray-600">{fam.village || ''}</p>
                     </div>
                   </div>
                 </div>

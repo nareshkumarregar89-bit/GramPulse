@@ -106,7 +106,7 @@ export function TopNavbar({ setIsMobileSidebarOpen }) {
             <div className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-xl border bg-indigo-50/70 dark:bg-indigo-950/40 border-indigo-200 dark:border-indigo-800/60">
               <Building2 className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
               <span className="text-xs font-semibold text-indigo-800 dark:text-indigo-200">
-                {language === 'hi' ? 'आवंटित:' : 'Village:'} {userProfile?.assignedVillages?.join(', ') || userProfile?.assignedVillage || 'रामपुरा'}
+                {language === 'hi' ? 'आवंटित:' : 'Village:'} {userProfile?.assignedVillages?.join(', ') || userProfile?.assignedVillage || (language === 'hi' ? 'समोड़ी' : 'Samodi')}
               </span>
             </div>
           )}

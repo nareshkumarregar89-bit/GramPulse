@@ -70,7 +70,7 @@ export function AuthProvider({ children }) {
               email: user.email,
               name: isSuperAdmin ? 'Admin' : (user.email ? user.email.split('@')[0] : 'Surveyor'),
               role: isSuperAdmin ? 'admin' : 'surveyor',
-              assignedVillages: isSuperAdmin ? [] : ['रामपुरा (Rampura)'],
+              assignedVillages: isSuperAdmin ? [] : ['समोड़ी (Samodi)'],
               status: 'active',
               createdAt: new Date().toISOString()
             };
@@ -164,7 +164,7 @@ export function AuthProvider({ children }) {
           name: user.displayName || (user.email ? user.email.split('@')[0] : 'User'),
           photoURL: user.photoURL || '',
           role: isSuperAdmin ? 'admin' : 'surveyor',
-          assignedVillages: isSuperAdmin ? [] : ['रामपुरा (Rampura)'],
+          assignedVillages: isSuperAdmin ? [] : ['समोड़ी (Samodi)'],
           status: 'active',
           createdAt: new Date().toISOString()
         };

@@ -12,7 +12,7 @@ import { useLocalStorage } from '../hooks/useLocalStorage';
 import { initialFamilies } from '../data/villageData';
 import { mohallas as initialMohallas } from '../data/mohallas';
 import { castes as initialCastes } from '../data/castes';
-import { villages as initialVillages } from '../data/villages';
+import { initialVillages, villages as fallbackVillages } from '../data/villages';
 import { translations } from '../utils/translations';
 import { useAuth } from './AuthContext';
 
@@ -27,9 +27,14 @@ const normalizeFamily = (f) => {
   const fatherNameHi = f.fatherNameHindi || f.fatherName || '';
   const fatherName = f.fatherName || fatherNameEn || fatherNameHi || '';
 
+  const villageStr = f.village || (initialVillages[0]?.name || 'समोड़ी (Samodi)');
+  const isKotdi = villageStr.includes('Kotdi') || villageStr.includes('कोटड़ी');
+  const villageId = f.villageId || (isKotdi ? 'kotdi' : 'samodi');
+
   return {
     ...f,
-    village: f.village || (initialVillages[0] || 'रामपुरा (Rampura)'),
+    village: villageStr,
+    villageId,
     familyHeadName: headName,
     familyHeadNameEnglish: headNameEn || headName,
     familyHeadNameHindi: headNameHi || headName,
@@ -58,7 +63,7 @@ export function DataProvider({ children }) {
 
   const [rawFamilies, setRawFamilies] = useLocalStorage('grampulse-families', initialFamilies);
   const [deletedFamilies, setDeletedFamilies] = useLocalStorage('grampulse-deleted-families', []);
-  const [villages, setVillages] = useLocalStorage('grampulse-villages', initialVillages);
+  const [villageRecords, setVillageRecords] = useLocalStorage('grampulse-village-records', initialVillages);
   const [mohallas, setMohallas] = useLocalStorage('grampulse-mohallas', initialMohallas);
   const [castes, setCastes] = useLocalStorage('grampulse-castes', initialCastes);
   const [selectedVillage, setSelectedVillage] = useLocalStorage('grampulse-selected-village', 'all');
@@ -127,23 +132,59 @@ export function DataProvider({ children }) {
     }
   }, []);
 
-  // Real-time Firestore sync for settings (villages, mohallas & castes)
+  // Real-time Firestore sync for dynamic villages collection
+  useEffect(() => {
+    try {
+      const unsubscribe = onSnapshot(collection(db, 'villages'), async (snapshot) => {
+        if (snapshot.empty) {
+          try {
+            const batch = writeBatch(db);
+            initialVillages.forEach((v) => {
+              const docRef = doc(db, 'villages', v.id);
+              batch.set(docRef, v);
+            });
+            await batch.commit();
+            setVillageRecords(initialVillages);
+          } catch (e) {
+            console.warn('Seeding initial villages failed:', e);
+          }
+        } else {
+          const loaded = [];
+          snapshot.forEach(docSnap => {
+            loaded.push({ ...docSnap.data(), id: docSnap.id });
+          });
+          // Ensure sort order (active first, then by name)
+          loaded.sort((a, b) => {
+            if (a.status === b.status) return (a.nameEnglish || '').localeCompare(b.nameEnglish || '');
+            return a.status === 'active' ? -1 : 1;
+          });
+          setVillageRecords(loaded);
+        }
+      }, (error) => {
+        console.error('Firestore villages listener error:', error);
+      });
+
+      return () => unsubscribe();
+    } catch (e) {
+      console.error('Failed to initialize Firestore villages listener:', e);
+    }
+  }, []);
+
+  // Real-time Firestore sync for settings (mohallas & castes)
   useEffect(() => {
     try {
       const configDocRef = doc(db, 'settings', 'villageConfig');
       const unsubscribe = onSnapshot(configDocRef, async (docSnap) => {
         if (docSnap.exists()) {
           const data = docSnap.data();
-          if (data.villages && Array.isArray(data.villages)) setVillages(data.villages);
           if (data.mohallas && Array.isArray(data.mohallas)) setMohallas(data.mohallas);
           if (data.castes && Array.isArray(data.castes)) setCastes(data.castes);
         } else {
           try {
             await setDoc(configDocRef, {
-              villages: initialVillages,
               mohallas: initialMohallas,
               castes: initialCastes
-            });
+            }, { merge: true });
           } catch (e) {
             console.warn('Seeding settings failed:', e);
           }
@@ -158,6 +199,22 @@ export function DataProvider({ children }) {
     }
   }, []);
 
+  // Active village records (only active ones)
+  const activeVillageRecords = useMemo(() => {
+    const list = (villageRecords || []).filter(v => v.status !== 'inactive');
+    return list.length > 0 ? list : initialVillages;
+  }, [villageRecords]);
+
+  // Active village string array for select dropdowns & dashboard (Samodi & Kotdi initially)
+  const activeVillages = useMemo(() => {
+    return activeVillageRecords.map(v => v.name || `${v.nameHindi} (${v.nameEnglish})`);
+  }, [activeVillageRecords]);
+
+  // All village string names
+  const allVillages = useMemo(() => {
+    return (villageRecords || []).map(v => v.name || `${v.nameHindi} (${v.nameEnglish})`);
+  }, [villageRecords]);
+
   const allFamilies = useMemo(() => {
     return (rawFamilies || []).map(normalizeFamily);
   }, [rawFamilies]);
@@ -166,19 +223,54 @@ export function DataProvider({ children }) {
     return (deletedFamilies || []).map(normalizeFamily);
   }, [deletedFamilies]);
 
+  // Helper function to match whether a family belongs to a village identifier (name, Hindi, English, or ID)
+  const isFamilyInVillage = useCallback((family, villageIdentifier) => {
+    if (!family || !villageIdentifier) return false;
+    if (villageIdentifier === 'all') return true;
+
+    const target = villageIdentifier.toString().trim().toLowerCase();
+
+    // Direct villageId match
+    if (family.villageId && family.villageId.toLowerCase() === target) return true;
+
+    const famV = (family.village || '').trim().toLowerCase();
+    if (!famV) return false;
+
+    if (famV === target) return true;
+    if (famV.includes(target) || target.includes(famV)) return true;
+
+    // Check against all villageRecords for cross-matching English & Hindi names
+    const matching = (villageRecords || []).find(v => {
+      const vId = (v.id || '').toLowerCase();
+      const vName = (v.name || '').toLowerCase();
+      const vEn = (v.nameEnglish || '').toLowerCase();
+      const vHi = (v.nameHindi || '').toLowerCase();
+      return vId === target || vName === target || vEn === target || vHi === target;
+    });
+
+    if (matching) {
+      if (family.villageId && family.villageId.toLowerCase() === matching.id.toLowerCase()) return true;
+      if (matching.nameEnglish && famV.includes(matching.nameEnglish.toLowerCase())) return true;
+      if (matching.nameHindi && (family.village || '').includes(matching.nameHindi)) return true;
+      if (matching.name && famV === matching.name.toLowerCase()) return true;
+    }
+
+    return false;
+  }, [villageRecords]);
+
   // Scoped families according to user role and assigned villages
   const scopedFamilies = useMemo(() => {
     let result = allFamilies;
 
-    // Strict Village-level Data Isolation:
+    // Strict Village-level Data Isolation for regular surveyors:
     if (!isAdmin) {
       if (!currentUser) return [];
 
-      // If user has assigned villages, restrict strictly to those assigned villages
       if (assignedVillages && assignedVillages.length > 0) {
-        result = result.filter(f => assignedVillages.includes(f.village));
+        result = result.filter(f => {
+          return assignedVillages.some(av => isFamilyInVillage(f, av));
+        });
       } else {
-        // Fallback: only families added by this user
         result = result.filter(f => 
           (f.surveyorId && f.surveyorId === currentUser.uid) ||
           (!f.surveyorId && currentUser.email && f.surveyorEmail === currentUser.email)
@@ -188,11 +280,11 @@ export function DataProvider({ children }) {
 
     // Filter by selected village if not 'all'
     if (selectedVillage && selectedVillage !== 'all') {
-      result = result.filter(f => (f.village || '').trim().toLowerCase() === selectedVillage.trim().toLowerCase());
+      result = result.filter(f => isFamilyInVillage(f, selectedVillage));
     }
 
     return result;
-  }, [allFamilies, isAdmin, currentUser, assignedVillages, selectedVillage]);
+  }, [allFamilies, isAdmin, currentUser, assignedVillages, selectedVillage, isFamilyInVillage]);
 
   // Translation function
   const t = useCallback((key) => {
@@ -201,18 +293,25 @@ export function DataProvider({ children }) {
 
   // Add a single family with village validation
   const addFamily = async (family) => {
+    const defaultVillage = activeVillages[0] || 'समोड़ी (Samodi)';
     let targetVillage = family.village;
+
     if (!isAdmin) {
       if (assignedVillages && assignedVillages.length > 0) {
-        if (!assignedVillages.includes(targetVillage)) {
+        const isTargetAssigned = assignedVillages.some(av => isFamilyInVillage({ village: targetVillage }, av));
+        if (!isTargetAssigned) {
           targetVillage = assignedVillages[0];
         }
       } else {
-        targetVillage = targetVillage || (villages[0] || 'रामपुरा (Rampura)');
+        targetVillage = targetVillage || defaultVillage;
       }
     } else {
-      targetVillage = targetVillage || (selectedVillage !== 'all' ? selectedVillage : (villages[0] || 'रामपुरा (Rampura)'));
+      targetVillage = targetVillage || (selectedVillage !== 'all' ? selectedVillage : defaultVillage);
     }
+
+    // Resolve villageId
+    const matchedRecord = (villageRecords || []).find(v => isFamilyInVillage({ village: targetVillage }, v.id || v.name));
+    const targetVillageId = matchedRecord ? matchedRecord.id : (family.villageId || (targetVillage.includes('Kotdi') ? 'kotdi' : 'samodi'));
 
     const maxNum = (rawFamilies || []).reduce((max, f) => {
       const match = f.id && String(f.id).match(/FAM-(\d+)/);
@@ -223,6 +322,7 @@ export function DataProvider({ children }) {
       ...family,
       id: newId,
       village: targetVillage,
+      villageId: targetVillageId,
       surveyorId: family.surveyorId || currentUser?.uid || '',
       surveyorName: family.surveyorName || userProfile?.name || currentUser?.email?.split('@')[0] || 'Surveyor',
       surveyorEmail: family.surveyorEmail || currentUser?.email || '',
@@ -253,22 +353,29 @@ export function DataProvider({ children }) {
       return match ? Math.max(max, parseInt(match[1], 10)) : max;
     }, 0);
 
+    const defaultVillage = activeVillages[0] || 'समोड़ी (Samodi)';
+
     const prepared = importedFamilies.map((fam) => {
       currentMax += 1;
       const famId = fam.id || `FAM-${String(currentMax).padStart(4, '0')}`;
       let targetVillage = fam.village;
       if (!isAdmin) {
         if (assignedVillages && assignedVillages.length > 0) {
-          targetVillage = assignedVillages.includes(targetVillage) ? targetVillage : assignedVillages[0];
+          const isAssigned = assignedVillages.some(av => isFamilyInVillage({ village: targetVillage }, av));
+          targetVillage = isAssigned ? targetVillage : assignedVillages[0];
         }
       } else {
-        targetVillage = targetVillage || (selectedVillage !== 'all' ? selectedVillage : (villages[0] || 'रामपुरा (Rampura)'));
+        targetVillage = targetVillage || (selectedVillage !== 'all' ? selectedVillage : defaultVillage);
       }
+
+      const matchedRecord = (villageRecords || []).find(v => isFamilyInVillage({ village: targetVillage }, v.id || v.name));
+      const targetVillageId = matchedRecord ? matchedRecord.id : (fam.villageId || (targetVillage.includes('Kotdi') ? 'kotdi' : 'samodi'));
 
       return normalizeFamily({
         ...fam,
         id: famId,
         village: targetVillage,
+        villageId: targetVillageId,
         surveyorId: fam.surveyorId || currentUser?.uid || '',
         surveyorName: fam.surveyorName || userProfile?.name || currentUser?.email?.split('@')[0] || 'Surveyor',
         surveyorEmail: fam.surveyorEmail || currentUser?.email || '',
@@ -390,36 +497,181 @@ export function DataProvider({ children }) {
     return scopedFamilies.find(f => f.id === id);
   };
 
-  // Add Village
-  const addVillage = async (village) => {
-    if (!village || !village.trim()) return;
-    const trimmed = village.trim();
-    if (!villages.includes(trimmed)) {
-      const nextVillages = [...villages, trimmed];
-      setVillages(nextVillages);
-      try {
-        await setDoc(doc(db, 'settings', 'villageConfig'), { villages: nextVillages }, { merge: true });
-      } catch (err) {
-        console.error('Firestore addVillage error:', err);
-      }
+  // ==========================================
+  // DYNAMIC VILLAGE MANAGEMENT (ADMIN)
+  // ==========================================
+
+  // Add a new village record
+  const addVillageRecord = async ({ nameEnglish, nameHindi, status = 'active' }) => {
+    const en = (nameEnglish || '').trim();
+    const hi = (nameHindi || '').trim();
+
+    if (!en || !hi) {
+      throw new Error(language === 'hi' ? 'अंग्रेजी और हिंदी दोनों नाम आवश्यक हैं।' : 'Both English and Hindi names are required.');
     }
+
+    // Prevent duplicate village names (case-insensitive for English, trim for Hindi)
+    const duplicateEn = (villageRecords || []).some(v => (v.nameEnglish || '').trim().toLowerCase() === en.toLowerCase());
+    const duplicateHi = (villageRecords || []).some(v => (v.nameHindi || '').trim() === hi);
+
+    if (duplicateEn || duplicateHi) {
+      throw new Error(language === 'hi' ? 'इस नाम का गाँव पहले से मौजूद है।' : 'A village with this name already exists.');
+    }
+
+    const baseId = en.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+    const id = baseId || `village-${Date.now()}`;
+    const combinedName = `${hi} (${en})`;
+
+    const newVillage = {
+      id,
+      nameEnglish: en,
+      nameHindi: hi,
+      name: combinedName,
+      status: status || 'active',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    setVillageRecords(prev => [...prev.filter(v => v.id !== id), newVillage]);
+
+    try {
+      await setDoc(doc(db, 'villages', id), newVillage);
+    } catch (err) {
+      console.error('Firestore addVillageRecord error:', err);
+      throw err;
+    }
+
+    return newVillage;
   };
 
-  // Delete Village
-  const deleteVillage = async (village) => {
-    const nextVillages = villages.filter(v => v !== village);
-    setVillages(nextVillages);
-    if (selectedVillage === village) {
+  // Update existing village details
+  const updateVillageRecord = async (id, { nameEnglish, nameHindi, status }) => {
+    const existing = (villageRecords || []).find(v => v.id === id);
+    if (!existing) {
+      throw new Error('Village not found');
+    }
+
+    const en = nameEnglish !== undefined ? nameEnglish.trim() : existing.nameEnglish;
+    const hi = nameHindi !== undefined ? nameHindi.trim() : existing.nameHindi;
+
+    if (!en || !hi) {
+      throw new Error(language === 'hi' ? 'अंग्रेजी और हिंदी दोनों नाम आवश्यक हैं।' : 'Both English and Hindi names are required.');
+    }
+
+    // Check duplicate against other villages
+    const duplicateEn = (villageRecords || []).some(v => v.id !== id && (v.nameEnglish || '').trim().toLowerCase() === en.toLowerCase());
+    const duplicateHi = (villageRecords || []).some(v => v.id !== id && (v.nameHindi || '').trim() === hi);
+
+    if (duplicateEn || duplicateHi) {
+      throw new Error(language === 'hi' ? 'इस नाम का गाँव पहले से मौजूद है।' : 'Another village with this name already exists.');
+    }
+
+    const combinedName = `${hi} (${en})`;
+    const updated = {
+      ...existing,
+      nameEnglish: en,
+      nameHindi: hi,
+      name: combinedName,
+      status: status !== undefined ? status : existing.status,
+      updatedAt: new Date().toISOString()
+    };
+
+    setVillageRecords(prev => prev.map(v => v.id === id ? updated : v));
+
+    try {
+      await setDoc(doc(db, 'villages', id), updated, { merge: true });
+    } catch (err) {
+      console.error('Firestore updateVillageRecord error:', err);
+      throw err;
+    }
+
+    return updated;
+  };
+
+  // Activate / Deactivate village (preserving all survey records!)
+  const toggleVillageStatus = async (id) => {
+    const existing = (villageRecords || []).find(v => v.id === id);
+    if (!existing) return;
+
+    const nextStatus = existing.status === 'active' ? 'inactive' : 'active';
+    const updated = {
+      ...existing,
+      status: nextStatus,
+      updatedAt: new Date().toISOString()
+    };
+
+    setVillageRecords(prev => prev.map(v => v.id === id ? updated : v));
+
+    // If currently selected village is being deactivated, reset selected village to all
+    if (selectedVillage && isFamilyInVillage({ village: selectedVillage }, existing.id) && nextStatus === 'inactive') {
       setSelectedVillage('all');
     }
+
     try {
-      await setDoc(doc(db, 'settings', 'villageConfig'), { villages: nextVillages }, { merge: true });
+      await setDoc(doc(db, 'villages', id), updated, { merge: true });
     } catch (err) {
-      console.error('Firestore deleteVillage error:', err);
+      console.error('Firestore toggleVillageStatus error:', err);
+      throw err;
+    }
+
+    return nextStatus;
+  };
+
+  // Delete village safely: check associated survey records first
+  const deleteVillageRecord = async (id) => {
+    const existing = (villageRecords || []).find(v => v.id === id);
+    if (!existing) {
+      throw new Error('Village not found');
+    }
+
+    // Check if any family records in rawFamilies are associated with this village
+    const associatedFamilies = (rawFamilies || []).filter(f => isFamilyInVillage(f, existing.id));
+
+    if (associatedFamilies.length > 0) {
+      const err = new Error(
+        language === 'hi'
+          ? `इस गाँव को स्थायी रूप से नहीं हटाया जा सकता क्योंकि इसके अंतर्गत ${associatedFamilies.length} परिवार सर्वे रिकॉर्ड दर्ज हैं। रिकॉर्ड्स को सुरक्षित रखने के लिए गाँव को 'निष्क्रिय' (Deactivate) करें।`
+          : `Cannot delete village: ${associatedFamilies.length} family survey records are associated with it. Please deactivate it instead to preserve survey history.`
+      );
+      err.associatedCount = associatedFamilies.length;
+      throw err;
+    }
+
+    // Safe to delete if 0 records
+    setVillageRecords(prev => prev.filter(v => v.id !== id));
+    if (selectedVillage && isFamilyInVillage({ village: selectedVillage }, existing.id)) {
+      setSelectedVillage('all');
+    }
+
+    try {
+      await deleteDoc(doc(db, 'villages', id));
+    } catch (err) {
+      console.error('Firestore deleteVillageRecord error:', err);
+      throw err;
+    }
+
+    return true;
+  };
+
+  // Backwards-compatible wrappers for legacy callers
+  const addVillage = async (villageName) => {
+    if (!villageName || !villageName.trim()) return;
+    const str = villageName.trim();
+    // Check if contains (English) like "समोड़ी (Samodi)"
+    const match = str.match(/(.*?)\s*\((.*?)\)/);
+    const nameHindi = match ? match[1].trim() : str;
+    const nameEnglish = match ? match[2].trim() : str;
+    return addVillageRecord({ nameEnglish, nameHindi });
+  };
+
+  const deleteVillage = async (villageName) => {
+    const matched = (villageRecords || []).find(v => isFamilyInVillage({ village: villageName }, v.id));
+    if (matched) {
+      return deleteVillageRecord(matched.id);
     }
   };
 
-  // Add mohalla
+  // Mohallas & Castes CRUD
   const addMohalla = async (mohalla) => {
     if (!mohalla || !mohalla.trim()) return;
     const trimmed = mohalla.trim();
@@ -434,7 +686,6 @@ export function DataProvider({ children }) {
     }
   };
 
-  // Delete mohalla
   const deleteMohalla = async (mohalla) => {
     const nextMohallas = mohallas.filter(m => m !== mohalla);
     setMohallas(nextMohallas);
@@ -445,7 +696,6 @@ export function DataProvider({ children }) {
     }
   };
 
-  // Add caste
   const addCaste = async (caste) => {
     if (!caste || !caste.trim()) return;
     const trimmed = caste.trim();
@@ -460,7 +710,6 @@ export function DataProvider({ children }) {
     }
   };
 
-  // Delete caste
   const deleteCaste = async (caste) => {
     const nextCastes = castes.filter(c => c !== caste);
     setCastes(nextCastes);
@@ -474,7 +723,7 @@ export function DataProvider({ children }) {
   // Reset all data
   const resetData = async () => {
     setRawFamilies(initialFamilies);
-    setVillages(initialVillages);
+    setVillageRecords(initialVillages);
     setMohallas(initialMohallas);
     setCastes(initialCastes);
     setSelectedVillage('all');
@@ -483,8 +732,10 @@ export function DataProvider({ children }) {
       initialFamilies.slice(0, 30).forEach((fam) => {
         batch.set(doc(db, 'families', fam.id), fam);
       });
+      initialVillages.forEach((v) => {
+        batch.set(doc(db, 'villages', v.id), v);
+      });
       batch.set(doc(db, 'settings', 'villageConfig'), {
-        villages: initialVillages,
         mohallas: initialMohallas,
         castes: initialCastes
       });
@@ -499,7 +750,8 @@ export function DataProvider({ children }) {
     const data = {
       families: scopedFamilies,
       allFamilies: isAdmin ? allFamilies : undefined,
-      villages,
+      villages: activeVillages,
+      villageRecords,
       mohallas,
       castes,
       exportedAt: new Date().toISOString()
@@ -527,10 +779,14 @@ export function DataProvider({ children }) {
         console.error('Firestore import families error:', err);
       }
     }
-    if (data.villages && Array.isArray(data.villages)) {
-      setVillages(data.villages);
+    if (data.villageRecords && Array.isArray(data.villageRecords)) {
+      setVillageRecords(data.villageRecords);
       try {
-        await setDoc(doc(db, 'settings', 'villageConfig'), { villages: data.villages }, { merge: true });
+        const batch = writeBatch(db);
+        data.villageRecords.forEach((v) => {
+          if (v.id) batch.set(doc(db, 'villages', v.id), v);
+        });
+        await batch.commit();
       } catch (e) { /* ignore */ }
     }
     if (data.mohallas) {
@@ -552,11 +808,23 @@ export function DataProvider({ children }) {
       families: scopedFamilies,
       allFamilies,
       deletedFamilies: normalizedDeletedFamilies,
-      villages,
+      // Active villages array for dropdowns & dashboard (Samodi and Kotdi initially)
+      villages: activeVillages,
+      activeVillages,
+      allVillages,
+      villageRecords,
+      activeVillageRecords,
       selectedVillage,
       setSelectedVillage,
+      isFamilyInVillage,
+      // Village management methods
+      addVillageRecord,
+      updateVillageRecord,
+      toggleVillageStatus,
+      deleteVillageRecord,
       addVillage,
       deleteVillage,
+      // Mohallas & Castes
       mohallas,
       castes,
       darkMode,

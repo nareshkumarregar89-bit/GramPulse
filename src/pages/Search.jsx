@@ -183,7 +183,7 @@ export function Search() {
                     <p className="text-sm text-gray-500 dark:text-gray-400">{family.id}</p>
                     <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300">
                       <Building2 className="w-2.5 h-2.5" />
-                      {family.village || 'रामपुरा'}
+                      {family.village || '-'}
                     </span>
                   </div>
                 </div>

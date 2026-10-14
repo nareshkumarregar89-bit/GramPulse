@@ -138,7 +138,7 @@ export function Families() {
               <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
                 <Building2 className="w-4 h-4 text-indigo-500 shrink-0" />
                 <span className="text-xs md:text-sm font-semibold">
-                  {assignedVillages?.join(', ') || 'रामपुरा'}
+                  {assignedVillages?.join(', ') || (language === 'hi' ? 'समोड़ी' : 'Samodi')}
                 </span>
               </div>
             )}
@@ -307,7 +307,7 @@ export function Families() {
                     <td className="px-4 py-4">
                       <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60">
                         <Building2 className="w-3 h-3" />
-                        <span>{family.village || 'रामपुरा'}</span>
+                        <span>{family.village || '-'}</span>
                       </span>
                     </td>
                     <td className="px-4 py-4 text-gray-600 dark:text-gray-300 text-sm">{family.mohalla}</td>
@@ -403,7 +403,7 @@ export function Families() {
                       <div className="flex items-center gap-2 mt-1">
                         <span className="text-[10px] text-gray-400 font-mono">{family.id}</span>
                         <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300">
-                          {family.village || 'रामपुरा'}
+                          {family.village || '-'}
                         </span>
                       </div>
                     </div>

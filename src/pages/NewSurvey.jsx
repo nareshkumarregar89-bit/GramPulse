@@ -157,7 +157,7 @@ export function NewSurvey() {
   const handleSubmit = () => {
     const enrichedFamily = {
       ...family,
-      village: family.village || (selectedVillage !== 'all' ? selectedVillage : (villages[0] || 'रामपुरा (Rampura)')),
+      village: family.village || (selectedVillage !== 'all' ? selectedVillage : (villages[0] || 'समोड़ी (Samodi)')),
       surveyorId: family.surveyorId || currentUser?.uid || '',
       surveyorName: family.surveyorName || userProfile?.name || currentUser?.email?.split('@')[0] || 'Admin',
       surveyorEmail: family.surveyorEmail || currentUser?.email || '',

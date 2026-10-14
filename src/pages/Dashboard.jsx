@@ -33,8 +33,8 @@ import {
 const COLORS = ['#22c55e', '#6366f1', '#f59e0b', '#ef4444', '#8b5cf6', '#14b8a6'];
 
 export function Dashboard() {
-  const { families, mohallas, castes, darkMode, t, language, villages, selectedVillage, setSelectedVillage } = useData();
-  const { isAdmin, userProfile, currentUser, assignedVillages } = useAuth();
+  const { families, allFamilies = [], mohallas, castes, darkMode, t, language, villages, activeVillageRecords = [], isFamilyInVillage, selectedVillage, setSelectedVillage } = useData();
+  const { isAdmin, userProfile, currentUser, assignedVillages, allUsers = [] } = useAuth();
   const navigate = useNavigate();
   const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
 
@@ -105,7 +105,7 @@ export function Dashboard() {
             <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
               <Building2 className="w-4 h-4 text-indigo-500 shrink-0" />
               <span className="text-xs md:text-sm font-semibold">
-                {assignedVillages?.join(', ') || 'रामपुरा'}
+                {assignedVillages?.join(', ') || (language === 'hi' ? 'समोड़ी' : 'Samodi')}
               </span>
             </div>
           )}
@@ -180,6 +180,108 @@ export function Dashboard() {
           color="from-purple-500 to-purple-600"
         />
       </div>
+
+      {/* Admin Village-wise Family & Surveyor Distribution Section */}
+      {isAdmin && (
+        <div className={`p-6 rounded-3xl border transition-all ${darkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200 shadow-xs'}`}>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-5">
+            <div>
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                <Building2 className="w-5 h-5 text-indigo-500" />
+                <span>{language === 'hi' ? 'गाँव-वार परिवार एवं सर्वेयर स्थिति' : 'Village-wise Family & Surveyor Distribution'}</span>
+              </h2>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                {language === 'hi'
+                  ? 'डेटाबेस से वास्तविक समय गणना: समोड़ी एवं कोटड़ी'
+                  : 'Real-time database statistics: Samodi and Kotdi'}
+              </p>
+            </div>
+
+            <button
+              onClick={() => navigate('/admin/villages')}
+              className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 self-start sm:self-auto"
+            >
+              <span>{language === 'hi' ? 'गाँव प्रबंधन खोलें' : 'Manage Villages'}</span>
+              <ArrowUpRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {(activeVillageRecords.length > 0 ? activeVillageRecords : villages.map(v => ({ id: v, name: v, nameEnglish: v, nameHindi: v }))).map((vObj) => {
+              const vName = vObj.name || vObj.nameEnglish || vObj.id;
+              const villageFamilies = allFamilies.filter(f => isFamilyInVillage ? isFamilyInVillage(f, vObj.id || vName) : f.village === vName);
+              const pop = villageFamilies.reduce((sum, f) => sum + (f.members?.length || 0), 0);
+              const assigned = allUsers.filter(u => 
+                u.role === 'surveyor' && 
+                u.assignedVillages && 
+                u.assignedVillages.some(av => isFamilyInVillage ? isFamilyInVillage({ village: av }, vObj.id || vName) : av === vName)
+              );
+
+              return (
+                <div
+                  key={vObj.id || vName}
+                  className={`p-4 rounded-2xl border transition-all ${
+                    darkMode ? 'bg-gray-800/40 border-gray-800' : 'bg-gray-50/70 border-gray-200'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <h3 className="font-bold text-sm text-gray-900 dark:text-white">
+                        {vObj.nameHindi || vName}
+                      </h3>
+                      {vObj.nameEnglish && (
+                        <span className="text-[11px] text-gray-500 dark:text-gray-400 font-medium">
+                          {vObj.nameEnglish}
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-xs px-2.5 py-0.5 rounded-full bg-green-500/10 text-green-600 dark:text-green-400 font-bold">
+                      {language === 'hi' ? 'सक्रिय' : 'Active'}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 my-3">
+                    <div className={`p-2.5 rounded-xl border ${darkMode ? 'bg-gray-800/70 border-gray-700' : 'bg-white border-gray-100'}`}>
+                      <span className="text-[10px] text-gray-400 uppercase font-semibold">
+                        {language === 'hi' ? 'परिवार' : 'Families'}
+                      </span>
+                      <p className="text-lg font-bold text-gray-900 dark:text-white mt-0.5">{villageFamilies.length}</p>
+                    </div>
+                    <div className={`p-2.5 rounded-xl border ${darkMode ? 'bg-gray-800/70 border-gray-700' : 'bg-white border-gray-100'}`}>
+                      <span className="text-[10px] text-gray-400 uppercase font-semibold">
+                        {language === 'hi' ? 'जनसंख्या' : 'Population'}
+                      </span>
+                      <p className="text-lg font-bold text-indigo-600 dark:text-indigo-400 mt-0.5">{pop}</p>
+                    </div>
+                  </div>
+
+                  <div className="pt-2 border-t border-gray-200 dark:border-gray-700/60">
+                    <span className="text-[11px] text-gray-400 block mb-1">
+                      {language === 'hi' ? 'आवंटित सर्वेयर:' : 'Assigned Surveyors:'}
+                    </span>
+                    {assigned.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {assigned.map(u => (
+                          <span 
+                            key={u.uid}
+                            className="text-[10px] px-2 py-0.5 rounded bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 font-medium"
+                          >
+                            {u.name || u.email?.split('@')[0]}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-[11px] text-amber-500 italic">
+                        {language === 'hi' ? 'कोई सर्वेयर नहीं' : 'No surveyor assigned'}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

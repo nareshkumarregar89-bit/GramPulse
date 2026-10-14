@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Sun,
   Moon,
@@ -11,7 +12,8 @@ import {
   UsersRound,
   AlertTriangle,
   Building2,
-  FileSpreadsheet
+  FileSpreadsheet,
+  ArrowRight
 } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
 import { useToast } from '../contexts/ToastContext';
@@ -330,39 +332,32 @@ export function Settings() {
 
       {/* Manage Villages */}
       <SettingSection title={language === 'hi' ? 'गाँव प्रबंधन (Manage Villages)' : 'Manage Villages'} icon={Building2}>
-        <div className="flex gap-3 mb-4">
-          <input
-            type="text"
-            placeholder={language === 'hi' ? 'नया गाँव जोड़ें (जैसे: रामपुरा)...' : 'Add new village name...'}
-            value={newVillage}
-            onChange={(e) => setNewVillage(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleAddVillage()}
-            className={`
-              flex-1 px-4 py-3 rounded-xl border outline-none
-              ${darkMode
-                ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-400'
-                : 'bg-white border-gray-200 text-gray-900 placeholder-gray-500'
-              }
-            `}
-          />
-          <button
-            onClick={handleAddVillage}
-            disabled={!newVillage.trim()}
-            className="px-6 py-3 bg-gradient-to-r from-green-500 to-indigo-600 text-white rounded-xl font-medium disabled:opacity-50"
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 mb-4 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800">
+          <div>
+            <h4 className="font-bold text-sm text-indigo-950 dark:text-indigo-200">
+              {language === 'hi' ? 'समग्र गाँव प्रबंधन केंद्र' : 'Dynamic Village Management'}
+            </h4>
+            <p className="text-xs text-indigo-700 dark:text-indigo-300 mt-0.5">
+              {language === 'hi' 
+                ? 'समोड़ी, कोटड़ी और नए गाँवों के हिंदी-अंग्रेजी नाम, एक्टिव/इनएक्टिव स्थिति और सुरक्षा नियंत्रण'
+                : 'Manage English/Hindi names, active/inactive states, and survey records integrity.'}
+            </p>
+          </div>
+          <Link
+            to="/admin/villages"
+            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow-sm transition-all flex items-center gap-1.5 shrink-0 self-start sm:self-auto"
           >
-            <Plus className="w-5 h-5" />
-          </button>
+            <span>{language === 'hi' ? 'गाँव प्रबंधन खोलें' : 'Open Village Hub'}</span>
+            <ArrowRight className="w-4 h-4" />
+          </Link>
         </div>
         <div className="space-y-2">
           {villages.map((village) => (
             <div key={village} className="flex items-center justify-between p-3 rounded-xl bg-gray-50 dark:bg-gray-800">
               <span className="text-gray-900 dark:text-white font-medium">{village}</span>
-              <button
-                onClick={() => handleDeleteVillage(village)}
-                className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
+              <span className="text-xs px-2.5 py-0.5 rounded-full bg-green-500/15 text-green-600 dark:text-green-400 font-bold">
+                {language === 'hi' ? 'सक्रिय' : 'Active'}
+              </span>
             </div>
           ))}
         </div>

@@ -27,7 +27,7 @@ export function UserManagement() {
     sendUserPasswordReset, 
     currentUser 
   } = useAuth();
-  const { villages, allFamilies, darkMode, language, t } = useData();
+  const { villages, activeVillageRecords = [], allFamilies = [], isFamilyInVillage, darkMode, language, t } = useData();
   const { addToast } = useToast();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -231,31 +231,46 @@ export function UserManagement() {
 
       {/* Village Distribution Summary Card */}
       <div className={`p-6 rounded-2xl border ${darkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
-        <h3 className="font-bold text-base text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-          <Building2 className="w-5 h-5 text-indigo-500" />
-          <span>{language === 'hi' ? 'गाँव-वार परिवार एवं सर्वेयर स्थिति' : 'Village-wise Family & Surveyor Distribution'}</span>
-        </h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-bold text-base text-gray-900 dark:text-white flex items-center gap-2">
+            <Building2 className="w-5 h-5 text-indigo-500" />
+            <span>{language === 'hi' ? 'गाँव-वार परिवार एवं सर्वेयर स्थिति' : 'Village-wise Family & Surveyor Distribution'}</span>
+          </h3>
+          <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">
+            {language === 'hi' ? 'सक्रिय गाँव: समोड़ी, कोटड़ी' : 'Active Villages: Samodi, Kotdi'}
+          </span>
+        </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {villages.map(villageName => {
-            const villageFamilies = (allFamilies || []).filter(f => f.village === villageName);
+          {(activeVillageRecords.length > 0 ? activeVillageRecords : villages.map(v => ({ id: v, name: v, nameEnglish: v, nameHindi: v }))).map(vObj => {
+            const villageName = vObj.name || vObj.nameEnglish || vObj.id;
+            const villageFamilies = (allFamilies || []).filter(f => isFamilyInVillage ? isFamilyInVillage(f, vObj.id || villageName) : f.village === villageName);
             const assignedUsers = (allUsers || []).filter(u => 
-              u.assignedVillages && u.assignedVillages.includes(villageName)
+              u.assignedVillages && u.assignedVillages.some(av => isFamilyInVillage ? isFamilyInVillage({ village: av }, vObj.id || villageName) : av === villageName)
             );
+            const popCount = villageFamilies.reduce((sum, f) => sum + (f.members?.length || 0), 0);
+
             return (
               <div 
-                key={villageName}
+                key={vObj.id || villageName}
                 className="p-4 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/40"
               >
                 <div className="flex items-center justify-between">
-                  <span className="font-semibold text-sm text-gray-900 dark:text-white truncate" title={villageName}>
-                    {villageName}
-                  </span>
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 font-bold">
+                  <div className="min-w-0 pr-2">
+                    <span className="font-bold text-sm text-gray-900 dark:text-white block truncate" title={villageName}>
+                      {vObj.nameHindi || villageName}
+                    </span>
+                    {vObj.nameEnglish && (
+                      <span className="text-[11px] text-gray-500 dark:text-gray-400 block truncate">
+                        {vObj.nameEnglish}
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 font-bold shrink-0">
                     {villageFamilies.length}
                   </span>
                 </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  {villageFamilies.reduce((sum, f) => sum + (f.members?.length || 0), 0)} {language === 'hi' ? 'जनसंख्या' : 'population'}
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 font-medium">
+                  {popCount} {language === 'hi' ? 'जनसंख्या' : 'population'}
                 </p>
                 <div className="mt-3 pt-2.5 border-t border-gray-200 dark:border-gray-700/60">
                   <span className="text-[11px] text-gray-400 block mb-1">

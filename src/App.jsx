@@ -15,6 +15,8 @@ import { Reports } from './pages/Reports';
 import { Settings } from './pages/Settings';
 import { DeletedRecords } from './pages/DeletedRecords';
 import { UserManagement } from './pages/UserManagement';
+import { VillageManagement } from './pages/VillageManagement';
+import { AdminPanel } from './pages/AdminPanel';
 import { Profile } from './pages/Profile';
 import { ToastContainer } from './components/ToastContainer';
 import { InstallPwaPrompt } from './components/InstallPwaPrompt';
@@ -46,6 +48,22 @@ function App() {
                         <Route path="/castes" element={<Castes />} />
                         <Route path="/search" element={<Search />} />
                         <Route path="/reports" element={<Reports />} />
+                        <Route
+                          path="/admin"
+                          element={
+                            <ProtectedRoute requireAdmin={true}>
+                              <AdminPanel />
+                            </ProtectedRoute>
+                          }
+                        />
+                        <Route
+                          path="/admin/villages"
+                          element={
+                            <ProtectedRoute requireAdmin={true}>
+                              <VillageManagement />
+                            </ProtectedRoute>
+                          }
+                        />
                         <Route
                           path="/users"
                           element={
