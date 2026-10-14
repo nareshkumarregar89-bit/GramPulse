@@ -80,6 +80,15 @@ export function DataProvider({ children }) {
     }
   }, [darkMode]);
 
+  // Cleanup stale default mohallas from localStorage cache
+  useEffect(() => {
+    if (Array.isArray(mohallas) && mohallas.some(m => 
+      m === 'Shastri Nagar' || m === 'Gandhi Colony' || m === 'Nehru Basti' || m === 'Indira Nagar'
+    )) {
+      setMohallas(initialMohallas);
+    }
+  }, [mohallas, setMohallas]);
+
   // Real-time Firestore sync for families
   useEffect(() => {
     try {
@@ -177,7 +186,20 @@ export function DataProvider({ children }) {
       const unsubscribe = onSnapshot(configDocRef, async (docSnap) => {
         if (docSnap.exists()) {
           const data = docSnap.data();
-          if (data.mohallas && Array.isArray(data.mohallas)) setMohallas(data.mohallas);
+          const hasOldDefaults = Array.isArray(data.mohallas) && data.mohallas.some(m => 
+            m === 'Shastri Nagar' || m === 'Gandhi Colony' || m === 'Nehru Basti' || m === 'Indira Nagar'
+          );
+          if (hasOldDefaults) {
+            try {
+              await setDoc(configDocRef, { mohallas: initialMohallas }, { merge: true });
+              setMohallas(initialMohallas);
+            } catch (e) {
+              console.warn('Updating default mohallas in Firestore failed:', e);
+              setMohallas(initialMohallas);
+            }
+          } else if (data.mohallas && Array.isArray(data.mohallas)) {
+            setMohallas(data.mohallas);
+          }
           if (data.castes && Array.isArray(data.castes)) setCastes(data.castes);
         } else {
           try {
@@ -185,6 +207,7 @@ export function DataProvider({ children }) {
               mohallas: initialMohallas,
               castes: initialCastes
             }, { merge: true });
+            setMohallas(initialMohallas);
           } catch (e) {
             console.warn('Seeding settings failed:', e);
           }
