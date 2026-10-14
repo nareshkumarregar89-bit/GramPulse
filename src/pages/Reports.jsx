@@ -105,6 +105,7 @@ export function Reports() {
     const excelData = data.flatMap(family => {
       return family.members.map(member => ({
         'Family ID': family.id,
+        'Village Name': family.village || 'रामपुरा (Rampura)',
         'Family Head Name': family.familyHeadNameEnglish || family.familyHeadNameHindi || family.familyHeadName || '',
         'Father/Husband Name': family.fatherName || '',
         'Mobile Number': family.mobile,
@@ -206,6 +207,8 @@ export function Reports() {
       // Family Details - Section 1
       doc.text('--- Family Information ---', 16, yPos);
       yPos += 6;
+      doc.text(`Village: ${family.village || 'N/A'}`, 18, yPos);
+      yPos += 5;
       doc.text(`Father/Husband Name: ${family.fatherName || 'N/A'}`, 18, yPos);
       yPos += 5;
       doc.text(`Mobile: ${family.mobile}`, 18, yPos);

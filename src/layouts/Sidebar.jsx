@@ -9,7 +9,8 @@ import {
   Search,
   Settings,
   Menu,
-  Trash2
+  Trash2,
+  UserCheck
 } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -22,6 +23,7 @@ const navItems = [
   { path: '/castes', icon: UsersRound, labelKey: 'castes' },
   { path: '/reports', icon: BarChart3, labelKey: 'reports' },
   { path: '/search', icon: Search, labelKey: 'search' },
+  { path: '/users', icon: UserCheck, labelKey: 'user_management', adminOnly: true },
   { path: '/deleted-records', icon: Trash2, labelKey: 'deleted_records', adminOnly: true },
   { path: '/settings', icon: Settings, labelKey: 'settings', adminOnly: true },
 ];

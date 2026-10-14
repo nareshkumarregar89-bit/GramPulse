@@ -48,6 +48,7 @@ const emptyFamily = {
   familyHeadNameHindi: '',
   fatherNameEnglish: '',
   fatherNameHindi: '',
+  village: '',
   mobile: '',
   alternateMobile: '',
   mohalla: '',
@@ -87,11 +88,14 @@ const emptyFamily = {
 export function NewSurvey() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { families, mohallas, castes, addFamily, updateFamily, getFamilyById, t, darkMode, language } = useData();
+  const { families, villages, mohallas, castes, addFamily, updateFamily, getFamilyById, t, darkMode, language, selectedVillage } = useData();
   const { addToast } = useToast();
   const { currentUser, userProfile } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
-  const [family, setFamily] = useState(emptyFamily);
+  const [family, setFamily] = useState(() => ({
+    ...emptyFamily,
+    village: selectedVillage !== 'all' ? selectedVillage : (villages[0] || '')
+  }));
   const [gpsLoading, setGpsLoading] = useState(false);
   const [gpsError, setGpsError] = useState('');
 
@@ -153,6 +157,7 @@ export function NewSurvey() {
   const handleSubmit = () => {
     const enrichedFamily = {
       ...family,
+      village: family.village || (selectedVillage !== 'all' ? selectedVillage : (villages[0] || 'रामपुरा (Rampura)')),
       surveyorId: family.surveyorId || currentUser?.uid || '',
       surveyorName: family.surveyorName || userProfile?.name || currentUser?.email?.split('@')[0] || 'Admin',
       surveyorEmail: family.surveyorEmail || currentUser?.email || '',
@@ -232,6 +237,13 @@ export function NewSurvey() {
                 label={t('alternate_mobile')}
                 value={family.alternateMobile}
                 onChange={(v) => setFamily(p => ({ ...p, alternateMobile: v }))}
+              />
+              <SelectField
+                label={language === 'hi' ? 'गाँव का नाम *' : 'Village Name *'}
+                value={family.village || (selectedVillage !== 'all' ? selectedVillage : (villages[0] || ''))}
+                onChange={(v) => setFamily(p => ({ ...p, village: v }))}
+                options={villages}
+                required
               />
               <SelectField
                 label={t('mohalla')}
@@ -500,6 +512,7 @@ export function NewSurvey() {
             <div className={`p-6 rounded-2xl border ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <ReviewItem label="Family Head" value={family.familyHeadNameEnglish || family.familyHeadNameHindi || family.familyHeadName} />
+                <ReviewItem label={language === 'hi' ? 'गाँव' : 'Village'} value={family.village || 'Not specified'} />
                 <ReviewItem label="Mobile" value={family.mobile} />
                 <ReviewItem label="Mohalla" value={family.mohalla} />
                 <ReviewItem label="Caste" value={family.caste} />

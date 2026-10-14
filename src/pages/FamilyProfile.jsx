@@ -164,7 +164,8 @@ export function FamilyProfile() {
           </div>
           <div className="flex-1">
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Family Overview</h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+              <Stat label="Village" value={family.village || 'रामपुरा'} />
               <Stat label="Members" value={family.members.length} />
               <Stat label="Mohalla" value={family.mohalla} />
               <Stat label="Caste" value={family.caste} />
@@ -178,6 +179,7 @@ export function FamilyProfile() {
       <ProfileSection title="Family Information" icon={User}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <ProfileItem label="Family Head Name" value={family.familyHeadNameEnglish || family.familyHeadNameHindi || family.familyHeadName} />
+          <ProfileItem label="Village" value={family.village || 'रामपुरा'} />
           <ProfileItem label="Father/Husband Name" value={family.fatherNameEnglish || family.fatherNameHindi || family.fatherName} />
           <ProfileItem label="Mobile Number" value={family.mobile} />
           <ProfileItem label="Alternate Mobile" value={family.alternateMobile} />

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Users,
@@ -9,9 +10,13 @@ import {
   FileText,
   ArrowUpRight,
   ArrowDownRight,
-  IndianRupee
+  IndianRupee,
+  Building2,
+  FileSpreadsheet
 } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
+import { useAuth } from '../contexts/AuthContext';
+import { ExcelImportModal } from '../components/ExcelImportModal';
 import {
   BarChart,
   Bar,
@@ -28,8 +33,10 @@ import {
 const COLORS = ['#22c55e', '#6366f1', '#f59e0b', '#ef4444', '#8b5cf6', '#14b8a6'];
 
 export function Dashboard() {
-  const { families, mohallas, castes, darkMode, t, language } = useData();
+  const { families, mohallas, castes, darkMode, t, language, villages, selectedVillage, setSelectedVillage } = useData();
+  const { isAdmin, userProfile, currentUser, assignedVillages } = useAuth();
   const navigate = useNavigate();
+  const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
 
   // Calculate stats
   const totalFamilies = families.length;
@@ -69,16 +76,57 @@ export function Dashboard() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('dashboard')}</h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1">
-            {language === 'en' ? "Welcome back! Here's your village survey overview." : "वापस आकर अच्छा लगा! यहाँ आपका ग्राम सर्वे अवलोकन है।"}
+            {language === 'en' 
+              ? (!isAdmin ? `Surveyor Dashboard • Showing your records` : "Welcome back! Here's your village survey overview.") 
+              : (!isAdmin ? `सर्वेयर डैशबोर्ड • आपके द्वारा जोड़े गए रिकॉर्ड` : "वापस आकर अच्छा लगा! यहाँ आपका ग्राम सर्वे अवलोकन है।")}
           </p>
         </div>
-        <button
-          onClick={() => navigate('/survey')}
-          className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-500 to-indigo-600 text-white rounded-xl font-medium hover:shadow-lg hover:shadow-green-500/25 transition-all"
-        >
-          <Plus className="w-5 h-5" />
-          {t('new_survey')}
-        </button>
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Village Filter */}
+          {isAdmin ? (
+            <div className="flex items-center gap-2">
+              <Building2 className="w-4 h-4 text-indigo-500 shrink-0" />
+              <select
+                value={selectedVillage}
+                onChange={(e) => setSelectedVillage(e.target.value)}
+                className={`text-xs md:text-sm px-3 py-2 rounded-xl border outline-none font-medium transition-colors ${
+                  darkMode
+                    ? 'bg-gray-800 border-gray-700 text-white'
+                    : 'bg-white border-gray-200 text-gray-900'
+                }`}
+              >
+                <option value="all">{t('all_villages')}</option>
+                {villages.map(v => (
+                  <option key={v} value={v}>{v}</option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+              <Building2 className="w-4 h-4 text-indigo-500 shrink-0" />
+              <span className="text-xs md:text-sm font-semibold">
+                {assignedVillages?.join(', ') || 'रामपुरा'}
+              </span>
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={() => setIsExcelModalOpen(true)}
+            className="flex items-center gap-2 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs md:text-sm font-semibold shadow-md transition-all shrink-0"
+          >
+            <FileSpreadsheet className="w-4 h-4" />
+            <span>{t('import_excel')}</span>
+          </button>
+
+          <button
+            onClick={() => navigate('/survey')}
+            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-500 to-indigo-600 text-white rounded-xl text-xs md:text-sm font-semibold hover:shadow-lg hover:shadow-green-500/25 transition-all shrink-0"
+          >
+            <Plus className="w-4 h-4" />
+            <span>{t('new_survey')}</span>
+          </button>
+        </div>
       </div>
 
       {/* Stats Grid */}
@@ -112,6 +160,12 @@ export function Dashboard() {
           value={femalePopulation}
           iconColor="text-pink-500"
           color="from-pink-500 to-pink-600"
+        />
+        <StatCard
+          icon={Building2}
+          label={t('total_villages')}
+          value={villages.length}
+          color="from-teal-500 to-teal-600"
         />
         <StatCard
           icon={MapPin}
@@ -263,6 +317,12 @@ export function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* Excel Import Modal */}
+      <ExcelImportModal
+        isOpen={isExcelModalOpen}
+        onClose={() => setIsExcelModalOpen(false)}
+      />
     </div>
   );
 }

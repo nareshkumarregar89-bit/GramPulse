@@ -1,16 +1,19 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Search as SearchIcon, Eye, Edit, Trash2, Users } from 'lucide-react';
+import { Search as SearchIcon, Eye, Edit, Trash2, Users, Building2 } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
+import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 
 export function Search() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { families, mohallas, castes, deleteFamily, darkMode } = useData();
+  const { families, villages, mohallas, castes, deleteFamily, darkMode } = useData();
+  const { isAdmin, assignedVillages } = useAuth();
   const { addToast } = useToast();
   const [query, setQuery] = useState('');
   const [filters, setFilters] = useState({
+    village: searchParams.get('village') || '',
     mohalla: searchParams.get('mohalla') || '',
     caste: searchParams.get('caste') || '',
     category: ''
@@ -27,6 +30,8 @@ export function Search() {
       family.rationCardNumber?.includes(query) ||
       family.bankName?.toLowerCase().includes(query.toLowerCase()) ||
       family.accountNumber?.includes(query) ||
+      (family.village && family.village.toLowerCase().includes(query.toLowerCase())) ||
+      (family.id && family.id.toLowerCase().includes(query.toLowerCase())) ||
       family.members.some(m => 
         (m.name && m.name.toLowerCase().includes(query.toLowerCase())) ||
         (m.nameEnglish && m.nameEnglish.toLowerCase().includes(query.toLowerCase())) ||
@@ -34,11 +39,12 @@ export function Search() {
       )
     );
 
+    const matchesVillage = filters.village === '' || family.village === filters.village;
     const matchesMohalla = filters.mohalla === '' || family.mohalla === filters.mohalla;
     const matchesCaste = filters.caste === '' || family.caste === filters.caste;
     const matchesCategory = filters.category === '' || family.category === filters.category;
 
-    return matchesQuery && matchesMohalla && matchesCaste && matchesCategory;
+    return matchesQuery && matchesVillage && matchesMohalla && matchesCaste && matchesCategory;
   });
 
   const handleDelete = (id) => {
@@ -75,7 +81,26 @@ export function Search() {
         </div>
 
         {/* Filters */}
-        <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Village</label>
+            <select
+              value={filters.village}
+              onChange={(e) => setFilters(f => ({ ...f, village: e.target.value }))}
+              className={`
+                w-full px-4 py-3 rounded-xl border outline-none
+                ${darkMode
+                  ? 'bg-gray-800 border-gray-700 text-white'
+                  : 'bg-gray-50 border-gray-200 text-gray-900'
+                }
+              `}
+            >
+              <option value="">All Villages</option>
+              {(isAdmin ? villages : (assignedVillages?.length > 0 ? assignedVillages : villages)).map(v => (
+                <option key={v} value={v}>{v}</option>
+              ))}
+            </select>
+          </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Mohalla</label>
             <select
@@ -154,7 +179,13 @@ export function Search() {
                   <h3 className="font-semibold text-gray-900 dark:text-white">
                     {family.familyHeadNameEnglish || family.familyHeadNameHindi || family.familyHeadName || 'Unknown'}
                   </h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">{family.id}</p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <p className="text-sm text-gray-500 dark:text-gray-400">{family.id}</p>
+                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300">
+                      <Building2 className="w-2.5 h-2.5" />
+                      {family.village || 'रामपुरा'}
+                    </span>
+                  </div>
                 </div>
               </div>
 

@@ -9,20 +9,27 @@ import {
   Trash2,
   MapPin,
   UsersRound,
-  AlertTriangle
+  AlertTriangle,
+  Building2,
+  FileSpreadsheet
 } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
 import { useToast } from '../contexts/ToastContext';
 import { jsPDF } from 'jspdf';
 import * as XLSX from 'xlsx';
+import { ExcelImportModal } from '../components/ExcelImportModal';
 
 export function Settings() {
   const {
     families,
+    villages,
     mohallas,
     castes,
     darkMode,
     setDarkMode,
+    language,
+    addVillage,
+    deleteVillage,
     addMohalla,
     deleteMohalla,
     addCaste,
@@ -33,9 +40,26 @@ export function Settings() {
   } = useData();
   const { addToast } = useToast();
   const fileInputRef = useRef(null);
+  const [newVillage, setNewVillage] = useState('');
   const [newMohalla, setNewMohalla] = useState('');
   const [newCaste, setNewCaste] = useState('');
   const [settingsExportFormat, setSettingsExportFormat] = useState('json');
+  const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
+
+  const handleAddVillage = () => {
+    if (newVillage.trim() && !villages.includes(newVillage.trim())) {
+      addVillage(newVillage.trim());
+      setNewVillage('');
+      addToast(language === 'hi' ? 'गाँव सफलतापूर्वक जोड़ा गया!' : 'Village added successfully!', 'success');
+    }
+  };
+
+  const handleDeleteVillage = (village) => {
+    if (confirm(language === 'hi' ? `क्या आप निश्चित रूप से "${village}" को हटाना चाहते हैं?` : `Are you sure you want to delete "${village}"?`)) {
+      deleteVillage(village);
+      addToast(language === 'hi' ? 'गाँव हटा दिया गया!' : 'Village deleted successfully!', 'success');
+    }
+  };
 
   const handleAddMohalla = () => {
     if (newMohalla.trim() && !mohallas.includes(newMohalla.trim())) {
@@ -304,6 +328,46 @@ export function Settings() {
         </div>
       </SettingSection>
 
+      {/* Manage Villages */}
+      <SettingSection title={language === 'hi' ? 'गाँव प्रबंधन (Manage Villages)' : 'Manage Villages'} icon={Building2}>
+        <div className="flex gap-3 mb-4">
+          <input
+            type="text"
+            placeholder={language === 'hi' ? 'नया गाँव जोड़ें (जैसे: रामपुरा)...' : 'Add new village name...'}
+            value={newVillage}
+            onChange={(e) => setNewVillage(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleAddVillage()}
+            className={`
+              flex-1 px-4 py-3 rounded-xl border outline-none
+              ${darkMode
+                ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-400'
+                : 'bg-white border-gray-200 text-gray-900 placeholder-gray-500'
+              }
+            `}
+          />
+          <button
+            onClick={handleAddVillage}
+            disabled={!newVillage.trim()}
+            className="px-6 py-3 bg-gradient-to-r from-green-500 to-indigo-600 text-white rounded-xl font-medium disabled:opacity-50"
+          >
+            <Plus className="w-5 h-5" />
+          </button>
+        </div>
+        <div className="space-y-2">
+          {villages.map((village) => (
+            <div key={village} className="flex items-center justify-between p-3 rounded-xl bg-gray-50 dark:bg-gray-800">
+              <span className="text-gray-900 dark:text-white font-medium">{village}</span>
+              <button
+                onClick={() => handleDeleteVillage(village)}
+                className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+      </SettingSection>
+
       {/* Manage Mohallas */}
       <SettingSection title="Manage Mohallas" icon={MapPin}>
         <div className="flex gap-3 mb-4">
@@ -411,6 +475,21 @@ export function Settings() {
           </div>
 
           <button
+            onClick={() => setIsExcelModalOpen(true)}
+            className="w-full flex items-center justify-center gap-3 px-6 py-4 rounded-xl border bg-emerald-50 dark:bg-emerald-950/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 border-emerald-200 dark:border-emerald-800 transition-colors"
+          >
+            <FileSpreadsheet className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+            <div className="text-left flex-1">
+              <p className="font-semibold text-gray-900 dark:text-white">
+                {language === 'hi' ? 'एक्सेल शीट से इम्पोर्ट करें (.xlsx)' : 'Import from Excel (.xlsx)'}
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                {language === 'hi' ? 'सैंपल टेम्पलेट डाउनलोड करें और बल्क डेटा अपलोड करें' : 'Download sample template & upload village families in bulk'}
+              </p>
+            </div>
+          </button>
+
+          <button
             onClick={() => fileInputRef.current?.click()}
             className="w-full flex items-center justify-center gap-3 px-6 py-4 rounded-xl border bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
           >
@@ -453,6 +532,12 @@ export function Settings() {
           </p>
         </div>
       </SettingSection>
+
+      {/* Excel Import Modal */}
+      <ExcelImportModal
+        isOpen={isExcelModalOpen}
+        onClose={() => setIsExcelModalOpen(false)}
+      />
     </div>
   );
 }

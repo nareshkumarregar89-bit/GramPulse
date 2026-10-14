@@ -14,14 +14,15 @@ import { Search } from './pages/Search';
 import { Reports } from './pages/Reports';
 import { Settings } from './pages/Settings';
 import { DeletedRecords } from './pages/DeletedRecords';
+import { UserManagement } from './pages/UserManagement';
 import { ToastContainer } from './components/ToastContainer';
 import { InstallPwaPrompt } from './components/InstallPwaPrompt';
 import { ProtectedRoute } from './components/ProtectedRoute';
 
 function App() {
   return (
-    <DataProvider>
-      <AuthProvider>
+    <AuthProvider>
+      <DataProvider>
         <ToastProvider>
           <Router>
             <Routes>
@@ -44,6 +45,14 @@ function App() {
                         <Route path="/castes" element={<Castes />} />
                         <Route path="/search" element={<Search />} />
                         <Route path="/reports" element={<Reports />} />
+                        <Route
+                          path="/users"
+                          element={
+                            <ProtectedRoute requireAdmin={true}>
+                              <UserManagement />
+                            </ProtectedRoute>
+                          }
+                        />
                         <Route
                           path="/deleted-records"
                           element={
@@ -71,8 +80,8 @@ function App() {
             <InstallPwaPrompt />
           </Router>
         </ToastProvider>
-      </AuthProvider>
-    </DataProvider>
+      </DataProvider>
+    </AuthProvider>
   );
 }
 

@@ -8,13 +8,14 @@ import {
   Sun,
   Search,
   User,
-  LogOut
+  LogOut,
+  Building2
 } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
 import { useAuth } from '../contexts/AuthContext';
 
 export function TopNavbar({ setIsMobileSidebarOpen }) {
-  const { darkMode, setDarkMode, language, setLanguage, families, t } = useData();
+  const { darkMode, setDarkMode, language, setLanguage, families, t, villages, selectedVillage, setSelectedVillage } = useData();
   const { currentUser, userProfile, isAdmin, logout } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const navigate = useNavigate();
@@ -68,7 +69,35 @@ export function TopNavbar({ setIsMobileSidebarOpen }) {
         </form>
       </div>
 
-      <div className="flex items-center gap-2 md:gap-4">
+      <div className="flex items-center gap-2 md:gap-3">
+        {/* Village Display: Dropdown for Admin, Fixed Badge for Surveyor */}
+        {isAdmin ? (
+          <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border bg-gray-50/70 dark:bg-gray-800/70 border-gray-200 dark:border-gray-700">
+            <Building2 className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+            <select
+              value={selectedVillage}
+              onChange={(e) => setSelectedVillage(e.target.value)}
+              className="text-xs bg-transparent border-none outline-none font-medium cursor-pointer text-gray-800 dark:text-gray-200"
+            >
+              <option value="all" className={darkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'}>
+                {language === 'hi' ? 'सभी गाँव' : 'All Villages'}
+              </option>
+              {villages.map(v => (
+                <option key={v} value={v} className={darkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'}>
+                  {v}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : (
+          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl border bg-indigo-50/70 dark:bg-indigo-950/40 border-indigo-200 dark:border-indigo-800/60">
+            <Building2 className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
+            <span className="text-xs font-semibold text-indigo-800 dark:text-indigo-200">
+              {language === 'hi' ? 'आवंटित गाँव:' : 'Village:'} {userProfile?.assignedVillages?.join(', ') || userProfile?.assignedVillage || 'रामपुरा'}
+            </span>
+          </div>
+        )}
+
         <button
           className={`
             p-2 rounded-xl transition-all
