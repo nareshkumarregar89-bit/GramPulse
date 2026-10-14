@@ -80,16 +80,16 @@ export function Sidebar({ isMobileOpen, setIsMobileOpen }) {
               onClick={handleLinkClick}
               end={item.path === '/'}
               className={({ isActive }) => `
-                flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-all text-sm font-medium
+                flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-all duration-200 text-sm font-medium
                 ${isActive
-                  ? 'bg-gradient-to-r from-green-500 to-indigo-600 text-white shadow-md shadow-green-500/20'
+                  ? 'bg-gradient-to-r from-emerald-600 to-indigo-600 text-white shadow-md shadow-emerald-500/25 translate-x-1 font-semibold'
                   : darkMode
-                    ? 'text-gray-400 hover:text-white hover:bg-gray-800'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                    ? 'text-gray-400 hover:text-white hover:bg-gray-800/80 hover:translate-x-0.5'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100 hover:translate-x-0.5'
                 }
               `}
             >
-              <item.icon className="w-4 h-4 shrink-0" />
+              <item.icon className="w-4 h-4 shrink-0 transition-transform duration-200 group-hover:scale-110" />
               <span>{t(item.labelKey)}</span>
             </NavLink>
           ))}
@@ -114,16 +114,16 @@ export function Sidebar({ isMobileOpen, setIsMobileOpen }) {
                     onClick={handleLinkClick}
                     end={item.path === '/admin'}
                     className={({ isActive }) => `
-                      flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-all text-sm font-medium
+                      flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-all duration-200 text-sm font-medium
                       ${isActive
-                        ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/25 font-semibold'
+                        ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-600/30 translate-x-1 font-semibold'
                         : darkMode
-                          ? 'text-gray-400 hover:text-white hover:bg-gray-800'
-                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                          ? 'text-gray-400 hover:text-white hover:bg-gray-800/80 hover:translate-x-0.5'
+                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100 hover:translate-x-0.5'
                       }
                     `}
                   >
-                    <item.icon className="w-4 h-4 shrink-0" />
+                    <item.icon className="w-4 h-4 shrink-0 transition-transform duration-200 group-hover:scale-110" />
                     <span>{t(item.labelKey)}</span>
                   </NavLink>
                 ))}

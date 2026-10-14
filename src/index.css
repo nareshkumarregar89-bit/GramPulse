@@ -162,13 +162,49 @@ body {
   }
 }
 
-/* Smooth Interactive Button Transitions */
-button {
+/* Smooth Interactive Button Transitions with 3D Press Depth */
+button,
+.btn-press {
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-button:active:not(:disabled) {
-  transform: scale(0.97);
+button:active:not(:disabled),
+.btn-press:active {
+  transform: scale(0.975) translateY(1px);
+}
+
+/* 3D Transform Utilities & Perspective */
+.preserve-3d {
+  transform-style: preserve-3d;
+}
+
+.perspective-1000 {
+  perspective: 1000px;
+}
+
+.perspective-800 {
+  perspective: 800px;
+}
+
+.transform-z-10 {
+  transform: translateZ(10px);
+}
+
+.transform-z-20 {
+  transform: translateZ(20px);
+}
+
+.transform-z-30 {
+  transform: translateZ(30px);
+}
+
+/* Soft 3D Ambient Card Shadows */
+.shadow-3d-card {
+  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.05), 0 4px 10px -3px rgba(0, 0, 0, 0.02);
+}
+
+.dark .shadow-3d-card {
+  box-shadow: 0 14px 35px -8px rgba(0, 0, 0, 0.4), 0 6px 14px -4px rgba(0, 0, 0, 0.3);
 }
 
 /* Premium Card Hover Lift Effect */
@@ -186,20 +222,79 @@ button:active:not(:disabled) {
   box-shadow: 0 12px 28px -6px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.25);
 }
 
-/* Disable Custom Cursor in Print Mode */
+/* Floating Animations for 3D Elements */
+@keyframes floatSlow {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes floatDelayed {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(5px);
+  }
+}
+
+.animate-float-slow {
+  animation: floatSlow 4.5s ease-in-out infinite;
+}
+
+.animate-float-delayed {
+  animation: floatDelayed 5s ease-in-out infinite 0.75s;
+}
+
+/* Shimmer Progress Effect */
+@keyframes shimmerProgress {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.progress-shimmer {
+  background-size: 200% 100%;
+  animation: shimmerProgress 2.5s ease-in-out infinite;
+}
+
+/* Disable Custom Cursor and 3D Transforms in Print Mode */
 @media print {
   .cursor-click-ripple,
   [class*="z-[9999]"],
   [class*="z-[9998]"],
-  [class*="z-[9997]"] {
+  [class*="z-[9997]"],
+  .tilt-card > div[aria-hidden="true"] {
     display: none !important;
+  }
+
+  .tilt-card,
+  .preserve-3d,
+  [style*="perspective"] {
+    transform: none !important;
+    perspective: none !important;
+    transform-style: flat !important;
+    box-shadow: none !important;
   }
 }
 
 /* Touch / Reduced Motion Disables */
 @media (pointer: coarse), (prefers-reduced-motion: reduce) {
-  .cursor-click-ripple {
-    display: none !important;
+  .cursor-click-ripple,
+  .animate-float-slow,
+  .animate-float-delayed {
+    animation: none !important;
+  }
+
+  .tilt-card {
+    transform: none !important;
   }
 }
+
 

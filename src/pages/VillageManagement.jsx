@@ -19,6 +19,9 @@ import {
 import { useData } from '../contexts/DataContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
+import { TiltCard } from '../components/TiltCard';
+import { AnimatedCounter } from '../components/AnimatedCounter';
+import { EmptyState3D } from '../components/EmptyState3D';
 
 export function VillageManagement() {
   const { 
@@ -214,58 +217,87 @@ export function VillageManagement() {
       </div>
 
       {/* KPI Stats Overview */}
+      {/* KPI Stats Overview with 3D Depth */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className={`p-4 rounded-2xl border ${darkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
-          <div className="flex items-center justify-between">
+        <TiltCard 
+          maxTilt={6}
+          perspective={850}
+          scale={1.02}
+          className={`p-4 rounded-2xl border shadow-3d-card transition-all ${darkMode ? 'bg-gray-900/90 border-gray-800' : 'bg-white border-gray-200'}`}
+        >
+          <div className="flex items-center justify-between transform-z-20">
             <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">
               {language === 'hi' ? 'कुल गाँव' : 'Total Villages'}
             </span>
             <Layers className="w-4 h-4 text-indigo-500" />
           </div>
-          <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1.5">{totalVillagesCount}</p>
+          <p className="text-2xl font-extrabold text-gray-900 dark:text-white mt-1.5 transform-z-20">
+            <AnimatedCounter value={totalVillagesCount} />
+          </p>
           <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
             {language === 'hi' ? 'डेटाबेस में पंजीकृत' : 'Registered in database'}
           </p>
-        </div>
+        </TiltCard>
 
-        <div className={`p-4 rounded-2xl border ${darkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
-          <div className="flex items-center justify-between">
+        <TiltCard 
+          maxTilt={6}
+          perspective={850}
+          scale={1.02}
+          className={`p-4 rounded-2xl border shadow-3d-card transition-all ${darkMode ? 'bg-gray-900/90 border-gray-800' : 'bg-white border-gray-200'}`}
+        >
+          <div className="flex items-center justify-between transform-z-20">
             <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">
               {language === 'hi' ? 'सक्रिय गाँव' : 'Active Villages'}
             </span>
             <CheckCircle2 className="w-4 h-4 text-green-500" />
           </div>
-          <p className="text-2xl font-bold text-green-600 dark:text-green-400 mt-1.5">{activeVillagesCount}</p>
+          <p className="text-2xl font-extrabold text-green-600 dark:text-green-400 mt-1.5 transform-z-20">
+            <AnimatedCounter value={activeVillagesCount} />
+          </p>
           <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
             {language === 'hi' ? 'सर्वेक्षण हेतु उपलब्ध' : 'Available for active survey'}
           </p>
-        </div>
+        </TiltCard>
 
-        <div className={`p-4 rounded-2xl border ${darkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
-          <div className="flex items-center justify-between">
+        <TiltCard 
+          maxTilt={6}
+          perspective={850}
+          scale={1.02}
+          className={`p-4 rounded-2xl border shadow-3d-card transition-all ${darkMode ? 'bg-gray-900/90 border-gray-800' : 'bg-white border-gray-200'}`}
+        >
+          <div className="flex items-center justify-between transform-z-20">
             <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">
               {language === 'hi' ? 'निष्क्रिय गाँव' : 'Deactivated'}
             </span>
             <Power className="w-4 h-4 text-amber-500" />
           </div>
-          <p className="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1.5">{inactiveVillagesCount}</p>
+          <p className="text-2xl font-extrabold text-amber-600 dark:text-amber-400 mt-1.5 transform-z-20">
+            <AnimatedCounter value={inactiveVillagesCount} />
+          </p>
           <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
             {language === 'hi' ? 'रिकॉर्ड्स सुरक्षित, फॉर्म से छिपे' : 'Data preserved, hidden from form'}
           </p>
-        </div>
+        </TiltCard>
 
-        <div className={`p-4 rounded-2xl border ${darkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
-          <div className="flex items-center justify-between">
+        <TiltCard 
+          maxTilt={6}
+          perspective={850}
+          scale={1.02}
+          className={`p-4 rounded-2xl border shadow-3d-card transition-all ${darkMode ? 'bg-gray-900/90 border-gray-800' : 'bg-white border-gray-200'}`}
+        >
+          <div className="flex items-center justify-between transform-z-20">
             <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">
               {language === 'hi' ? 'कुल सर्वे रिकॉर्ड' : 'Total Families'}
             </span>
             <Users className="w-4 h-4 text-teal-500" />
           </div>
-          <p className="text-2xl font-bold text-teal-600 dark:text-teal-400 mt-1.5">{totalSurveyedFamilies}</p>
+          <p className="text-2xl font-extrabold text-teal-600 dark:text-teal-400 mt-1.5 transform-z-20">
+            <AnimatedCounter value={totalSurveyedFamilies} />
+          </p>
           <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
             {language === 'hi' ? 'सभी गाँवों के कुल परिवार' : 'Surveyed across all villages'}
           </p>
-        </div>
+        </TiltCard>
       </div>
 
       {/* Filter and Search Bar */}
@@ -319,14 +351,16 @@ export function VillageManagement() {
           );
 
           return (
-            <div 
+            <TiltCard 
               key={village.id}
-              className={`rounded-2xl border card-hover-lift transition-all duration-200 flex flex-col justify-between overflow-hidden ${
-                darkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200 shadow-xs'
+              maxTilt={5}
+              scale={1.015}
+              className={`rounded-2xl border shadow-3d-card transition-all duration-200 flex flex-col justify-between overflow-hidden ${
+                darkMode ? 'bg-gray-900/90 border-gray-800' : 'bg-white border-gray-200 shadow-xs'
               } ${!isActive ? 'opacity-75' : ''}`}
             >
               {/* Card Header */}
-              <div className="p-5 border-b border-gray-100 dark:border-gray-800">
+              <div className="p-5 border-b border-gray-100 dark:border-gray-800 transform-z-10">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -355,14 +389,14 @@ export function VillageManagement() {
               </div>
 
               {/* Card Body: Dynamic Statistics */}
-              <div className="p-5 space-y-4 flex-1">
+              <div className="p-5 space-y-4 flex-1 transform-z-10">
                 <div className="grid grid-cols-2 gap-3">
                   <div className={`p-3 rounded-xl border ${darkMode ? 'bg-gray-800/40 border-gray-800' : 'bg-gray-50 border-gray-100'}`}>
                     <span className="text-[10px] text-gray-400 block font-medium uppercase">
                       {language === 'hi' ? 'कुल परिवार' : 'Families'}
                     </span>
                     <span className="text-xl font-bold text-gray-900 dark:text-white mt-1 block">
-                      {totalFamiliesCount}
+                      <AnimatedCounter value={totalFamiliesCount} />
                     </span>
                   </div>
 
@@ -371,7 +405,7 @@ export function VillageManagement() {
                       {language === 'hi' ? 'कुल जनसंख्या' : 'Population'}
                     </span>
                     <span className="text-xl font-bold text-indigo-600 dark:text-indigo-400 mt-1 block">
-                      {totalPopulation}
+                      <AnimatedCounter value={totalPopulation} />
                     </span>
                   </div>
                 </div>
@@ -424,7 +458,7 @@ export function VillageManagement() {
                 <button
                   type="button"
                   onClick={() => handleToggle(village)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all active:scale-95 ${
                     isActive 
                       ? 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400' 
                       : 'bg-green-500/10 hover:bg-green-500/20 text-green-600 dark:text-green-400'
@@ -440,7 +474,7 @@ export function VillageManagement() {
                   <button
                     type="button"
                     onClick={() => setEditingVillage(village)}
-                    className="p-2 rounded-xl text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors"
+                    className="p-2 rounded-xl text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors active:scale-90"
                     title={language === 'hi' ? 'गाँव विवरण संपादित करें' : 'Edit Village Details'}
                   >
                     <Edit3 className="w-4 h-4" />
@@ -450,28 +484,29 @@ export function VillageManagement() {
                   <button
                     type="button"
                     onClick={() => handleDeleteClick(village)}
-                    className="p-2 rounded-xl text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"
+                    className="p-2 rounded-xl text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors active:scale-90"
                     title={language === 'hi' ? 'गाँव हटाएं' : 'Delete Village'}
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
               </div>
-            </div>
+            </TiltCard>
           );
         })}
       </div>
 
       {filteredVillages.length === 0 && (
-        <div className={`p-12 text-center rounded-2xl border ${darkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
-          <Building2 className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-          <h3 className="text-base font-bold text-gray-900 dark:text-white">
-            {language === 'hi' ? 'कोई गाँव नहीं मिला' : 'No villages found'}
-          </h3>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-            {language === 'hi' ? 'अपने खोज मापदंड बदलें या नया गाँव जोड़ें।' : 'Try adjusting your search or add a new village.'}
-          </p>
-        </div>
+        <EmptyState3D
+          title={language === 'hi' ? 'कोई गाँव नहीं मिला' : 'No villages found'}
+          description={language === 'hi' ? 'अपने खोज मापदंड बदलें या नया गाँव जोड़ें।' : 'Try adjusting your search or add a new village.'}
+          actionLabel={language === 'hi' ? 'नया गाँव जोड़ें' : 'Add New Village'}
+          onAction={() => {
+            setFormData({ nameEnglish: '', nameHindi: '', status: 'active' });
+            setFormError('');
+            setIsAddModalOpen(true);
+          }}
+        />
       )}
 
       {/* MODAL 1: Add New Village */}
