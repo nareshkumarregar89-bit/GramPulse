@@ -50,7 +50,7 @@ export function InstallPwaPrompt() {
   if (!isVisible) return null;
 
   return (
-    <div className={`fixed bottom-20 md:bottom-6 right-4 left-4 md:left-auto md:w-96 z-50 p-4 rounded-2xl shadow-2xl border transition-all animate-bounce-subtle ${
+    <div className={`no-print fixed bottom-20 md:bottom-6 right-4 left-4 md:left-auto md:w-96 z-50 p-4 rounded-2xl shadow-2xl border transition-all animate-bounce-subtle ${
       darkMode ? 'bg-gray-900/95 border-gray-700 text-white backdrop-blur-md' : 'bg-white/95 border-green-200 text-gray-900 backdrop-blur-md'
     }`}>
       <div className="flex items-start gap-3">

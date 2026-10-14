@@ -12,11 +12,14 @@ import {
   MapPin
 } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
+import { useAuth } from '../contexts/AuthContext';
+import { PrintDocument } from '../components/PrintDocument';
 
 export function FamilyProfile() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { getFamilyById, darkMode } = useData();
+  const { getFamilyById, darkMode, language } = useData();
+  const { currentUser, userProfile } = useAuth();
   const family = getFamilyById(id);
 
   if (!family) {
@@ -34,92 +37,14 @@ export function FamilyProfile() {
   }
 
   const handlePrint = () => {
-    const printWindow = window.open('', '_blank');
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>${family.familyHeadNameEnglish || family.familyHeadNameHindi || family.familyHeadName || 'Family'} - Family Details</title>
-          <style>
-            body { font-family: Arial, sans-serif; padding: 40px; max-width: 800px; margin: 0 auto; }
-            h1 { color: #16a34a; }
-            .section { margin: 20px 0; padding: 20px; background: #f0fdf4; border-radius: 8px; }
-            .label { font-weight: bold; color: #374151; display: inline-block; width: 150px; }
-            h2 { color: #1f2937; border-bottom: 2px solid #16a34a; padding-bottom: 8px; }
-            .member { background: white; padding: 15px; margin: 10px 0; border-radius: 6px; }
-          </style>
-        </head>
-        <body>
-          <h1>GramPulse - Family Details</h1>
-          <div class="section">
-            <h2>Family ID: ${family.id}</h2>
-          </div>
-          
-          <div class="section">
-            <h2>Family Information</h2>
-            <p><span class="label">Family Head:</span> ${family.familyHeadNameEnglish || family.familyHeadNameHindi || family.familyHeadName || '-'}</p>
-            <p><span class="label">Father/Husband:</span> ${family.fatherName || '-'}</p>
-            <p><span class="label">Mobile:</span> ${family.mobile}</p>
-            <p><span class="label">Alternate Mobile:</span> ${family.alternateMobile || '-'}</p>
-            <p><span class="label">Mohalla:</span> ${family.mohalla}</p>
-            <p><span class="label">Caste:</span> ${family.caste}</p>
-            <p><span class="label">Address:</span> ${family.address || '-'}</p>
-            <p><span class="label">House No:</span> ${family.houseNumber || '-'}</p>
-            <p><span class="label">PIN Code:</span> ${family.pinCode || '-'}</p>
-          </div>
-
-          <div class="section">
-            <h2>Government Documents</h2>
-            <p><span class="label">Aadhaar:</span> ${family.aadhaarNumber || '-'}</p>
-            <p><span class="label">Jan Aadhaar:</span> ${family.janAadhaarNumber || '-'}</p>
-            <p><span class="label">Ration Card:</span> ${family.rationCardNumber || '-'}</p>
-            <p><span class="label">Voter ID:</span> ${family.voterId || '-'}</p>
-          </div>
-
-          <div class="section">
-            <h2>Bank Details</h2>
-            <p><span class="label">Bank Name:</span> ${family.bankName || '-'}</p>
-            <p><span class="label">Branch:</span> ${family.branch || '-'}</p>
-            <p><span class="label">Account Holder:</span> ${family.accountHolder || '-'}</p>
-            <p><span class="label">Account No:</span> ${family.accountNumber || '-'}</p>
-            <p><span class="label">IFSC:</span> ${family.ifsc || '-'}</p>
-          </div>
-
-          <div class="section">
-            <h2>House Information</h2>
-            <p><span class="label">Monthly Income:</span> ${family.monthlyIncome || '-'}</p>
-            <p><span class="label">Occupation:</span> ${family.occupation || '-'}</p>
-            <p><span class="label">Category:</span> ${family.category}</p>
-            <p><span class="label">House Type:</span> ${family.houseType}</p>
-            <p><span class="label">Water Connection:</span> ${family.waterConnection ? 'Yes' : 'No'}</p>
-            <p><span class="label">Electricity:</span> ${family.electricityConnection ? 'Yes' : 'No'}</p>
-            <p><span class="label">Toilet:</span> ${family.toilet ? 'Yes' : 'No'}</p>
-            <p><span class="label">Gas Connection:</span> ${family.gasConnection ? 'Yes' : 'No'}</p>
-          </div>
-
-          <div class="section">
-            <h2>Family Members (${family.members.length})</h2>
-            ${family.members.map(m => `
-              <div class="member">
-                <p><span class="label">Name:</span> ${m.name}</p>
-                <p><span class="label">Age:</span> ${m.age}</p>
-                <p><span class="label">Gender:</span> ${m.gender}</p>
-                <p><span class="label">Relation:</span> ${m.relation}</p>
-                <p><span class="label">Aadhaar:</span> ${m.aadhaarNumber || '-'}</p>
-                <p><span class="label">Occupation:</span> ${m.occupation || '-'}</p>
-                <p><span class="label">Education:</span> ${m.education || '-'}</p>
-                <p><span class="label">Marital Status:</span> ${m.maritalStatus}</p>
-              </div>
-            `).join('')}
-          </div>
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
-    printWindow.print();
+    window.print();
   };
 
+  const printedBy = userProfile?.name || currentUser?.displayName || (currentUser?.email ? currentUser.email.split('@')[0] : 'GramPulse Officer');
+
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
+    <>
+      <div className="space-y-6 max-w-4xl mx-auto no-print">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <button
@@ -305,7 +230,19 @@ export function FamilyProfile() {
           </div>
         </ProfileSection>
       )}
-    </div>
+      </div>
+
+      {/* DEDICATED PRINT CONTAINER - TRIGGERED BY BROWSER PRINT */}
+      <div className="print-only">
+        <PrintDocument
+          families={[family]}
+          format="dossier"
+          village={family.village || 'रामपुरा'}
+          printedBy={printedBy}
+          language={language}
+        />
+      </div>
+    </>
   );
 }
 

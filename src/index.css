@@ -34,3 +34,101 @@ body {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* Screen Mode: Hide print-only components */
+@media screen {
+  .print-only {
+    display: none !important;
+  }
+}
+
+/* Professional Print Stylesheet */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 8mm 10mm 8mm 10mm;
+  }
+
+  html, body {
+    background-color: #ffffff !important;
+    background: #ffffff !important;
+    color: #111827 !important;
+    font-size: 11pt !important;
+    line-height: 1.35 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Force light theme colors on printing */
+  * {
+    color-scheme: light !important;
+  }
+
+  /* Hide navigation, sidebar, and non-printable interactive elements */
+  header,
+  aside,
+  nav,
+  .no-print,
+  .print-hidden,
+  button,
+  input,
+  select,
+  .install-pwa-prompt,
+  .toast-container {
+    display: none !important;
+  }
+
+  /* Reset layout margins and padding */
+  .md\:ml-64 {
+    margin-left: 0 !important;
+  }
+
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+  }
+
+  /* Show the dedicated print document */
+  .print-only {
+    display: block !important;
+    width: 100% !important;
+  }
+
+  /* Table rules for clean multi-page pagination */
+  .print-table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    page-break-inside: auto !important;
+  }
+
+  .print-table thead {
+    display: table-header-group !important;
+  }
+
+  .print-table tfoot {
+    display: table-footer-group !important;
+  }
+
+  .print-table tr {
+    page-break-inside: avoid !important;
+    page-break-after: auto !important;
+  }
+
+  .print-table th,
+  .print-table td {
+    border: 1px solid #1f2937 !important;
+    padding: 5px 6px !important;
+    word-break: break-word !important;
+  }
+
+  .print-avoid-break {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .print-page-break {
+    page-break-after: always !important;
+    break-after: page !important;
+  }
+}
