@@ -9,15 +9,18 @@ import {
   Search,
   User,
   LogOut,
-  Building2
+  Building2,
+  Shield
 } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
 import { useAuth } from '../contexts/AuthContext';
+import { UserProfileModal } from '../components/UserProfileModal';
 
 export function TopNavbar({ setIsMobileSidebarOpen }) {
   const { darkMode, setDarkMode, language, setLanguage, families, t, villages, selectedVillage, setSelectedVillage } = useData();
   const { currentUser, userProfile, isAdmin, logout } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const navigate = useNavigate();
 
   const handleSearch = (e) => {
@@ -35,132 +38,171 @@ export function TopNavbar({ setIsMobileSidebarOpen }) {
     setLanguage(language === 'en' ? 'hi' : 'en');
   };
 
+  const userInitial = userProfile?.name?.charAt(0)?.toUpperCase() || currentUser?.email?.charAt(0)?.toUpperCase() || 'U';
+  const displayName = userProfile?.name || (currentUser?.email ? currentUser.email.split('@')[0] : 'User');
+
   return (
-    <header className={`
-      sticky top-0 z-30 h-16 px-4 md:px-6 flex items-center justify-between border-b
-      ${darkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}
-    `}>
-      <div className="flex items-center gap-4">
-        <button
-          onClick={() => setIsMobileSidebarOpen(true)}
-          className="md:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
-        >
-          <Menu className="w-6 h-6 text-gray-600 dark:text-gray-300" />
-        </button>
-        <div className="flex md:hidden items-center gap-2">
-          <img src="/logo.png" alt="GramPulse" className="w-8 h-8 object-contain rounded-lg shadow-sm" />
-          <span className="font-bold text-base text-gray-900 dark:text-white">GramPulse</span>
+    <>
+      <header className={`
+        sticky top-0 z-30 h-16 px-3.5 sm:px-4 md:px-6 flex items-center justify-between border-b transition-colors duration-200
+        ${darkMode ? 'bg-gray-900/95 border-gray-800' : 'bg-white/95 border-gray-200'}
+        backdrop-blur-md
+      `}>
+        {/* Left Section: Menu button + Brand */}
+        <div className="flex items-center gap-2 sm:gap-3">
+          <button
+            onClick={() => setIsMobileSidebarOpen(true)}
+            className="md:hidden p-2 -ml-1 rounded-xl text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            aria-label="Open sidebar navigation"
+          >
+            <Menu className="w-5 h-5 sm:w-6 sm:h-6" />
+          </button>
+          
+          <div className="flex md:hidden items-center gap-2">
+            <img src="/logo.png" alt="GramPulse" className="w-7 h-7 sm:w-8 sm:h-8 object-contain rounded-lg shadow-xs" />
+            <span className="font-bold text-base tracking-tight text-gray-900 dark:text-white">GramPulse</span>
+          </div>
+
+          <form onSubmit={handleSearch} className="hidden md:flex relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder={language === 'hi' ? 'परिवार, सदस्य खोजें...' : 'Search families, members...'}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className={`
+                w-full pl-10 pr-4 py-2 rounded-xl border outline-none text-sm transition-all
+                ${darkMode
+                  ? 'bg-gray-800/80 border-gray-700 text-white placeholder-gray-400 focus:border-green-500'
+                  : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-500 focus:border-green-500'
+                }
+              `}
+            />
+          </form>
         </div>
-        <form onSubmit={handleSearch} className="hidden md:flex relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search families, members..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+
+        {/* Right Section: Controls & User Profile */}
+        <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3">
+          {/* Village Display: Dropdown for Admin, Fixed Badge for Surveyor (Desktop/Tablet) */}
+          {isAdmin ? (
+            <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border bg-gray-50/70 dark:bg-gray-800/70 border-gray-200 dark:border-gray-700">
+              <Building2 className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+              <select
+                value={selectedVillage}
+                onChange={(e) => setSelectedVillage(e.target.value)}
+                className="text-xs bg-transparent border-none outline-none font-medium cursor-pointer text-gray-800 dark:text-gray-200"
+              >
+                <option value="all" className={darkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'}>
+                  {language === 'hi' ? 'सभी गाँव' : 'All Villages'}
+                </option>
+                {villages.map(v => (
+                  <option key={v} value={v} className={darkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'}>
+                    {v}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <div className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-xl border bg-indigo-50/70 dark:bg-indigo-950/40 border-indigo-200 dark:border-indigo-800/60">
+              <Building2 className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
+              <span className="text-xs font-semibold text-indigo-800 dark:text-indigo-200">
+                {language === 'hi' ? 'आवंटित:' : 'Village:'} {userProfile?.assignedVillages?.join(', ') || userProfile?.assignedVillage || 'रामपुरा'}
+              </span>
+            </div>
+          )}
+
+          {/* Language Toggle */}
+          <button
+            onClick={toggleLanguage}
+            title={language === 'hi' ? 'Switch to English' : 'हिंदी में बदलें'}
             className={`
-              w-full pl-10 pr-4 py-2 rounded-xl border outline-none
-              ${darkMode
-                ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-400 focus:border-green-500'
-                : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-500 focus:border-green-500'
+              px-2 sm:px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all border
+              ${darkMode 
+                ? 'bg-gray-800/80 border-gray-700 hover:bg-gray-700 text-gray-200' 
+                : 'bg-gray-50 border-gray-200 hover:bg-gray-100 text-gray-700'
               }
             `}
-          />
-        </form>
-      </div>
+          >
+            {language === 'en' ? 'EN' : 'HI'}
+          </button>
 
-      <div className="flex items-center gap-2 md:gap-3">
-        {/* Village Display: Dropdown for Admin, Fixed Badge for Surveyor */}
-        {isAdmin ? (
-          <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border bg-gray-50/70 dark:bg-gray-800/70 border-gray-200 dark:border-gray-700">
-            <Building2 className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
-            <select
-              value={selectedVillage}
-              onChange={(e) => setSelectedVillage(e.target.value)}
-              className="text-xs bg-transparent border-none outline-none font-medium cursor-pointer text-gray-800 dark:text-gray-200"
-            >
-              <option value="all" className={darkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'}>
-                {language === 'hi' ? 'सभी गाँव' : 'All Villages'}
-              </option>
-              {villages.map(v => (
-                <option key={v} value={v} className={darkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'}>
-                  {v}
-                </option>
-              ))}
-            </select>
-          </div>
-        ) : (
-          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl border bg-indigo-50/70 dark:bg-indigo-950/40 border-indigo-200 dark:border-indigo-800/60">
-            <Building2 className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
-            <span className="text-xs font-semibold text-indigo-800 dark:text-indigo-200">
-              {language === 'hi' ? 'आवंटित गाँव:' : 'Village:'} {userProfile?.assignedVillages?.join(', ') || userProfile?.assignedVillage || 'रामपुरा'}
-            </span>
-          </div>
-        )}
+          {/* Dark Mode Toggle */}
+          <button
+            onClick={toggleDarkMode}
+            title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            className={`
+              p-2 rounded-xl transition-all border
+              ${darkMode 
+                ? 'bg-gray-800/80 border-gray-700 hover:bg-gray-700 text-amber-400' 
+                : 'bg-gray-50 border-gray-200 hover:bg-gray-100 text-gray-600'
+              }
+            `}
+          >
+            {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          </button>
 
-        <button
-          className={`
-            p-2 rounded-xl transition-all
-            ${darkMode ? 'hover:bg-gray-800 text-gray-300' : 'hover:bg-gray-100 text-gray-600'}
-          `}
-        >
-          <Bell className="w-5 h-5" />
-        </button>
+          {/* Profile Trigger Button (Avatar Card) */}
+          {currentUser && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setIsProfileModalOpen(true)}
+                className={`
+                  flex items-center gap-2 p-1 sm:px-2.5 sm:py-1 rounded-2xl border transition-all duration-200
+                  ${darkMode 
+                    ? 'bg-gray-800/80 hover:bg-gray-700/90 border-gray-700' 
+                    : 'bg-gray-50/90 hover:bg-gray-100/90 border-gray-200 shadow-2xs'
+                  }
+                  active:scale-95
+                `}
+                title={language === 'hi' ? 'प्रोफ़ाइल विवरण देखें' : 'View Profile Details'}
+              >
+                {/* Avatar with status indicator */}
+                <div className="relative">
+                  <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-green-500 via-emerald-600 to-indigo-600 flex items-center justify-center text-white font-black text-xs shadow-xs">
+                    {userInitial}
+                  </div>
+                  <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 border-2 border-white dark:border-gray-900 rounded-full" />
+                </div>
 
-        <button
-          onClick={toggleLanguage}
-          className={`
-            px-3 py-2 rounded-xl transition-all font-semibold
-            ${darkMode ? 'hover:bg-gray-800 text-gray-300' : 'hover:bg-gray-100 text-gray-600'}
-          `}
-        >
-          {language === 'en' ? 'EN' : 'HI'}
-        </button>
+                {/* Name & Role (Visible on desktop/tablet) */}
+                <div className="hidden sm:block text-left pr-1">
+                  <p className="text-xs font-bold text-gray-900 dark:text-white truncate max-w-[100px] md:max-w-[130px]">
+                    {displayName}
+                  </p>
+                  <div className="flex items-center gap-1">
+                    <span className={`inline-block text-[9px] font-extrabold uppercase tracking-wide px-1 rounded ${
+                      isAdmin 
+                        ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400' 
+                        : 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+                    }`}>
+                      {isAdmin ? 'Admin' : 'Surveyor'}
+                    </span>
+                  </div>
+                </div>
+              </button>
 
-        <button
-          onClick={toggleDarkMode}
-          className={`
-            p-2 rounded-xl transition-all
-            ${darkMode ? 'hover:bg-gray-800 text-gray-300' : 'hover:bg-gray-100 text-gray-600'}
-          `}
-        >
-          {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-        </button>
-
-        {currentUser && (
-          <div className="flex items-center gap-2">
-            <div className={`
-              flex items-center gap-2.5 px-3 py-1.5 rounded-xl border
-              ${darkMode ? 'bg-gray-800/80 border-gray-700' : 'bg-gray-50 border-gray-200'}
-            `}>
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-500 to-indigo-600 flex items-center justify-center text-white font-bold text-xs">
-                {userProfile?.name?.charAt(0)?.toUpperCase() || currentUser?.email?.charAt(0)?.toUpperCase() || 'U'}
-              </div>
-              <div className="hidden md:block text-left">
-                <p className="text-xs font-semibold text-gray-900 dark:text-white truncate max-w-[120px]">
-                  {userProfile?.name || currentUser?.email?.split('@')[0]}
-                </p>
-                <span className={`inline-block text-[10px] font-bold px-1.5 py-0.2 rounded ${
-                  isAdmin 
-                    ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400' 
-                    : 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
-                }`}>
-                  {isAdmin ? (language === 'hi' ? 'एडमिन' : 'Admin') : (language === 'hi' ? 'सर्वेयर' : 'Surveyor')}
-                </span>
-              </div>
+              {/* Direct Logout Button (Desktop only) */}
+              <button
+                onClick={logout}
+                title={language === 'hi' ? 'लॉगआउट' : 'Logout'}
+                className={`hidden md:flex p-2 rounded-xl transition-all border ${
+                  darkMode 
+                    ? 'border-gray-800 hover:bg-red-500/20 hover:border-red-500/40 text-red-400' 
+                    : 'border-gray-200 hover:bg-red-50 hover:border-red-200 text-red-600'
+                }`}
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
             </div>
-            <button
-              onClick={logout}
-              title={language === 'hi' ? 'लॉगआउट' : 'Logout'}
-              className={`p-2 rounded-xl transition-all ${
-                darkMode ? 'hover:bg-red-500/20 text-red-400' : 'hover:bg-red-50 text-red-600'
-              }`}
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
-          </div>
-        )}
-      </div>
-    </header>
+          )}
+        </div>
+      </header>
+
+      {/* User Profile View Card / Modal */}
+      <UserProfileModal 
+        isOpen={isProfileModalOpen} 
+        onClose={() => setIsProfileModalOpen(false)} 
+      />
+    </>
   );
 }

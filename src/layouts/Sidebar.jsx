@@ -10,7 +10,8 @@ import {
   Settings,
   Menu,
   Trash2,
-  UserCheck
+  UserCheck,
+  User
 } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -23,6 +24,7 @@ const navItems = [
   { path: '/castes', icon: UsersRound, labelKey: 'castes' },
   { path: '/reports', icon: BarChart3, labelKey: 'reports' },
   { path: '/search', icon: Search, labelKey: 'search' },
+  { path: '/profile', icon: User, labelKey: 'profile' },
   { path: '/users', icon: UserCheck, labelKey: 'user_management', adminOnly: true },
   { path: '/deleted-records', icon: Trash2, labelKey: 'deleted_records', adminOnly: true },
   { path: '/settings', icon: Settings, labelKey: 'settings', adminOnly: true },
@@ -61,7 +63,7 @@ export function Sidebar({ isMobileOpen, setIsMobileOpen }) {
           </div>
         </div>
       </div>
-      <nav className="p-4 space-y-1">
+      <nav className="p-4 space-y-1 overflow-y-auto max-h-[calc(100vh-8.5rem)] scrollbar-hide">
         {visibleNavItems.map((item) => (
           <NavLink
             key={item.path}

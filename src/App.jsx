@@ -15,6 +15,7 @@ import { Reports } from './pages/Reports';
 import { Settings } from './pages/Settings';
 import { DeletedRecords } from './pages/DeletedRecords';
 import { UserManagement } from './pages/UserManagement';
+import { Profile } from './pages/Profile';
 import { ToastContainer } from './components/ToastContainer';
 import { InstallPwaPrompt } from './components/InstallPwaPrompt';
 import { ProtectedRoute } from './components/ProtectedRoute';
@@ -69,6 +70,7 @@ function App() {
                             </ProtectedRoute>
                           }
                         />
+                        <Route path="/profile" element={<Profile />} />
                         <Route path="*" element={<Navigate to="/" replace />} />
                       </Routes>
                     </Layout>

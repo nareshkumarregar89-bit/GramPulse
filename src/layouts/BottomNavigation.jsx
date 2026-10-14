@@ -4,9 +4,7 @@ import {
   FileText,
   Users,
   Search,
-  BarChart3,
-  UserCheck,
-  Settings
+  User
 } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -37,11 +35,9 @@ export function BottomNavigation() {
       label: language === 'hi' ? 'खोज' : 'Search' 
     },
     { 
-      path: isAdmin ? '/users' : '/reports', 
-      icon: isAdmin ? UserCheck : BarChart3, 
-      label: isAdmin 
-        ? (language === 'hi' ? 'यूज़र्स' : 'Users') 
-        : (language === 'hi' ? 'रिपोर्ट्स' : 'Reports') 
+      path: '/profile', 
+      icon: User, 
+      label: language === 'hi' ? 'प्रोफ़ाइल' : 'Profile' 
     },
   ];
 
