@@ -321,7 +321,7 @@ export function VillageManagement() {
           return (
             <div 
               key={village.id}
-              className={`rounded-2xl border transition-all duration-200 flex flex-col justify-between overflow-hidden ${
+              className={`rounded-2xl border card-hover-lift transition-all duration-200 flex flex-col justify-between overflow-hidden ${
                 darkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200 shadow-xs'
               } ${!isActive ? 'opacity-75' : ''}`}
             >

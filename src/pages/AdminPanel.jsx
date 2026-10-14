@@ -226,7 +226,7 @@ export function AdminPanel() {
             return (
               <div
                 key={village.id}
-                className={`p-5 rounded-2xl border transition-all duration-200 flex flex-col justify-between ${
+                className={`p-5 rounded-2xl border card-hover-lift transition-all duration-200 flex flex-col justify-between ${
                   darkMode ? 'bg-gray-800/40 border-gray-800 hover:border-gray-700' : 'bg-gray-50/70 border-gray-200 hover:border-gray-300'
                 }`}
               >

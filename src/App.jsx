@@ -21,6 +21,7 @@ import { Profile } from './pages/Profile';
 import { ToastContainer } from './components/ToastContainer';
 import { InstallPwaPrompt } from './components/InstallPwaPrompt';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { CustomCursor } from './components/CustomCursor';
 
 function App() {
   return (
@@ -98,6 +99,7 @@ function App() {
             </Routes>
             <ToastContainer />
             <InstallPwaPrompt />
+            <CustomCursor />
           </Router>
         </ToastProvider>
       </DataProvider>

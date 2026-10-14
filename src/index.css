@@ -132,3 +132,74 @@ body {
     break-after: page !important;
   }
 }
+
+/* =======================================================
+   CUSTOM CURSOR & PREMIUM INTERACTIVE HOVER ANIMATIONS
+   ======================================================= */
+
+/* Click Ripple Effect */
+.cursor-click-ripple {
+  position: fixed;
+  width: 16px;
+  height: 16px;
+  border-radius: 9999px;
+  border: 1.5px solid rgba(16, 185, 129, 0.75);
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.3) 0%, transparent 70%);
+  transform: translate(-50%, -50%) scale(0.6);
+  animation: cursorRippleAnim 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  pointer-events: none;
+  z-index: 9997;
+}
+
+@keyframes cursorRippleAnim {
+  0% {
+    opacity: 0.95;
+    transform: translate(-50%, -50%) scale(0.6);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(3.2);
+  }
+}
+
+/* Smooth Interactive Button Transitions */
+button {
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+button:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+/* Premium Card Hover Lift Effect */
+.card-hover-lift,
+.group\/card {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease;
+}
+
+.card-hover-lift:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 28px -6px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+}
+
+.dark .card-hover-lift:hover {
+  box-shadow: 0 12px 28px -6px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.25);
+}
+
+/* Disable Custom Cursor in Print Mode */
+@media print {
+  .cursor-click-ripple,
+  [class*="z-[9999]"],
+  [class*="z-[9998]"],
+  [class*="z-[9997]"] {
+    display: none !important;
+  }
+}
+
+/* Touch / Reduced Motion Disables */
+@media (pointer: coarse), (prefers-reduced-motion: reduce) {
+  .cursor-click-ripple {
+    display: none !important;
+  }
+}
+

@@ -220,7 +220,7 @@ export function Dashboard() {
               return (
                 <div
                   key={vObj.id || vName}
-                  className={`p-4 rounded-2xl border transition-all ${
+                  className={`p-4 rounded-2xl border card-hover-lift transition-all ${
                     darkMode ? 'bg-gray-800/40 border-gray-800' : 'bg-gray-50/70 border-gray-200'
                   }`}
                 >
@@ -432,7 +432,7 @@ export function Dashboard() {
 function StatCard({ icon: Icon, label, value, trend, trendUp, color, iconColor }) {
   const { darkMode } = useData();
   return (
-    <div className={`p-5 rounded-2xl border ${darkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
+    <div className={`p-5 rounded-2xl border card-hover-lift ${darkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
       <div className="flex items-center justify-between">
         <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${color} flex items-center justify-center`}>
           <Icon className="w-6 h-6 text-white" />
