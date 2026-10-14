@@ -46,6 +46,10 @@ export function TopNavbar({ setIsMobileSidebarOpen }) {
         >
           <Menu className="w-6 h-6 text-gray-600 dark:text-gray-300" />
         </button>
+        <div className="flex md:hidden items-center gap-2">
+          <img src="/logo.png" alt="GramPulse" className="w-8 h-8 object-contain rounded-lg shadow-sm" />
+          <span className="font-bold text-base text-gray-900 dark:text-white">GramPulse</span>
+        </div>
         <form onSubmit={handleSearch} className="hidden md:flex relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input

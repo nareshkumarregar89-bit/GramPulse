@@ -54,9 +54,11 @@ export function InstallPwaPrompt() {
       darkMode ? 'bg-gray-900/95 border-gray-700 text-white backdrop-blur-md' : 'bg-white/95 border-green-200 text-gray-900 backdrop-blur-md'
     }`}>
       <div className="flex items-start gap-3">
-        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-indigo-600 flex items-center justify-center text-white shrink-0 shadow-md">
-          <Smartphone className="w-6 h-6" />
-        </div>
+        <img 
+          src="/logo.png" 
+          alt="GramPulse" 
+          className="w-12 h-12 rounded-xl object-contain shrink-0 shadow-md bg-white/10 p-0.5" 
+        />
         <div className="flex-1 min-w-0">
           <h4 className="font-bold text-sm md:text-base">
             {language === 'hi' ? 'फ़ोन में GramPulse ऐप इंस्टॉल करें' : 'Install GramPulse App'}

@@ -72,9 +72,11 @@ export function Login() {
         }`}>
           {/* Logo & Header */}
           <div className="text-center mb-8">
-            <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-green-500 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-green-500/25 mb-4">
-              <Users className="w-9 h-9" />
-            </div>
+            <img 
+              src="/logo.png" 
+              alt="GramPulse Logo" 
+              className="w-20 h-20 mx-auto object-contain drop-shadow-lg mb-4" 
+            />
             <h1 className="text-2xl font-bold tracking-tight">GramPulse</h1>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
               {language === 'hi' ? 'ग्राम सर्वेक्षण प्रबंधन पोर्टल' : 'Village Survey Management Portal'}
