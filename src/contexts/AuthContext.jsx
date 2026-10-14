@@ -5,6 +5,8 @@ import {
   onAuthStateChanged,
   sendPasswordResetEmail,
   createUserWithEmailAndPassword,
+  GoogleAuthProvider,
+  signInWithPopup,
   getAuth
 } from 'firebase/auth';
 import { 
@@ -136,6 +138,45 @@ export function AuthProvider({ children }) {
     return signOut(auth);
   };
 
+  const signInWithGoogle = async () => {
+    setAuthError('');
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
+    const cred = await signInWithPopup(auth, provider);
+    const user = cred.user;
+
+    // Check or initialize Firestore profile
+    try {
+      const userDocRef = doc(db, 'users', user.uid);
+      const userSnap = await getDoc(userDocRef);
+
+      if (userSnap.exists()) {
+        const data = userSnap.data();
+        if (data.status === 'inactive' && user.uid !== SUPER_ADMIN_UID) {
+          await signOut(auth);
+          throw new Error('Your account has been deactivated by the administrator.');
+        }
+      } else {
+        const isSuperAdmin = user.uid === SUPER_ADMIN_UID;
+        const newProfile = {
+          uid: user.uid,
+          email: user.email,
+          name: user.displayName || (user.email ? user.email.split('@')[0] : 'User'),
+          photoURL: user.photoURL || '',
+          role: isSuperAdmin ? 'admin' : 'surveyor',
+          assignedVillages: isSuperAdmin ? [] : ['रामपुरा (Rampura)'],
+          status: 'active',
+          createdAt: new Date().toISOString()
+        };
+        await setDoc(userDocRef, newProfile);
+      }
+    } catch (e) {
+      if (e.message.includes('deactivated')) throw e;
+      console.warn('Firestore profile check for Google user:', e);
+    }
+    return cred;
+  };
+
   // Admin function: Create user without signing out Admin
   const createUserByAdmin = async ({ name, email, password, role, assignedVillages }) => {
     const secondaryAppName = 'SecondaryAuthApp';
@@ -207,6 +248,7 @@ export function AuthProvider({ children }) {
     assignedVillages,
     login,
     logout,
+    signInWithGoogle,
     createUserByAdmin,
     updateUserByAdmin,
     toggleUserStatus,
