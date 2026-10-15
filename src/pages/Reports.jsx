@@ -32,7 +32,8 @@ const COLORS = ['#22c55e', '#6366f1', '#f59e0b', '#ef4444', '#8b5cf6', '#14b8a6'
 
 export function Reports() {
   const { families, mohallas, castes, darkMode, language, selectedVillage } = useData();
-  const { currentUser, userProfile } = useAuth();
+  const { currentUser, userProfile, isAdmin, assignedVillages = [] } = useAuth();
+  const isUnassigned = !isAdmin && (!assignedVillages || assignedVillages.length === 0 || userProfile?.assignmentStatus === 'Unassigned');
   const [exportFormat, setExportFormat] = useState('json');
   const [exportFilter, setExportFilter] = useState('all');
   const [selectedMohalla, setSelectedMohalla] = useState('');
@@ -306,6 +307,28 @@ export function Reports() {
         exportToJSON(filteredData);
     }
   };
+
+  if (isUnassigned) {
+    return (
+      <div className="max-w-2xl mx-auto py-12">
+        <div className={`p-8 rounded-3xl border text-center space-y-4 shadow-3d-card ${
+          darkMode ? 'bg-gray-900 border-amber-900/40 text-white' : 'bg-white border-amber-200 text-gray-900'
+        }`}>
+          <div className="w-16 h-16 mx-auto rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400">
+            <FileText className="w-8 h-8" />
+          </div>
+          <h2 className="text-xl font-bold">
+            {language === 'hi' ? 'गाँव आवंटन प्रतीक्षारत (Awaiting Assignment)' : 'Awaiting Village Assignment'}
+          </h2>
+          <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 max-w-md mx-auto leading-relaxed">
+            {language === 'hi'
+              ? 'रिपोर्ट और विश्लेषण देखने के लिए आपके खाते को गाँव आवंटित होना आवश्यक है। कृपया व्यवस्थापक द्वारा गाँव आवंटन की प्रतीक्षा करें।'
+              : 'Reports and analytics require an assigned village. Please wait for the administrator to assign a village to your account.'}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

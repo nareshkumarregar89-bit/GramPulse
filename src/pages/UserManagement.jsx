@@ -13,7 +13,10 @@ import {
   Search,
   UserCheck,
   AlertCircle,
-  Trash2
+  Trash2,
+  MapPin,
+  CheckCircle2,
+  Clock
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
@@ -24,6 +27,7 @@ export function UserManagement() {
     allUsers, 
     createUserByAdmin, 
     updateUserByAdmin, 
+    assignVillageToUser,
     toggleUserStatus, 
     sendUserPasswordReset, 
     deleteUserByAdmin,
@@ -38,6 +42,11 @@ export function UserManagement() {
   const [editingUser, setEditingUser] = useState(null);
   const [userToDelete, setUserToDelete] = useState(null);
   const [isDeletingUser, setIsDeletingUser] = useState(false);
+
+  // Village assignment modal state
+  const [userToAssignVillage, setUserToAssignVillage] = useState(null);
+  const [selectedVillageForAssign, setSelectedVillageForAssign] = useState('');
+  const [isAssigningVillage, setIsAssigningVillage] = useState(false);
 
   // Form states for Add User
   const [formData, setFormData] = useState({
@@ -191,6 +200,34 @@ export function UserManagement() {
     }
   };
 
+  // Village assignment handler
+  const handleConfirmAssignVillage = async () => {
+    if (!userToAssignVillage) return;
+    if (!selectedVillageForAssign) {
+      addToast(language === 'hi' ? 'कृपया एक गाँव चुनें।' : 'Please select a village to assign.', 'error');
+      return;
+    }
+
+    try {
+      setIsAssigningVillage(true);
+      const villageObj = activeVillageRecords.find(v => v.id === selectedVillageForAssign || v.name === selectedVillageForAssign) || selectedVillageForAssign;
+      await assignVillageToUser(userToAssignVillage.uid, villageObj);
+      addToast(
+        language === 'hi'
+          ? `यूज़र "${userToAssignVillage.name || userToAssignVillage.email}" को गाँव सफलतापूर्वक आवंटित किया गया!`
+          : `Village successfully assigned to user "${userToAssignVillage.name || userToAssignVillage.email}"!`,
+        'success'
+      );
+      setUserToAssignVillage(null);
+      setSelectedVillageForAssign('');
+    } catch (err) {
+      console.error('Assign village error:', err);
+      addToast(err.message || 'Failed to assign village.', 'error');
+    } finally {
+      setIsAssigningVillage(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -213,7 +250,7 @@ export function UserManagement() {
               email: '',
               password: '',
               role: 'surveyor',
-              assignedVillages: villages.length > 0 ? [villages[0]] : []
+              assignedVillages: []
             });
             setFormError('');
             setIsAddUserModalOpen(true);
@@ -481,6 +518,19 @@ export function UserManagement() {
 
                     <td className="p-4 text-right">
                       <div className="flex items-center justify-end gap-2">
+                        {user.role !== 'admin' && (!user.assignedVillages || user.assignedVillages.length === 0) && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setUserToAssignVillage(user);
+                              setSelectedVillageForAssign(activeVillageRecords[0]?.id || activeVillageRecords[0]?.name || '');
+                            }}
+                            className="p-1.5 rounded-lg text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 transition-colors"
+                            title={language === 'hi' ? 'गाँव आवंटित करें' : 'Assign Village'}
+                          >
+                            <MapPin className="w-4 h-4" />
+                          </button>
+                        )}
                         <button
                           type="button"
                           onClick={() => setEditingUser({ ...user, assignedVillages: user.assignedVillages || [] })}
@@ -630,6 +680,19 @@ export function UserManagement() {
 
                   {/* Mobile Actions Button Row */}
                   <div className="flex items-center gap-2 pt-2 border-t border-gray-100 dark:border-gray-800">
+                    {user.role !== 'admin' && (!user.assignedVillages || user.assignedVillages.length === 0) && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setUserToAssignVillage(user);
+                          setSelectedVillageForAssign(activeVillageRecords[0]?.id || activeVillageRecords[0]?.name || '');
+                        }}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 font-semibold text-xs transition-colors active:scale-95"
+                      >
+                        <MapPin className="w-3.5 h-3.5" />
+                        <span>{language === 'hi' ? 'गाँव' : 'Assign'}</span>
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => setEditingUser({ ...user, assignedVillages: user.assignedVillages || [] })}
@@ -925,7 +988,114 @@ export function UserManagement() {
         </div>
       )}
 
-      {/* Modal 3: Delete User Confirmation */}
+      {/* Modal 3: Assign Village to User */}
+      {userToAssignVillage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+          <div className={`w-full max-w-md rounded-3xl shadow-2xl border p-6 space-y-4 transition-all ${
+            darkMode ? 'bg-gray-900 border-gray-800 text-white' : 'bg-white border-gray-200 text-gray-900'
+          }`}>
+            <div className="flex items-center justify-between pb-3 border-b border-gray-200 dark:border-gray-800">
+              <h2 className="text-base font-bold flex items-center gap-2 text-indigo-600 dark:text-indigo-400">
+                <MapPin className="w-5 h-5" />
+                <span>{language === 'hi' ? 'गाँव आवंटित करें' : 'Assign Village to Surveyor'}</span>
+              </h2>
+              <button 
+                onClick={() => setUserToAssignVillage(null)}
+                className="text-gray-400 hover:text-gray-600 p-1 rounded-lg"
+              >
+                <XCircle className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              <div className={`p-3.5 rounded-2xl border ${darkMode ? 'bg-gray-800/60 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
+                <p className="font-bold text-gray-900 dark:text-white text-sm truncate">
+                  {userToAssignVillage.name || 'Unnamed Surveyor'}
+                </p>
+                <p className="text-gray-500 dark:text-gray-400 text-xs truncate mt-0.5">
+                  {userToAssignVillage.email}
+                </p>
+                <p className="font-mono text-[10px] text-gray-400 mt-1 truncate">
+                  UID: {userToAssignVillage.uid}
+                </p>
+              </div>
+
+              <div>
+                <label className="block font-semibold mb-2 text-gray-700 dark:text-gray-300">
+                  {language === 'hi' ? 'सक्रिय गाँव चुनें *' : 'Select Active Village *'}
+                </label>
+                <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                  {activeVillageRecords.map((v) => {
+                    const isSelected = selectedVillageForAssign === v.id || selectedVillageForAssign === v.name;
+                    return (
+                      <div
+                        key={v.id}
+                        onClick={() => setSelectedVillageForAssign(v.id || v.name)}
+                        className={`p-3 rounded-xl border cursor-pointer transition-all flex items-center justify-between ${
+                          isSelected
+                            ? 'bg-indigo-50/90 dark:bg-indigo-950/60 border-indigo-500 shadow-xs'
+                            : (darkMode ? 'bg-gray-800/40 border-gray-700 hover:border-gray-600' : 'bg-white border-gray-200 hover:border-gray-300')
+                        }`}
+                      >
+                        <div className="min-w-0">
+                          <p className={`font-bold text-xs ${isSelected ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-900 dark:text-white'}`}>
+                            {v.nameHindi || v.name}
+                          </p>
+                          <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                            {v.nameEnglish} • <span className="font-mono text-[10px]">ID: {v.id}</span>
+                          </p>
+                        </div>
+                        <input
+                          type="radio"
+                          name="assignedVillageModal"
+                          checked={isSelected}
+                          onChange={() => setSelectedVillageForAssign(v.id || v.name)}
+                          className="text-indigo-600 focus:ring-indigo-500"
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-200/50 dark:border-indigo-800/40 text-indigo-700 dark:text-indigo-300 text-[11px] flex items-start gap-2">
+                <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5 text-indigo-500" />
+                <span>
+                  {language === 'hi'
+                    ? 'गाँव आवंटित होते ही यह यूज़र तुरंत सक्रिय हो जाएगा और केवल इस गाँव के सर्वेक्षण रिकॉर्ड्स दर्ज व देख सकेगा।'
+                    : 'Once assigned, this surveyor will be active and strictly permitted to survey and view records for this village.'}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2.5 pt-3 border-t border-gray-200 dark:border-gray-800">
+              <button
+                type="button"
+                disabled={isAssigningVillage}
+                onClick={() => setUserToAssignVillage(null)}
+                className="px-4 py-2.5 rounded-xl border text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              >
+                {language === 'hi' ? 'रद्द करें' : 'Cancel'}
+              </button>
+              <button
+                type="button"
+                disabled={isAssigningVillage || !selectedVillageForAssign}
+                onClick={handleConfirmAssignVillage}
+                className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-indigo-600 hover:from-emerald-700 hover:to-indigo-700 text-white rounded-xl text-xs font-semibold shadow-md transition-all active:scale-95 disabled:opacity-50"
+              >
+                <MapPin className="w-4 h-4" />
+                <span>
+                  {isAssigningVillage
+                    ? (language === 'hi' ? 'आवंटित कर रहे हैं...' : 'Assigning...')
+                    : (language === 'hi' ? 'गाँव आवंटित करें' : 'Confirm Assignment')}
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal 4: Delete User Confirmation — Complete Account Removal */}
       {userToDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
           <div className={`w-full max-w-md rounded-3xl shadow-2xl border p-6 space-y-4 transition-all ${
@@ -934,7 +1104,7 @@ export function UserManagement() {
             <div className="flex items-center justify-between pb-3 border-b border-gray-200 dark:border-gray-800">
               <h2 className="text-base font-bold flex items-center gap-2 text-red-600 dark:text-red-400">
                 <Trash2 className="w-5 h-5" />
-                <span>{language === 'hi' ? 'यूज़र खाता हटाएं' : 'Delete User Account'}</span>
+                <span>{language === 'hi' ? 'यूज़र खाता स्थायी रूप से हटाएं' : 'Complete Account Removal'}</span>
               </h2>
               <button 
                 onClick={() => setUserToDelete(null)}
@@ -947,14 +1117,14 @@ export function UserManagement() {
             <div className="space-y-3">
               <div className="p-3.5 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-700 dark:text-red-400 text-xs flex items-start gap-2.5">
                 <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
-                <div>
+                <div className="space-y-1">
                   <p className="font-bold">
-                    {language === 'hi' ? 'चेतावनी: यह कार्रवाई स्थायी है!' : 'Warning: This action is permanent!'}
+                    {language === 'hi' ? 'फ़ायरबेस प्रमाणीकरण एवं डेटाबेस विलोपन' : 'Firebase Authentication & Database Removal'}
                   </p>
-                  <p className="mt-1 text-red-600 dark:text-red-300">
+                  <p className="text-red-600 dark:text-red-300 leading-relaxed">
                     {language === 'hi'
-                      ? 'इस यूज़र का खाता और सिस्टम एक्सेस हटा दिया जाएगा। वे दोबारा लॉगिन नहीं कर सकेंगे।'
-                      : 'This user account and system access will be removed immediately. They will not be able to log in again.'}
+                      ? 'इस यूज़र का खाता Firebase Authentication से हटा दिया जाएगा, सभी सत्र (Sessions) रद्द कर दिए जाएंगे और सिस्टम एक्सेस स्थायी रूप से समाप्त हो जाएगा।'
+                      : 'This user account will be permanently removed from Firebase Authentication. All active refresh tokens/sessions will be revoked.'}
                   </p>
                 </div>
               </div>
@@ -965,10 +1135,11 @@ export function UserManagement() {
                   <div className="w-10 h-10 rounded-full bg-gradient-to-br from-red-500 to-amber-600 flex items-center justify-center text-white font-bold text-sm shrink-0">
                     {userToDelete.name?.charAt(0)?.toUpperCase() || userToDelete.email?.charAt(0)?.toUpperCase() || 'U'}
                   </div>
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <p className="font-bold text-sm truncate">{userToDelete.name || 'Unnamed User'}</p>
                     <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{userToDelete.email}</p>
-                    <div className="flex items-center gap-2 mt-1">
+                    <p className="font-mono text-[10px] text-gray-400 truncate mt-0.5">UID: {userToDelete.uid}</p>
+                    <div className="flex items-center gap-2 mt-1.5">
                       <span className="text-[10px] px-2 py-0.5 rounded-md font-bold uppercase bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
                         {userToDelete.role || 'surveyor'}
                       </span>
@@ -978,6 +1149,16 @@ export function UserManagement() {
                     </div>
                   </div>
                 </div>
+              </div>
+
+              {/* Data retention assurance notice */}
+              <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-700 dark:text-blue-300 text-[11px] flex items-start gap-2">
+                <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5 text-blue-500" />
+                <span>
+                  {language === 'hi'
+                    ? 'डेटा सुरक्षा गारंटी: इस यूज़र द्वारा पूर्व में दर्ज किए गए सभी परिवार एवं सर्वेक्षण रिकॉर्ड्स ऑडिट व रिपोर्टिंग के लिए डेटाबेस में पूरी तरह सुरक्षित रहेंगे।'
+                    : 'Data Retention Assurance: All historical family records and surveys submitted by this user will remain fully preserved for audit integrity.'}
+                </span>
               </div>
             </div>
 
@@ -999,8 +1180,8 @@ export function UserManagement() {
                 <Trash2 className="w-4 h-4" />
                 <span>
                   {isDeletingUser
-                    ? (language === 'hi' ? 'हटा रहे हैं...' : 'Deleting...')
-                    : (language === 'hi' ? 'हाँ, यूज़र हटाएं' : 'Yes, Delete User')}
+                    ? (language === 'hi' ? 'खाता हटा रहे हैं...' : 'Deleting Account...')
+                    : (language === 'hi' ? 'हाँ, खाता हटाएं' : 'Yes, Delete Account')}
                 </span>
               </button>
             </div>

@@ -103,10 +103,18 @@ export function TopNavbar({ setIsMobileSidebarOpen }) {
               </select>
             </div>
           ) : (
-            <div className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-xl border bg-indigo-50/70 dark:bg-indigo-950/40 border-indigo-200 dark:border-indigo-800/60">
-              <Building2 className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
-              <span className="text-xs font-semibold text-indigo-800 dark:text-indigo-200">
-                {language === 'hi' ? 'आवंटित:' : 'Village:'} {userProfile?.assignedVillages?.join(', ') || userProfile?.assignedVillage || (language === 'hi' ? 'समोड़ी' : 'Samodi')}
+            <div className={`hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-xl border ${
+              (userProfile?.assignedVillages && userProfile.assignedVillages.length > 0)
+                ? 'bg-indigo-50/70 dark:bg-indigo-950/40 border-indigo-200 dark:border-indigo-800/60 text-indigo-800 dark:text-indigo-200'
+                : 'bg-amber-50/70 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800/60 text-amber-700 dark:text-amber-300'
+            }`}>
+              <Building2 className={`w-3.5 h-3.5 shrink-0 ${
+                (userProfile?.assignedVillages && userProfile.assignedVillages.length > 0) ? 'text-indigo-600 dark:text-indigo-400' : 'text-amber-500 animate-pulse'
+              }`} />
+              <span className="text-xs font-semibold">
+                {(userProfile?.assignedVillages && userProfile.assignedVillages.length > 0)
+                  ? `${language === 'hi' ? 'गाँव:' : 'Village:'} ${userProfile.assignedVillages.join(', ')}`
+                  : (language === 'hi' ? 'गाँव: प्रतीक्षारत (Unassigned)' : 'Village: Awaiting Assignment')}
               </span>
             </div>
           )}

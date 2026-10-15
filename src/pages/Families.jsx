@@ -466,7 +466,11 @@ export function Families() {
         {filteredFamilies.length === 0 && (
           <div className={`p-12 text-center rounded-2xl border ${darkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
             <p className="text-gray-500 dark:text-gray-400">
-              {language === 'hi' ? 'कोई परिवार रिकॉर्ड नहीं मिला' : 'No families found'}
+              {!isAdmin && (!assignedVillages || assignedVillages.length === 0 || userProfile?.assignmentStatus === 'Unassigned')
+                ? (language === 'hi' 
+                    ? 'गाँव आवंटन प्रतीक्षारत: व्यवस्थापक द्वारा गाँव आवंटित किए जाने के बाद आपके गाँव के परिवार यहाँ दिखाई देंगे।'
+                    : 'Awaiting Village Assignment: Family records will appear here once an administrator assigns a village to your account.')
+                : (language === 'hi' ? 'कोई परिवार रिकॉर्ड नहीं मिला' : 'No families found')}
             </p>
           </div>
         )}

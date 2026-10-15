@@ -1,0 +1,212 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ==========================================
+    // HELPER FUNCTIONS & ACCESS CONTROL
+    // ==========================================
+    
+    // Check if caller is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Fixed Super Administrator UID
+    function isSuperAdmin() {
+      return isAuthenticated() && request.auth.uid == 'sJwiZZ6cf8Ze8YAmMMK8T1FwF232';
+    }
+
+    // Retrieve caller's user record safely
+    function getUserRecord() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    // Check if caller has verified admin role in Firestore or is Super Admin
+    function isAdmin() {
+      return isSuperAdmin() || (
+        isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+        getUserRecord().role == 'admin' &&
+        getUserRecord().status != 'inactive' &&
+        getUserRecord().status != 'deleted'
+      );
+    }
+
+    // Check if user account is active and not soft-deleted
+    function isUserActive() {
+      return isAuthenticated() && (
+        isSuperAdmin() || (
+          exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+          getUserRecord().status != 'inactive' &&
+          getUserRecord().status != 'deleted' &&
+          getUserRecord().isDeleted != true
+        )
+      );
+    }
+
+    // Check if surveyor has been explicitly assigned to at least one village
+    function isAssignedSurveyor() {
+      return isUserActive() && (
+        isAdmin() || (
+          exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+          (
+            (getUserRecord().assignedVillages is list && getUserRecord().assignedVillages.size() > 0) ||
+            (getUserRecord().assignedVillageId != null && getUserRecord().assignedVillageId != '')
+          ) &&
+          getUserRecord().assignmentStatus == 'Assigned'
+        )
+      );
+    }
+
+    // Check if family record matches the surveyor's assigned village
+    function isSurveyorForVillage(villageVal, villageIdVal) {
+      let user = getUserRecord();
+      return isAdmin() || (
+        isAssignedSurveyor() && (
+          (villageVal in user.assignedVillages) ||
+          (user.assignedVillageId != null && user.assignedVillageId == villageIdVal) ||
+          (user.assignedVillageId != null && villageVal != null && (
+            (user.assignedVillageId == 'kotdi' && (villageVal == 'कोटड़ी' || villageVal == 'Kotdi')) ||
+            (user.assignedVillageId == 'samodi' && (villageVal == 'समोड़ी' || villageVal == 'Samodi'))
+          ))
+        )
+      );
+    }
+
+    // ==========================================
+    // 1. USERS COLLECTION
+    // ==========================================
+    match /users/{userId} {
+      // Any authenticated user can read user profiles (needed for surveyors list, assignments & audit display)
+      allow read: if isAuthenticated();
+
+      // Users can create their own profile upon initial sign-in, or Admins can provision users
+      allow create: if isAuthenticated() && (
+        isAdmin() || (
+          request.auth.uid == userId &&
+          // New self-registered users CANNOT grant themselves admin role
+          request.resource.data.role != 'admin' &&
+          // New users must start explicitly unassigned
+          (
+            request.resource.data.assignmentStatus == 'Unassigned' ||
+            !('assignmentStatus' in request.resource.data)
+          ) &&
+          (
+            request.resource.data.assignedVillages.size() == 0 ||
+            !('assignedVillages' in request.resource.data)
+          ) &&
+          (
+            request.resource.data.assignedVillageId == null ||
+            !('assignedVillageId' in request.resource.data)
+          )
+        )
+      );
+
+      // Updates: Admins can update any field. Non-admin users cannot alter privileges or village assignments.
+      allow update: if isAuthenticated() && (
+        isAdmin() || (
+          request.auth.uid == userId &&
+          isUserActive() &&
+          // Prevent non-admin from modifying roles, village assignments, or status
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+            'role', 
+            'assignedVillages', 
+            'assignedVillageId', 
+            'assignmentStatus', 
+            'status', 
+            'isDeleted'
+          ])
+        )
+      );
+
+      // Deletion: Only administrators can delete or deactivate user documents
+      allow delete: if isAdmin() && userId != request.auth.uid && userId != 'sJwiZZ6cf8Ze8YAmMMK8T1FwF232';
+    }
+
+    // ==========================================
+    // 2. FAMILIES COLLECTION (SURVEY DATA)
+    // ==========================================
+    match /families/{familyId} {
+      // Read access:
+      // - Admins can read all families
+      // - Assigned surveyors can read records belonging to their assigned villages
+      // - Unassigned users are strictly blocked from reading village family records
+      allow read: if isUserActive() && (
+        isAdmin() || (
+          isAssignedSurveyor() && (
+            resource.data.village in getUserRecord().assignedVillages ||
+            resource.data.villageId == getUserRecord().assignedVillageId
+          )
+        )
+      );
+
+      // Create access:
+      // - Only active, assigned surveyors (or Admins) can submit family surveys
+      // - Unassigned users CANNOT create records
+      allow create: if isUserActive() && isAssignedSurveyor() && (
+        isAdmin() || 
+        isSurveyorForVillage(request.resource.data.village, request.resource.data.villageId)
+      );
+
+      // Update access:
+      // - Admins or assigned surveyors for that village
+      allow update: if isUserActive() && (
+        isAdmin() || (
+          isAssignedSurveyor() && 
+          isSurveyorForVillage(resource.data.village, resource.data.villageId)
+        )
+      );
+
+      // Delete access:
+      // - Soft-delete or permanent deletion allowed only by Admin or assigned surveyor
+      allow delete: if isAdmin() || (
+        isAssignedSurveyor() && 
+        isSurveyorForVillage(resource.data.village, resource.data.villageId)
+      );
+    }
+
+    // ==========================================
+    // 3. DELETED FAMILIES (RECYCLE BIN)
+    // ==========================================
+    match /deletedFamilies/{familyId} {
+      allow read: if isUserActive() && (isAdmin() || isAssignedSurveyor());
+      allow write: if isUserActive() && (isAdmin() || isAssignedSurveyor());
+    }
+
+    // ==========================================
+    // 4. VILLAGES COLLECTION
+    // ==========================================
+    match /villages/{villageId} {
+      // Authenticated users can read active villages list
+      allow read: if isAuthenticated();
+      // Only admins can create, update, or deactivate villages
+      allow write: if isAdmin();
+    }
+
+    // ==========================================
+    // 5. ADMINISTRATIVE AUDIT LOGS
+    // ==========================================
+    match /adminAuditLogs/{logId} {
+      // Admins can read audit history
+      allow read: if isAdmin();
+      // Admins can append audit entries
+      allow create: if isAdmin();
+      // Audit logs are permanent & immutable
+      allow update, delete: if false;
+    }
+
+    // ==========================================
+    // 6. APPLICATION SETTINGS & CONFIG
+    // ==========================================
+    match /settings/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Default deny all other paths
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

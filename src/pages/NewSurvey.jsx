@@ -15,7 +15,9 @@ import {
   X,
   MapPin,
   ExternalLink,
-  Navigation
+  Navigation,
+  Lock,
+  AlertCircle
 } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
 import { useToast } from '../contexts/ToastContext';
@@ -90,11 +92,20 @@ export function NewSurvey() {
   const navigate = useNavigate();
   const { families, villages, mohallas, castes, addFamily, updateFamily, getFamilyById, t, darkMode, language, selectedVillage } = useData();
   const { addToast } = useToast();
-  const { currentUser, userProfile } = useAuth();
+  const { currentUser, userProfile, isAdmin, assignedVillages = [] } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
+
+  // Check if current user is an unassigned surveyor
+  const isUnassigned = !isAdmin && (!assignedVillages || assignedVillages.length === 0 || userProfile?.assignmentStatus === 'Unassigned');
+
+  // Initial village choice respects assigned villages
+  const initialVillage = (!isAdmin && assignedVillages.length > 0)
+    ? assignedVillages[0]
+    : (selectedVillage !== 'all' ? selectedVillage : (villages[0] || ''));
+
   const [family, setFamily] = useState(() => ({
     ...emptyFamily,
-    village: selectedVillage !== 'all' ? selectedVillage : (villages[0] || '')
+    village: initialVillage
   }));
   const [gpsLoading, setGpsLoading] = useState(false);
   const [gpsError, setGpsError] = useState('');
@@ -535,6 +546,46 @@ export function NewSurvey() {
         return null;
     }
   };
+
+  if (isUnassigned) {
+    return (
+      <div className="max-w-2xl mx-auto py-8">
+        <div className={`p-8 rounded-3xl border text-center space-y-5 shadow-3d-card ${
+          darkMode 
+            ? 'bg-gradient-to-b from-gray-900 to-amber-950/20 border-amber-900/40 text-white' 
+            : 'bg-gradient-to-b from-white to-amber-50/60 border-amber-200/80 text-gray-900'
+        }`}>
+          <div className="w-16 h-16 mx-auto rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400">
+            <Lock className="w-8 h-8" />
+          </div>
+
+          <div className="space-y-2">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">
+              <AlertCircle className="w-3.5 h-3.5" />
+              <span>{language === 'hi' ? 'सर्वेक्षण निर्माण प्रतिबंधित' : 'Survey Creation Restricted'}</span>
+            </span>
+            <h2 className="text-xl sm:text-2xl font-bold">
+              {language === 'hi' ? 'कोई गाँव आवंटित नहीं है' : 'Awaiting Village Assignment'}
+            </h2>
+            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 max-w-md mx-auto leading-relaxed">
+              {language === 'hi'
+                ? 'आपका खाता सफलतापूर्वक बन गया है। परिवार सर्वेक्षण दर्ज या संशोधित करने से पहले व्यवस्थापक (Admin) द्वारा आपको गाँव आवंटित किया जाना अनिवार्य है।'
+                : 'Your account has been created successfully. Please wait for an administrator to assign your village before creating or modifying family surveys.'}
+            </p>
+          </div>
+
+          <div className="pt-2 flex items-center justify-center gap-3">
+            <button
+              onClick={() => navigate('/')}
+              className="px-5 py-2.5 rounded-xl bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-xs font-bold shadow-md hover:opacity-90 transition-all"
+            >
+              {language === 'hi' ? 'डैशबोर्ड पर जाएँ' : 'Go to Dashboard'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto">

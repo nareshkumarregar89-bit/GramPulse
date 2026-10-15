@@ -74,20 +74,26 @@ export function AuthProvider({ children }) {
             setCurrentUser(user);
             const role = data.role || (user.uid === SUPER_ADMIN_UID ? 'admin' : 'surveyor');
             setUserRole(role);
+            const userAssignedVillages = data.assignedVillages || (data.assignedVillage ? [data.assignedVillage] : []);
+            const assignmentStatus = data.assignmentStatus || (userAssignedVillages.length > 0 || role === 'admin' ? 'Assigned' : 'Unassigned');
             setUserProfile({
               ...data,
               role,
-              assignedVillages: data.assignedVillages || (data.assignedVillage ? [data.assignedVillage] : [])
+              assignedVillages: userAssignedVillages,
+              assignedVillageId: data.assignedVillageId || null,
+              assignmentStatus
             });
           } else {
-            // Initial profile creation
+            // Initial profile creation: Every newly registered or first-time logged-in user starts WITHOUT a village assignment!
             const isSuperAdmin = user.uid === SUPER_ADMIN_UID;
             const newProfile = {
               uid: user.uid,
               email: user.email,
-              name: isSuperAdmin ? 'Admin' : (user.email ? user.email.split('@')[0] : 'Surveyor'),
+              name: isSuperAdmin ? 'Admin' : (user.displayName || (user.email ? user.email.split('@')[0] : 'Surveyor')),
               role: isSuperAdmin ? 'admin' : 'surveyor',
-              assignedVillages: isSuperAdmin ? [] : ['समोड़ी (Samodi)'],
+              assignedVillages: [],
+              assignedVillageId: null,
+              assignmentStatus: isSuperAdmin ? 'Assigned' : 'Unassigned',
               status: 'active',
               createdAt: new Date().toISOString()
             };
@@ -198,7 +204,9 @@ export function AuthProvider({ children }) {
           name: user.displayName || (user.email ? user.email.split('@')[0] : 'User'),
           photoURL: user.photoURL || '',
           role: isSuperAdmin ? 'admin' : 'surveyor',
-          assignedVillages: isSuperAdmin ? [] : ['समोड़ी (Samodi)'],
+          assignedVillages: [],
+          assignedVillageId: null,
+          assignmentStatus: isSuperAdmin ? 'Assigned' : 'Unassigned',
           status: 'active',
           createdAt: new Date().toISOString()
         };
@@ -221,13 +229,18 @@ export function AuthProvider({ children }) {
     try {
       const userCred = await createUserWithEmailAndPassword(secondaryAuth, email.trim(), password);
       const newUid = userCred.user.uid;
+      const isAssigned = Array.isArray(assignedVillages) && assignedVillages.length > 0;
 
       const profile = {
         uid: newUid,
         email: email.trim(),
         name: name.trim() || email.split('@')[0],
         role: role || 'surveyor',
-        assignedVillages: Array.isArray(assignedVillages) ? assignedVillages : [],
+        assignedVillages: isAssigned ? assignedVillages : [],
+        assignedVillageId: isAssigned && assignedVillages[0]
+          ? (assignedVillages[0].toLowerCase().includes('kotdi') ? 'kotdi' : 'samodi')
+          : null,
+        assignmentStatus: isAssigned || role === 'admin' ? 'Assigned' : 'Unassigned',
         status: 'active',
         createdAt: new Date().toISOString()
       };
@@ -256,6 +269,38 @@ export function AuthProvider({ children }) {
     }
   };
 
+  // Admin function: Assign or Change village for a user
+  const assignVillageToUser = async (uid, villageObj) => {
+    try {
+      const villageName = typeof villageObj === 'string'
+        ? villageObj
+        : (villageObj.name || villageObj.nameHindi || villageObj.nameEnglish || villageObj.id);
+      const villageId = typeof villageObj === 'object' && villageObj.id
+        ? villageObj.id
+        : (villageName.toLowerCase().includes('kotdi') ? 'kotdi' : 'samodi');
+
+      const updates = {
+        assignedVillages: [villageName],
+        assignedVillageId: villageId,
+        assignmentStatus: 'Assigned',
+        status: 'active',
+        assignedAt: new Date().toISOString(),
+        assignedBy: currentUser?.uid || ''
+      };
+
+      await updateUserByAdmin(uid, updates);
+
+      // Instantly update local state so UI updates without waiting for network re-fetch
+      setAllUsers(prev => prev.map(u => u.uid === uid ? { ...u, ...updates } : u));
+      if (currentUser?.uid === uid) {
+        setUserProfile(prev => ({ ...prev, ...updates }));
+      }
+    } catch (err) {
+      console.error('Failed to assign village to user:', err);
+      throw err;
+    }
+  };
+
   // Admin function: Toggle active/inactive
   const toggleUserStatus = async (uid, currentStatus) => {
     const nextStatus = currentStatus === 'active' ? 'inactive' : 'active';
@@ -268,62 +313,129 @@ export function AuthProvider({ children }) {
     return sendPasswordResetEmail(auth, email);
   };
 
-  // Admin function: Delete user account
+  // Admin function: Delete user account completely from Firebase Auth and Firestore
   const deleteUserByAdmin = async (uid, userData = {}) => {
+    if (!uid) {
+      throw new Error('Target user UID is required.');
+    }
     if (uid === SUPER_ADMIN_UID) {
-      throw new Error('Super Admin account cannot be deleted.');
+      throw new Error('Super Admin account is protected and cannot be deleted.');
     }
     if (uid === currentUser?.uid) {
-      throw new Error('You cannot delete your own account.');
+      throw new Error('You cannot delete your own administrator account.');
     }
 
-    const userDocRef = doc(db, 'users', uid);
-    let isDeleted = false;
+    // Safeguard: Check if this would delete the last active administrator
+    const activeAdmins = allUsers.filter(u => 
+      u.role === 'admin' && 
+      !u.isDeleted && 
+      u.status !== 'inactive' && 
+      u.status !== 'deleted'
+    );
+    if (activeAdmins.length <= 1 && activeAdmins.some(u => u.uid === uid)) {
+      throw new Error('Action blocked: Cannot delete the last active administrator.');
+    }
 
-    // 1. Attempt hard delete directly from Firestore
+    let authDeleted = false;
+
+    // 1. Attempt complete removal from Firebase Authentication via trusted serverless backend
     try {
-      await deleteDoc(userDocRef);
-      isDeleted = true;
-    } catch (delErr) {
-      console.warn('deleteDoc failed, falling back to soft-delete:', delErr);
+      if (currentUser) {
+        const idToken = await currentUser.getIdToken(true);
+        const response = await fetch('/api/admin/delete-user', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${idToken}`
+          },
+          body: JSON.stringify({
+            targetUid: uid,
+            userData
+          })
+        });
+
+        if (response.ok) {
+          const resData = await response.json().catch(() => ({}));
+          authDeleted = resData.authDeleted || false;
+        } else {
+          console.warn('Backend serverless deletion response not 200:', response.status);
+        }
+      }
+    } catch (apiErr) {
+      console.warn('Serverless endpoint unreachable (proceeding with resilient Firestore cleanup):', apiErr.message);
     }
 
-    // 2. If deleteDoc was blocked by Firestore rules, fallback to soft-delete
-    if (!isDeleted) {
+    // 2. Direct Firestore profile cleanup & immediate access revocation
+    const userDocRef = doc(db, 'users', uid);
+    const now = new Date().toISOString();
+
+    try {
+      await updateDoc(userDocRef, {
+        status: 'deleted',
+        isDeleted: true,
+        deletionState: 'completed',
+        authDeleted,
+        assignedVillages: [],
+        assignedVillageId: null,
+        assignmentStatus: 'Unassigned',
+        deletedAt: now,
+        deletedBy: currentUser?.uid || ''
+      });
+    } catch (updErr) {
+      // If updateDoc is blocked by rules, attempt deleteDoc
       try {
-        await updateDoc(userDocRef, {
-          status: 'deleted',
-          isDeleted: true,
-          deletedAt: new Date().toISOString(),
-          deletedBy: currentUser?.uid || ''
-        });
-        isDeleted = true;
-      } catch (updErr) {
-        console.error('Both deleteDoc and updateDoc failed:', updErr);
+        await deleteDoc(userDocRef);
+      } catch (delErr) {
+        console.error('Both updateDoc and deleteDoc failed:', delErr);
         throw new Error(updErr.code === 'permission-denied'
-          ? 'Permission Denied: Please verify admin permissions in Firestore Rules.'
-          : (updErr.message || 'Failed to delete user'));
+          ? 'Permission Denied: Please verify administrator permissions in Firestore Rules.'
+          : (updErr.message || 'Failed to delete user profile.'));
       }
     }
 
     // Immediately remove from local state for instant UI update
     setAllUsers(prev => prev.filter(u => u.uid !== uid));
 
-    // 3. Optional audit log in deletedUsers (non-fatal if deletedUsers rule is absent)
+    // 3. Record protected Administrative Audit Log (non-fatal if rules unconfigured)
+    try {
+      await setDoc(doc(db, 'adminAuditLogs', `del_${uid}_${Date.now()}`), {
+        action: 'DELETE_USER',
+        targetUid: uid,
+        targetEmail: userData.email || '',
+        targetName: userData.name || '',
+        targetRole: userData.role || 'surveyor',
+        authDeleted,
+        deletedAt: now,
+        deletedBy: currentUser?.uid || '',
+        deletedByName: userProfile?.name || currentUser?.email?.split('@')[0] || 'Admin'
+      });
+    } catch (auditErr) {
+      console.warn('Non-fatal: could not write to adminAuditLogs:', auditErr.message);
+    }
+
+    // Compatibility record in deletedUsers
     try {
       await setDoc(doc(db, 'deletedUsers', uid), {
         uid,
         email: userData.email || '',
         name: userData.name || '',
         role: userData.role || 'surveyor',
-        deletedAt: new Date().toISOString(),
+        authDeleted,
+        deletedAt: now,
         deletedBy: currentUser?.uid || '',
         deletedByName: userProfile?.name || currentUser?.email?.split('@')[0] || 'Admin'
       });
-    } catch (auditErr) {
-      // Ignored: non-fatal if deletedUsers collection rule is not configured in Firestore
-      console.warn('Non-fatal: could not write to deletedUsers collection:', auditErr.message);
+    } catch (legacyErr) {
+      // Non-fatal
     }
+
+    return {
+      success: true,
+      authDeleted,
+      message: authDeleted 
+        ? 'User account permanently removed from Firebase Authentication.' 
+        : 'User permissions revoked and profile deactivated.'
+    };
   };
 
   const assignedVillages = (userProfile?.assignedVillages && userProfile.assignedVillages.length > 0)
@@ -343,6 +455,7 @@ export function AuthProvider({ children }) {
     signInWithGoogle,
     createUserByAdmin,
     updateUserByAdmin,
+    assignVillageToUser,
     toggleUserStatus,
     sendUserPasswordReset,
     deleteUserByAdmin,

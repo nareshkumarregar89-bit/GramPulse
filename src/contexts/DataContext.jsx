@@ -307,16 +307,14 @@ export function DataProvider({ children }) {
     if (!isAdmin) {
       if (!currentUser) return [];
 
-      if (assignedVillages && assignedVillages.length > 0) {
-        result = result.filter(f => {
-          return assignedVillages.some(av => isFamilyInVillage(f, av));
-        });
-      } else {
-        result = result.filter(f => 
-          (f.surveyorId && f.surveyorId === currentUser.uid) ||
-          (!f.surveyorId && currentUser.email && f.surveyorEmail === currentUser.email)
-        );
+      // If surveyor has NO assigned villages or assignmentStatus === 'Unassigned':
+      if (!assignedVillages || assignedVillages.length === 0 || userProfile?.assignmentStatus === 'Unassigned') {
+        return []; // Strict isolation: Unassigned users cannot see or access village records
       }
+
+      result = result.filter(f => {
+        return assignedVillages.some(av => isFamilyInVillage(f, av));
+      });
     }
 
     // Filter by selected village if not 'all'
@@ -325,7 +323,7 @@ export function DataProvider({ children }) {
     }
 
     return result;
-  }, [allFamilies, isAdmin, currentUser, assignedVillages, selectedVillage, isFamilyInVillage]);
+  }, [allFamilies, isAdmin, currentUser, assignedVillages, userProfile?.assignmentStatus, selectedVillage, isFamilyInVillage]);
 
   // Translation function
   const t = useCallback((key) => {
@@ -334,17 +332,19 @@ export function DataProvider({ children }) {
 
   // Add a single family with village validation
   const addFamily = async (family) => {
+    if (!isAdmin && (!assignedVillages || assignedVillages.length === 0 || userProfile?.assignmentStatus === 'Unassigned')) {
+      throw new Error(language === 'hi' 
+        ? 'आपके खाते को अभी कोई गाँव आवंटित नहीं है। कृपया व्यवस्थापक द्वारा गाँव आवंटन की प्रतीक्षा करें।'
+        : 'You cannot create surveys because no village has been assigned to your account. Please wait for an administrator to assign your village.');
+    }
+
     const defaultVillage = activeVillages[0] || 'समोड़ी (Samodi)';
     let targetVillage = family.village;
 
     if (!isAdmin) {
-      if (assignedVillages && assignedVillages.length > 0) {
-        const isTargetAssigned = assignedVillages.some(av => isFamilyInVillage({ village: targetVillage }, av));
-        if (!isTargetAssigned) {
-          targetVillage = assignedVillages[0];
-        }
-      } else {
-        targetVillage = targetVillage || defaultVillage;
+      const isTargetAssigned = assignedVillages.some(av => isFamilyInVillage({ village: targetVillage }, av));
+      if (!isTargetAssigned) {
+        targetVillage = assignedVillages[0];
       }
     } else {
       targetVillage = targetVillage || (selectedVillage !== 'all' ? selectedVillage : defaultVillage);
@@ -389,6 +389,12 @@ export function DataProvider({ children }) {
 
   // Bulk add families (for Excel import)
   const bulkAddFamilies = async (importedFamilies) => {
+    if (!isAdmin && (!assignedVillages || assignedVillages.length === 0 || userProfile?.assignmentStatus === 'Unassigned')) {
+      throw new Error(language === 'hi' 
+        ? 'आपके खाते को अभी कोई गाँव आवंटित नहीं है। कृपया व्यवस्थापक द्वारा गाँव आवंटन की प्रतीक्षा करें।'
+        : 'You cannot import surveys because no village has been assigned to your account.');
+    }
+
     let currentMax = (rawFamilies || []).reduce((max, f) => {
       const match = f.id && String(f.id).match(/FAM-(\d+)/);
       return match ? Math.max(max, parseInt(match[1], 10)) : max;
@@ -453,6 +459,11 @@ export function DataProvider({ children }) {
   // Update a family
   const updateFamily = async (id, updatedFamily) => {
     if (!isAdmin) {
+      if (!assignedVillages || assignedVillages.length === 0 || userProfile?.assignmentStatus === 'Unassigned') {
+        throw new Error(language === 'hi' 
+          ? 'आपके खाते को अभी कोई गाँव आवंटित नहीं है।'
+          : 'You cannot edit records because no village has been assigned to your account.');
+      }
       const allowed = scopedFamilies.some(f => f.id === id);
       if (!allowed) {
         console.error('Unauthorized update attempt on family:', id);
