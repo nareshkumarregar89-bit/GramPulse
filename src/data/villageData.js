@@ -143,5 +143,11 @@ const generateRandomFamily = (id) => {
   };
 };
 
+// Pre-generated static dummy families for on-demand demo preview
+export const staticMockFamilies = Array.from({ length: 40 }, (_, i) => ({
+  ...generateRandomFamily(i + 1),
+  isDummy: true
+}));
+
 // Clean production initial state: No mock or dummy survey families
 export const initialFamilies = [];

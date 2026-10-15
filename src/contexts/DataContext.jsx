@@ -12,7 +12,7 @@ import {
   where 
 } from 'firebase/firestore';
 import { useLocalStorage } from '../hooks/useLocalStorage';
-import { initialFamilies } from '../data/villageData';
+import { initialFamilies, staticMockFamilies } from '../data/villageData';
 import { mohallas as initialMohallas } from '../data/mohallas';
 import { castes as initialCastes } from '../data/castes';
 import { initialVillages, villages as fallbackVillages } from '../data/villages';
@@ -72,7 +72,12 @@ export function DataProvider({ children }) {
   const [selectedVillage, setSelectedVillage] = useLocalStorage('villagepulse-selected-village', 'all');
   const [darkMode, setDarkMode] = useLocalStorage('villagepulse-darkmode', false);
   const [language, setLanguage] = useLocalStorage('villagepulse-language', 'en');
+  const [showDummyData, setShowDummyData] = useLocalStorage('villagepulse-show-dummy-data', false);
   const [isFirebaseConnected, setIsFirebaseConnected] = useState(false);
+
+  const toggleDummyData = useCallback(() => {
+    setShowDummyData(prev => !prev);
+  }, [setShowDummyData]);
 
   // Sync dark class on html root element for Tailwind dark: variants
   useEffect(() => {
@@ -245,8 +250,15 @@ export function DataProvider({ children }) {
   }, [villageRecords]);
 
   const allFamilies = useMemo(() => {
-    return (rawFamilies || []).map(normalizeFamily);
-  }, [rawFamilies]);
+    const normalizedReal = (rawFamilies || []).map(normalizeFamily);
+    if (!showDummyData) {
+      return normalizedReal;
+    }
+    const normalizedMock = (staticMockFamilies || []).map(normalizeFamily);
+    const realIds = new Set(normalizedReal.map(f => f.id));
+    const nonCollidingMock = normalizedMock.filter(f => !realIds.has(f.id));
+    return [...normalizedReal, ...nonCollidingMock];
+  }, [rawFamilies, showDummyData]);
 
   const normalizedDeletedFamilies = useMemo(() => {
     return (deletedFamilies || []).map(normalizeFamily);
@@ -841,6 +853,23 @@ export function DataProvider({ children }) {
     await clearAllSurveyData();
   };
 
+  // Explicitly seed sample mock families into Firestore database if requested
+  const seedDummyDataToFirestore = async (count = 30) => {
+    try {
+      const batch = writeBatch(db);
+      const samples = (staticMockFamilies || []).slice(0, count);
+      samples.forEach((fam) => {
+        const docRef = doc(db, 'families', fam.id);
+        batch.set(docRef, { ...fam, isDummy: true });
+      });
+      await batch.commit();
+      return { success: true, count: samples.length };
+    } catch (err) {
+      console.error('Firestore seedDummyData error:', err);
+      throw err;
+    }
+  };
+
   // Export data as JSON
   const exportData = () => {
     const data = {
@@ -927,6 +956,10 @@ export function DataProvider({ children }) {
       setDarkMode,
       language,
       setLanguage,
+      showDummyData,
+      setShowDummyData,
+      toggleDummyData,
+      seedDummyDataToFirestore,
       t,
       isFirebaseConnected,
       addFamily,
