@@ -35,63 +35,23 @@ export function AuthProvider({ children }) {
   const [authError, setAuthError] = useState('');
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    let unsubscribeDoc = null;
+
+    const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
+      // Clean up any existing user document snapshot listener
+      if (unsubscribeDoc) {
+        unsubscribeDoc();
+        unsubscribeDoc = null;
+      }
+
       if (user) {
+        setCurrentUser(user);
+        const userDocRef = doc(db, 'users', user.uid);
+
         try {
-          const userDocRef = doc(db, 'users', user.uid);
+          // Check if profile exists, create initial if missing
           const userSnap = await getDoc(userDocRef);
-
-          if (userSnap.exists()) {
-            const data = userSnap.data();
-
-            // Deactivated user check (Admin explicitly deactivated account)
-            if (data.status === 'inactive' && user.uid !== SUPER_ADMIN_UID) {
-              await signOut(auth);
-              setCurrentUser(null);
-              setUserRole(null);
-              setUserProfile(null);
-              setAuthError('Your account has been deactivated by the administrator.');
-              setLoading(false);
-              return;
-            }
-
-            // If user profile was previously marked deleted, re-register as fresh active surveyor (Option 1)
-            if ((data.status === 'deleted' || data.isDeleted) && user.uid !== SUPER_ADMIN_UID) {
-              const newProfile = {
-                uid: user.uid,
-                email: user.email,
-                name: user.displayName || (user.email ? user.email.split('@')[0] : 'Surveyor'),
-                photoURL: user.photoURL || '',
-                role: 'surveyor',
-                assignedVillages: [],
-                assignedVillageId: null,
-                assignmentStatus: 'Unassigned',
-                status: 'active',
-                createdAt: new Date().toISOString()
-              };
-              await setDoc(userDocRef, newProfile);
-              try { await deleteDoc(doc(db, 'deletedUsers', user.uid)); } catch (e) {}
-              setCurrentUser(user);
-              setUserRole(newProfile.role);
-              setUserProfile(newProfile);
-              setLoading(false);
-              return;
-            }
-
-            setCurrentUser(user);
-            const role = data.role || (user.uid === SUPER_ADMIN_UID ? 'admin' : 'surveyor');
-            setUserRole(role);
-            const userAssignedVillages = data.assignedVillages || (data.assignedVillage ? [data.assignedVillage] : []);
-            const assignmentStatus = data.assignmentStatus || (userAssignedVillages.length > 0 || role === 'admin' ? 'Assigned' : 'Unassigned');
-            setUserProfile({
-              ...data,
-              role,
-              assignedVillages: userAssignedVillages,
-              assignedVillageId: data.assignedVillageId || null,
-              assignmentStatus
-            });
-          } else {
-            // Initial profile creation: Every newly registered or first-time logged-in user starts WITHOUT a village assignment!
+          if (!userSnap.exists()) {
             const isSuperAdmin = user.uid === SUPER_ADMIN_UID;
             const newProfile = {
               uid: user.uid,
@@ -105,24 +65,84 @@ export function AuthProvider({ children }) {
               createdAt: new Date().toISOString()
             };
             await setDoc(userDocRef, newProfile);
-            setCurrentUser(user);
+          }
+        } catch (initErr) {
+          console.warn('Initial profile check error:', initErr);
+        }
+
+        // Live Real-Time Listener: Automatically syncs role, assigned villages, and status whenever an Admin modifies them!
+        unsubscribeDoc = onSnapshot(userDocRef, async (docSnap) => {
+          if (!docSnap.exists()) {
+            setLoading(false);
+            return;
+          }
+
+          const data = docSnap.data();
+
+          // Deactivated user check (Admin explicitly deactivated account)
+          if (data.status === 'inactive' && user.uid !== SUPER_ADMIN_UID) {
+            await signOut(auth);
+            setCurrentUser(null);
+            setUserRole(null);
+            setUserProfile(null);
+            setAuthError('Your account has been deactivated by the administrator.');
+            setLoading(false);
+            return;
+          }
+
+          // If user profile was previously marked deleted, re-register as fresh active surveyor
+          if ((data.status === 'deleted' || data.isDeleted) && user.uid !== SUPER_ADMIN_UID) {
+            const newProfile = {
+              uid: user.uid,
+              email: user.email,
+              name: user.displayName || (user.email ? user.email.split('@')[0] : 'Surveyor'),
+              photoURL: user.photoURL || '',
+              role: 'surveyor',
+              assignedVillages: [],
+              assignedVillageId: null,
+              assignmentStatus: 'Unassigned',
+              status: 'active',
+              createdAt: new Date().toISOString()
+            };
+            await setDoc(userDocRef, newProfile);
+            try { await deleteDoc(doc(db, 'deletedUsers', user.uid)); } catch (e) {}
             setUserRole(newProfile.role);
             setUserProfile(newProfile);
+            setLoading(false);
+            return;
           }
-        } catch (error) {
-          console.error('Error fetching user role from Firestore:', error);
-          setCurrentUser(user);
+
+          const role = data.role || (user.uid === SUPER_ADMIN_UID ? 'admin' : 'surveyor');
+          const userAssignedVillages = data.assignedVillages || (data.assignedVillage ? [data.assignedVillage] : []);
+          const assignmentStatus = data.assignmentStatus || (userAssignedVillages.length > 0 || role === 'admin' ? 'Assigned' : 'Unassigned');
+
+          setUserRole(role);
+          setUserProfile({
+            ...data,
+            role,
+            assignedVillages: userAssignedVillages,
+            assignedVillageId: data.assignedVillageId || null,
+            assignmentStatus
+          });
+          setLoading(false);
+        }, (err) => {
+          console.error('Realtime user profile listener error:', err);
           setUserRole(user.uid === SUPER_ADMIN_UID ? 'admin' : 'surveyor');
-        }
+          setLoading(false);
+        });
+
       } else {
         setCurrentUser(null);
         setUserRole(null);
         setUserProfile(null);
+        setLoading(false);
       }
-      setLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => {
+      if (unsubscribeDoc) unsubscribeDoc();
+      unsubscribeAuth();
+    };
   }, []);
 
   // Listen for all users if logged in as admin
@@ -280,6 +300,13 @@ export function AuthProvider({ children }) {
         updatedAt: new Date().toISOString()
       };
       await updateDoc(userDocRef, payload);
+
+      // Instant optimistic state update for admin UI without waiting for network re-fetch
+      setAllUsers(prev => prev.map(u => u.uid === uid ? { ...u, ...updates } : u));
+      if (currentUser?.uid === uid) {
+        if (updates.role) setUserRole(updates.role);
+        setUserProfile(prev => ({ ...prev, ...updates }));
+      }
     } catch (err) {
       console.error('Failed to update user:', err);
       throw err;
