@@ -300,8 +300,15 @@ button:active:not(:disabled),
 /* Hide Netlify feedback drawer / badge */
 #netlify-drawer,
 [data-netlify-drawer],
-div[class*="netlify"] {
+[data-netlify-badge],
+.netlify-badge,
+div[class*="netlify"],
+a[href*="netlify.com"],
+div:has(> a[href*="netlify.com"]) {
   display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
 }
 
 

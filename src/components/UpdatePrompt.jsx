@@ -54,20 +54,36 @@ export function UpdatePrompt() {
 
   const handleUpdate = async () => {
     setIsUpdating(true);
+    let reloaded = false;
+    const triggerReload = () => {
+      if (!reloaded) {
+        reloaded = true;
+        window.location.reload();
+      }
+    };
+
     try {
+      // 1. Listen for immediate controllerchange when new service worker takes over
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.addEventListener('controllerchange', triggerReload);
+      }
+
+      // 2. Direct message to any waiting service worker to take control
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistration().then((reg) => {
+          if (reg?.waiting) {
+            reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+          }
+        }).catch(() => {});
+      }
+
+      // 3. Call vite-plugin-pwa updateServiceWorker
       await updateServiceWorker(true);
     } catch (err) {
-      console.error('Failed to trigger updateServiceWorker:', err);
-      // Emergency cache flush fallback
-      if ('caches' in window) {
-        try {
-          const keys = await caches.keys();
-          await Promise.all(keys.map((k) => caches.delete(k)));
-        } catch (e) {
-          // ignore
-        }
-      }
-      window.location.reload();
+      console.warn('Update trigger warning:', err);
+    } finally {
+      // 4. Bulletproof Fallback: Guaranteed reload within 1200ms so it NEVER gets stuck on "Updating..."
+      setTimeout(triggerReload, 1200);
     }
   };
 
