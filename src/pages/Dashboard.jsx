@@ -16,11 +16,13 @@ import {
   CheckCircle2,
   Activity,
   Layers,
-  ChevronRight
+  ChevronRight,
+  Printer
 } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
 import { useAuth } from '../contexts/AuthContext';
 import { ExcelImportModal } from '../components/ExcelImportModal';
+import { PrintDataModal } from '../components/PrintDataModal';
 import { TiltCard } from '../components/TiltCard';
 import { AnimatedCounter } from '../components/AnimatedCounter';
 import { IsometricVillageHero } from '../components/IsometricVillageHero';
@@ -45,6 +47,7 @@ export function Dashboard() {
   const { isAdmin, userProfile, currentUser, assignedVillages, allUsers = [] } = useAuth();
   const navigate = useNavigate();
   const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
 
   // Calculate stats
   const totalFamilies = families.length;
@@ -122,6 +125,16 @@ export function Dashboard() {
               </span>
             </div>
           )}
+
+          {/* Visible Print Data Button */}
+          <button
+            onClick={() => setIsPrintModalOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 text-xs font-semibold shadow-2xs hover:shadow-xs transition-all active:scale-95"
+            title={language === 'hi' ? 'डेटा प्रिंट करें' : 'Print Data'}
+          >
+            <Printer className="w-3.5 h-3.5 text-indigo-500" />
+            <span className="hidden sm:inline">{language === 'hi' ? 'डेटा प्रिंट करें' : 'Print Data'}</span>
+          </button>
         </div>
       </div>
 
@@ -497,6 +510,17 @@ export function Dashboard() {
       <ExcelImportModal
         isOpen={isExcelModalOpen}
         onClose={() => setIsExcelModalOpen(false)}
+      />
+
+      {/* Print Data Modal */}
+      <PrintDataModal
+        isOpen={isPrintModalOpen}
+        onClose={() => setIsPrintModalOpen(false)}
+        families={families}
+        selectedVillage={selectedVillage}
+        currentUser={currentUser}
+        userProfile={userProfile}
+        language={language}
       />
     </div>
   );

@@ -14,6 +14,7 @@ import {
   getDoc, 
   setDoc, 
   updateDoc, 
+  deleteDoc,
   collection, 
   onSnapshot 
 } from 'firebase/firestore';
@@ -37,6 +38,18 @@ export function AuthProvider({ children }) {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         try {
+          // Check if user was deleted by admin
+          const deletedSnap = await getDoc(doc(db, 'deletedUsers', user.uid));
+          if (deletedSnap.exists()) {
+            await signOut(auth);
+            setCurrentUser(null);
+            setUserRole(null);
+            setUserProfile(null);
+            setAuthError('Your account has been deleted by the administrator.');
+            setLoading(false);
+            return;
+          }
+
           const userDocRef = doc(db, 'users', user.uid);
           const userSnap = await getDoc(userDocRef);
 
@@ -123,13 +136,18 @@ export function AuthProvider({ children }) {
     const cred = await signInWithEmailAndPassword(auth, email, password);
     // Double check status upon login
     try {
+      const delSnap = await getDoc(doc(db, 'deletedUsers', cred.user.uid));
+      if (delSnap.exists()) {
+        await signOut(auth);
+        throw new Error('Your account has been deleted by the administrator.');
+      }
       const snap = await getDoc(doc(db, 'users', cred.user.uid));
       if (snap.exists() && snap.data().status === 'inactive' && cred.user.uid !== SUPER_ADMIN_UID) {
         await signOut(auth);
         throw new Error('Your account has been deactivated by the administrator.');
       }
     } catch (e) {
-      if (e.message.includes('deactivated')) throw e;
+      if (e.message.includes('deactivated') || e.message.includes('deleted')) throw e;
     }
     return cred;
   };
@@ -234,6 +252,34 @@ export function AuthProvider({ children }) {
     return sendPasswordResetEmail(auth, email);
   };
 
+  // Admin function: Delete user account
+  const deleteUserByAdmin = async (uid, userData = {}) => {
+    if (uid === SUPER_ADMIN_UID) {
+      throw new Error('Super Admin account cannot be deleted.');
+    }
+    if (uid === currentUser?.uid) {
+      throw new Error('You cannot delete your own account.');
+    }
+    try {
+      // 1. Mark in deletedUsers so they cannot re-authenticate
+      await setDoc(doc(db, 'deletedUsers', uid), {
+        uid,
+        email: userData.email || '',
+        name: userData.name || '',
+        role: userData.role || 'surveyor',
+        deletedAt: new Date().toISOString(),
+        deletedBy: currentUser?.uid || '',
+        deletedByName: userProfile?.name || currentUser?.email?.split('@')[0] || 'Admin'
+      });
+      // 2. Delete from users collection
+      const userDocRef = doc(db, 'users', uid);
+      await deleteDoc(userDocRef);
+    } catch (err) {
+      console.error('Failed to delete user:', err);
+      throw err;
+    }
+  };
+
   const assignedVillages = (userProfile?.assignedVillages && userProfile.assignedVillages.length > 0)
     ? userProfile.assignedVillages
     : (userProfile?.assignedVillage ? [userProfile.assignedVillage] : []);
@@ -253,6 +299,7 @@ export function AuthProvider({ children }) {
     updateUserByAdmin,
     toggleUserStatus,
     sendUserPasswordReset,
+    deleteUserByAdmin,
     authError,
     loading
   };

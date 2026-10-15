@@ -20,19 +20,24 @@ import {
   Banknote,
   Download,
   UsersRound,
-  ChevronDown
+  ChevronDown,
+  Printer
 } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { PrintDataModal } from '../components/PrintDataModal';
 import { jsPDF } from 'jspdf';
 import * as XLSX from 'xlsx';
 
 const COLORS = ['#22c55e', '#6366f1', '#f59e0b', '#ef4444', '#8b5cf6', '#14b8a6'];
 
 export function Reports() {
-  const { families, mohallas, castes, darkMode } = useData();
+  const { families, mohallas, castes, darkMode, language, selectedVillage } = useData();
+  const { currentUser, userProfile } = useAuth();
   const [exportFormat, setExportFormat] = useState('json');
   const [exportFilter, setExportFilter] = useState('all');
   const [selectedMohalla, setSelectedMohalla] = useState('');
   const [selectedCaste, setSelectedCaste] = useState('');
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
 
   // Stats
   const totalFamilies = families.length;
@@ -392,6 +397,16 @@ export function Reports() {
             <Download className="w-5 h-5" />
             Export
           </button>
+
+          {/* Visible Print Data Button */}
+          <button
+            onClick={() => setIsPrintModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 rounded-xl font-medium shadow-2xs hover:shadow-xs transition-all active:scale-95"
+            title="Print Data"
+          >
+            <Printer className="w-5 h-5 text-indigo-500" />
+            <span>Print Data</span>
+          </button>
         </div>
       </div>
 
@@ -561,6 +576,17 @@ export function Reports() {
           </div>
         </ReportSection>
       </div>
+
+      {/* Print Data Modal */}
+      <PrintDataModal
+        isOpen={isPrintModalOpen}
+        onClose={() => setIsPrintModalOpen(false)}
+        families={getFilteredData()}
+        selectedVillage={selectedVillage || 'all'}
+        currentUser={currentUser}
+        userProfile={userProfile}
+        language={language || 'hi'}
+      />
     </div>
   );
 }

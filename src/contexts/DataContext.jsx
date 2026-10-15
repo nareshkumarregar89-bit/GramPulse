@@ -6,7 +6,9 @@ import {
   onSnapshot, 
   setDoc, 
   deleteDoc, 
-  writeBatch 
+  writeBatch,
+  query,
+  where 
 } from 'firebase/firestore';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { initialFamilies } from '../data/villageData';
@@ -91,10 +93,16 @@ export function DataProvider({ children }) {
 
   // Real-time Firestore sync for families
   useEffect(() => {
+    if (!currentUser) return;
+
     try {
-      const unsubscribe = onSnapshot(collection(db, 'families'), async (snapshot) => {
+      const familiesQuery = isAdmin
+        ? collection(db, 'families')
+        : query(collection(db, 'families'), where('surveyorId', '==', currentUser.uid));
+
+      const unsubscribe = onSnapshot(familiesQuery, async (snapshot) => {
         setIsFirebaseConnected(true);
-        if (snapshot.empty) {
+        if (snapshot.empty && isAdmin) {
           try {
             const batch = writeBatch(db);
             initialFamilies.slice(0, 30).forEach((fam) => {
@@ -120,12 +128,18 @@ export function DataProvider({ children }) {
     } catch (e) {
       console.error('Failed to initialize Firestore families listener:', e);
     }
-  }, []);
+  }, [currentUser, isAdmin]);
 
   // Real-time Firestore sync for deletedFamilies
   useEffect(() => {
+    if (!currentUser) return;
+
     try {
-      const unsubscribe = onSnapshot(collection(db, 'deletedFamilies'), (snapshot) => {
+      const deletedQuery = isAdmin
+        ? collection(db, 'deletedFamilies')
+        : query(collection(db, 'deletedFamilies'), where('surveyorId', '==', currentUser.uid));
+
+      const unsubscribe = onSnapshot(deletedQuery, (snapshot) => {
         const loaded = [];
         snapshot.forEach(docSnap => {
           loaded.push({ ...docSnap.data(), id: docSnap.id });
@@ -139,13 +153,15 @@ export function DataProvider({ children }) {
     } catch (e) {
       console.error('Failed to initialize Firestore deletedFamilies listener:', e);
     }
-  }, []);
+  }, [currentUser, isAdmin]);
 
   // Real-time Firestore sync for dynamic villages collection
   useEffect(() => {
+    if (!currentUser) return;
+
     try {
       const unsubscribe = onSnapshot(collection(db, 'villages'), async (snapshot) => {
-        if (snapshot.empty) {
+        if (snapshot.empty && isAdmin) {
           try {
             const batch = writeBatch(db);
             initialVillages.forEach((v) => {
@@ -177,10 +193,12 @@ export function DataProvider({ children }) {
     } catch (e) {
       console.error('Failed to initialize Firestore villages listener:', e);
     }
-  }, []);
+  }, [currentUser, isAdmin]);
 
   // Real-time Firestore sync for settings (mohallas & castes)
   useEffect(() => {
+    if (!currentUser) return;
+
     try {
       const configDocRef = doc(db, 'settings', 'villageConfig');
       const unsubscribe = onSnapshot(configDocRef, async (docSnap) => {
@@ -189,7 +207,7 @@ export function DataProvider({ children }) {
           const hasOldDefaults = Array.isArray(data.mohallas) && data.mohallas.some(m => 
             m === 'Shastri Nagar' || m === 'Gandhi Colony' || m === 'Nehru Basti' || m === 'Indira Nagar'
           );
-          if (hasOldDefaults) {
+          if (hasOldDefaults && isAdmin) {
             try {
               await setDoc(configDocRef, { mohallas: initialMohallas }, { merge: true });
               setMohallas(initialMohallas);
@@ -201,7 +219,7 @@ export function DataProvider({ children }) {
             setMohallas(data.mohallas);
           }
           if (data.castes && Array.isArray(data.castes)) setCastes(data.castes);
-        } else {
+        } else if (isAdmin) {
           try {
             await setDoc(configDocRef, {
               mohallas: initialMohallas,
@@ -220,7 +238,7 @@ export function DataProvider({ children }) {
     } catch (e) {
       console.error('Failed to initialize Firestore settings listener:', e);
     }
-  }, []);
+  }, [currentUser, isAdmin]);
 
   // Active village records (only active ones)
   const activeVillageRecords = useMemo(() => {
@@ -346,10 +364,10 @@ export function DataProvider({ children }) {
       id: newId,
       village: targetVillage,
       villageId: targetVillageId,
-      surveyorId: family.surveyorId || currentUser?.uid || '',
+      surveyorId: (!isAdmin || !family.surveyorId) ? (currentUser?.uid || '') : family.surveyorId,
       surveyorName: family.surveyorName || userProfile?.name || currentUser?.email?.split('@')[0] || 'Surveyor',
       surveyorEmail: family.surveyorEmail || currentUser?.email || '',
-      createdBy: currentUser?.uid || '',
+      createdBy: family.createdBy || currentUser?.uid || '',
       createdByName: userProfile?.name || currentUser?.email?.split('@')[0] || 'Surveyor',
       createdAt: family.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -399,10 +417,10 @@ export function DataProvider({ children }) {
         id: famId,
         village: targetVillage,
         villageId: targetVillageId,
-        surveyorId: fam.surveyorId || currentUser?.uid || '',
+        surveyorId: (!isAdmin || !fam.surveyorId) ? (currentUser?.uid || '') : fam.surveyorId,
         surveyorName: fam.surveyorName || userProfile?.name || currentUser?.email?.split('@')[0] || 'Surveyor',
         surveyorEmail: fam.surveyorEmail || currentUser?.email || '',
-        createdBy: currentUser?.uid || '',
+        createdBy: fam.createdBy || currentUser?.uid || '',
         createdByName: userProfile?.name || currentUser?.email?.split('@')[0] || 'Surveyor',
         createdAt: fam.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString()
@@ -509,6 +527,44 @@ export function DataProvider({ children }) {
       await deleteDoc(doc(db, 'deletedFamilies', id));
     } catch (err) {
       console.error('Firestore permanentlyDeleteFamily error:', err);
+    }
+  };
+
+  // Restore all deleted families
+  const restoreAllFamilies = async () => {
+    const toRestore = [...deletedFamilies];
+    if (toRestore.length === 0) return;
+    setRawFamilies(prev => [...prev, ...toRestore.map(f => {
+      const { deletedAt, deletedBy, deletedByName, ...rest } = f;
+      return rest;
+    })]);
+    setDeletedFamilies([]);
+    try {
+      const batch = writeBatch(db);
+      toRestore.forEach(f => {
+        const { deletedAt, deletedBy, deletedByName, ...rest } = f;
+        batch.set(doc(db, 'families', f.id), rest);
+        batch.delete(doc(db, 'deletedFamilies', f.id));
+      });
+      await batch.commit();
+    } catch (err) {
+      console.error('Firestore restoreAllFamilies error:', err);
+    }
+  };
+
+  // Permanently delete all families (purge trash)
+  const permanentlyDeleteAllFamilies = async () => {
+    const toDelete = [...deletedFamilies];
+    if (toDelete.length === 0) return;
+    setDeletedFamilies([]);
+    try {
+      const batch = writeBatch(db);
+      toDelete.forEach(f => {
+        batch.delete(doc(db, 'deletedFamilies', f.id));
+      });
+      await batch.commit();
+    } catch (err) {
+      console.error('Firestore permanentlyDeleteAllFamilies error:', err);
     }
   };
 
@@ -862,6 +918,8 @@ export function DataProvider({ children }) {
       deleteFamily,
       restoreFamily,
       permanentlyDeleteFamily,
+      restoreAllFamilies,
+      permanentlyDeleteAllFamilies,
       getFamilyById,
       addMohalla,
       deleteMohalla,

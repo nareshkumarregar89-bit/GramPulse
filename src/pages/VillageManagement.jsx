@@ -14,7 +14,8 @@ import {
   Layers, 
   ArrowRight,
   Info,
-  ShieldCheck
+  ShieldCheck,
+  Printer
 } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -203,17 +204,28 @@ export function VillageManagement() {
           </div>
         </div>
 
-        <button
-          onClick={() => {
-            setFormData({ nameEnglish: '', nameHindi: '', status: 'active' });
-            setFormError('');
-            setIsAddModalOpen(true);
-          }}
-          className="flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-green-500 to-indigo-600 hover:from-green-600 hover:to-indigo-700 text-white rounded-xl text-sm font-semibold shadow-md transition-all shrink-0 active:scale-95"
-        >
-          <Plus className="w-4 h-4" />
-          <span>{language === 'hi' ? 'नया गाँव जोड़ें' : 'Add New Village'}</span>
-        </button>
+        <div className="flex items-center gap-2.5 shrink-0">
+          <button
+            onClick={() => window.print()}
+            className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-semibold shadow-2xs hover:shadow-xs transition-all active:scale-95"
+            title={language === 'hi' ? 'गाँव निर्देशिका प्रिंट करें' : 'Print Village Directory'}
+          >
+            <Printer className="w-4 h-4 text-indigo-500" />
+            <span className="hidden sm:inline">{language === 'hi' ? 'निर्देशिका प्रिंट करें' : 'Print Directory'}</span>
+          </button>
+
+          <button
+            onClick={() => {
+              setFormData({ nameEnglish: '', nameHindi: '', status: 'active' });
+              setFormError('');
+              setIsAddModalOpen(true);
+            }}
+            className="flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-green-500 to-indigo-600 hover:from-green-600 hover:to-indigo-700 text-white rounded-xl text-sm font-semibold shadow-md transition-all active:scale-95"
+          >
+            <Plus className="w-4 h-4" />
+            <span>{language === 'hi' ? 'नया गाँव जोड़ें' : 'Add New Village'}</span>
+          </button>
+        </div>
       </div>
 
       {/* KPI Stats Overview */}

@@ -21,10 +21,15 @@ import {
   MapPin,
   TrendingUp,
   FileSpreadsheet,
-  Activity
+  Activity,
+  AlertCircle,
+  XCircle,
+  Shield,
+  Mail
 } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
 import { ExcelImportModal } from '../components/ExcelImportModal';
 import { TiltCard } from '../components/TiltCard';
 import { AnimatedCounter } from '../components/AnimatedCounter';
@@ -41,8 +46,12 @@ export function AdminPanel() {
     darkMode, 
     language 
   } = useData();
-  const { allUsers = [], currentUser, userProfile } = useAuth();
+  const { allUsers = [], currentUser, userProfile, deleteUserByAdmin, toggleUserStatus } = useAuth();
+  const { addToast } = useToast();
   const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState(null);
+  const [isDeletingUser, setIsDeletingUser] = useState(false);
+  const [userSearchTerm, setUserSearchTerm] = useState('');
 
   // Overall dynamic metrics
   const totalVillages = villageRecords.length;
@@ -51,6 +60,69 @@ export function AdminPanel() {
   const totalPopulation = allFamilies.reduce((sum, f) => sum + (f.members?.length || 0), 0);
   const activeSurveyors = allUsers.filter(u => u.role === 'surveyor' && u.status !== 'inactive').length;
   const totalAdmins = allUsers.filter(u => u.role === 'admin').length;
+
+  // Filtered users for quick admin management
+  const displayedUsers = allUsers.filter(u => {
+    if (!userSearchTerm.trim()) return true;
+    const q = userSearchTerm.toLowerCase();
+    return (
+      (u.name && u.name.toLowerCase().includes(q)) ||
+      (u.email && u.email.toLowerCase().includes(q)) ||
+      (u.role && u.role.toLowerCase().includes(q))
+    );
+  });
+
+  // Handle Delete User
+  const handleDeleteUser = async () => {
+    if (!userToDelete) return;
+    if (userToDelete.uid === currentUser?.uid) {
+      addToast(language === 'hi' ? 'आप स्वयं के खाते को नहीं हटा सकते।' : 'You cannot delete your own account.', 'error');
+      setUserToDelete(null);
+      return;
+    }
+    if (userToDelete.uid === 'sJwiZZ6cf8Ze8YAmMMK8T1FwF232') {
+      addToast(language === 'hi' ? 'सुपर एडमिन खाता नहीं हटाया जा सकता।' : 'Super Admin account cannot be deleted.', 'error');
+      setUserToDelete(null);
+      return;
+    }
+
+    try {
+      setIsDeletingUser(true);
+      await deleteUserByAdmin(userToDelete.uid, userToDelete);
+      addToast(
+        language === 'hi' 
+          ? `यूज़र "${userToDelete.name || userToDelete.email}" सफलतापूर्वक हटा दिया गया!` 
+          : `User "${userToDelete.name || userToDelete.email}" deleted successfully!`,
+        'success'
+      );
+      setUserToDelete(null);
+    } catch (err) {
+      console.error('Delete user error in AdminPanel:', err);
+      addToast(language === 'hi' ? 'यूज़र हटाने में त्रुटि हुई।' : 'Failed to delete user.', 'error');
+    } finally {
+      setIsDeletingUser(false);
+    }
+  };
+
+  // Handle status toggle
+  const handleToggleStatus = async (user) => {
+    if (user.uid === currentUser?.uid) {
+      addToast(language === 'hi' ? 'आप स्वयं के खाते को निष्क्रिय नहीं कर सकते।' : 'You cannot deactivate your own account.', 'error');
+      return;
+    }
+    try {
+      const next = await toggleUserStatus(user.uid, user.status || 'active');
+      addToast(
+        language === 'hi' 
+          ? `यूज़र "${user.name || user.email}" ${next === 'active' ? 'सक्रिय' : 'निष्क्रिय'} किया गया!` 
+          : `User "${user.name || user.email}" marked as ${next}!`,
+        'success'
+      );
+    } catch (err) {
+      console.error('Toggle status error:', err);
+      addToast(language === 'hi' ? 'स्थिति बदलने में त्रुटि हुई।' : 'Failed to update user status.', 'error');
+    }
+  };
 
   return (
     <div className="space-y-8">
@@ -408,7 +480,183 @@ export function AdminPanel() {
         </div>
       </div>
 
-      {/* SECTION 2: Administrative Command Center Modules with 3D Depth */}
+      {/* SECTION 2: Surveyor & User Accounts Management (Quick Admin Control) */}
+      <div className={`p-6 rounded-3xl border transition-all ${
+        darkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'
+      }`}>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-4 border-b border-gray-100 dark:border-gray-800">
+          <div>
+            <div className="flex items-center gap-2">
+              <UserCheck className="w-5 h-5 text-emerald-500" />
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                {language === 'hi' ? 'सर्वेयर एवं यूज़र प्रबंधन (Surveyor & User Control)' : 'Surveyor & User Accounts Control'}
+              </h2>
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              {language === 'hi'
+                ? 'सिस्टम उपयोगकर्ताओं की सूची, गाँव आवंटन, स्थिति नियंत्रण और यूज़र विलोपन (Delete User)'
+                : 'System user directory, live status, village assignments, and direct user deletion'}
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2.5">
+            {/* Quick search input */}
+            <div className="relative w-44 sm:w-56">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+              <input
+                type="text"
+                placeholder={language === 'hi' ? 'यूज़र खोजें...' : 'Search users...'}
+                value={userSearchTerm}
+                onChange={(e) => setUserSearchTerm(e.target.value)}
+                className={`w-full pl-8 pr-3 py-1.5 rounded-xl border text-xs outline-none ${
+                  darkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'
+                }`}
+              />
+            </div>
+
+            <button
+              onClick={() => navigate('/users')}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 transition-colors whitespace-nowrap shrink-0"
+            >
+              <span>{language === 'hi' ? 'सभी यूज़र' : 'Manage All'}</span>
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* Users Cards / Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {displayedUsers.length === 0 ? (
+            <div className="col-span-full p-8 text-center text-xs text-gray-500 dark:text-gray-400">
+              {language === 'hi' ? 'कोई यूज़र नहीं मिला।' : 'No users match your search.'}
+            </div>
+          ) : (
+            displayedUsers.map((user) => {
+              const surveyCount = allFamilies.filter(f => f.surveyorId === user.uid || f.createdBy === user.uid).length;
+              const isUserActive = user.status !== 'inactive';
+              const isSelf = user.uid === currentUser?.uid;
+              const isSuperAdmin = user.uid === 'sJwiZZ6cf8Ze8YAmMMK8T1FwF232';
+
+              return (
+                <div
+                  key={user.uid}
+                  className={`p-4 rounded-2xl border transition-all flex flex-col justify-between ${
+                    darkMode ? 'bg-gray-800/40 border-gray-800 hover:border-gray-700' : 'bg-gray-50/70 border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <div className="space-y-3">
+                    {/* User Header */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-green-500 to-indigo-600 flex items-center justify-center text-white font-bold text-xs shrink-0 shadow-xs">
+                          {user.name?.charAt(0)?.toUpperCase() || user.email?.charAt(0)?.toUpperCase() || 'U'}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-bold text-xs text-gray-900 dark:text-white truncate flex items-center gap-1">
+                            <span>{user.name || 'Unnamed User'}</span>
+                            {isSelf && (
+                              <span className="text-[9px] px-1.5 py-0.2 rounded bg-indigo-500/10 text-indigo-600 font-bold">
+                                {language === 'hi' ? 'आप' : 'You'}
+                              </span>
+                            )}
+                          </p>
+                          <p className="text-[11px] text-gray-500 dark:text-gray-400 truncate mt-0.5">
+                            {user.email}
+                          </p>
+                        </div>
+                      </div>
+
+                      <span className={`text-[10px] px-2 py-0.5 rounded-md font-bold uppercase shrink-0 ${
+                        user.role === 'admin'
+                          ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/20'
+                          : 'bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/20'
+                      }`}>
+                        {user.role === 'admin' ? (language === 'hi' ? 'एडमिन' : 'Admin') : (language === 'hi' ? 'सर्वेयर' : 'Surveyor')}
+                      </span>
+                    </div>
+
+                    {/* Stats & status row */}
+                    <div className="flex items-center justify-between text-[11px] pt-1">
+                      <span className="text-gray-500 dark:text-gray-400 font-medium">
+                        {language === 'hi' ? 'दर्ज परिवार:' : 'Surveys:'} <strong className="text-gray-800 dark:text-gray-200">{surveyCount}</strong>
+                      </span>
+
+                      <button
+                        type="button"
+                        onClick={() => handleToggleStatus(user)}
+                        disabled={isSelf}
+                        className={`text-[10px] px-2 py-0.5 rounded-full font-bold transition-all ${
+                          isUserActive
+                            ? 'bg-green-500/10 text-green-600 dark:text-green-400'
+                            : 'bg-red-500/10 text-red-600 dark:text-red-400'
+                        } ${isSelf ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:opacity-80 active:scale-95'}`}
+                      >
+                        {isUserActive ? (language === 'hi' ? 'सक्रिय' : 'Active') : (language === 'hi' ? 'निष्क्रिय' : 'Inactive')}
+                      </button>
+                    </div>
+
+                    {/* Assigned Villages */}
+                    <div className="text-[11px] pt-1">
+                      <span className="text-gray-400 block mb-1">
+                        {language === 'hi' ? 'आवंटित गाँव:' : 'Villages:'}
+                      </span>
+                      {user.role === 'admin' ? (
+                        <span className="text-gray-500 italic text-[10px]">
+                          {language === 'hi' ? 'सभी गाँव (Global Access)' : 'All Villages'}
+                        </span>
+                      ) : (user.assignedVillages && user.assignedVillages.length > 0) ? (
+                        <div className="flex flex-wrap gap-1">
+                          {user.assignedVillages.map(v => (
+                            <span 
+                              key={v}
+                              className="text-[9px] px-1.5 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-semibold"
+                            >
+                              {v}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-amber-500 italic text-[10px]">
+                          {language === 'hi' ? 'कोई गाँव नहीं' : 'None'}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Action buttons (Manage & Direct Delete User) */}
+                  <div className="flex items-center justify-between gap-2 pt-3 mt-3 border-t border-gray-200 dark:border-gray-800">
+                    <button
+                      type="button"
+                      onClick={() => navigate('/users')}
+                      className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1"
+                    >
+                      <span>{language === 'hi' ? 'विवरण' : 'Edit Details'}</span>
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setUserToDelete(user)}
+                      disabled={isSelf || isSuperAdmin}
+                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
+                        isSelf || isSuperAdmin
+                          ? 'bg-gray-100 dark:bg-gray-800 text-gray-400 cursor-not-allowed opacity-40'
+                          : 'bg-red-50 hover:bg-red-100 dark:bg-red-950/40 text-red-600 dark:text-red-400 hover:text-red-700 active:scale-95'
+                      }`}
+                      title={language === 'hi' ? 'यूज़र हटाएं' : 'Delete User'}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>{language === 'hi' ? 'यूज़र हटाएं' : 'Delete User'}</span>
+                    </button>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+
+      {/* SECTION 3: Administrative Command Center Modules with 3D Depth */}
       <div>
         <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
           <Layers className="w-5 h-5 text-indigo-500" />
@@ -561,6 +809,89 @@ export function AdminPanel() {
         isOpen={isExcelModalOpen}
         onClose={() => setIsExcelModalOpen(false)}
       />
+
+      {/* Delete User Confirmation Modal */}
+      {userToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+          <div className={`w-full max-w-md rounded-3xl shadow-2xl border p-6 space-y-4 transition-all ${
+            darkMode ? 'bg-gray-900 border-gray-800 text-white' : 'bg-white border-gray-200 text-gray-900'
+          }`}>
+            <div className="flex items-center justify-between pb-3 border-b border-gray-200 dark:border-gray-800">
+              <h2 className="text-base font-bold flex items-center gap-2 text-red-600 dark:text-red-400">
+                <Trash2 className="w-5 h-5" />
+                <span>{language === 'hi' ? 'यूज़र खाता हटाएं' : 'Delete User Account'}</span>
+              </h2>
+              <button 
+                onClick={() => setUserToDelete(null)}
+                className="text-gray-400 hover:text-gray-600 p-1 rounded-lg"
+              >
+                <XCircle className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div className="p-3.5 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-700 dark:text-red-400 text-xs flex items-start gap-2.5">
+                <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-bold">
+                    {language === 'hi' ? 'चेतावनी: यह कार्रवाई स्थायी है!' : 'Warning: Permanent Deletion!'}
+                  </p>
+                  <p className="mt-1 text-red-600 dark:text-red-300">
+                    {language === 'hi'
+                      ? 'इस यूज़र का खाता और सिस्टम एक्सेस हटा दिया जाएगा। वे दोबारा लॉगिन नहीं कर सकेंगे।'
+                      : 'This user account and permissions will be permanently revoked from cloud servers.'}
+                  </p>
+                </div>
+              </div>
+
+              {/* User summary preview */}
+              <div className={`p-4 rounded-2xl border ${darkMode ? 'bg-gray-800/60 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-red-500 to-amber-600 flex items-center justify-center text-white font-bold text-sm shrink-0">
+                    {userToDelete.name?.charAt(0)?.toUpperCase() || userToDelete.email?.charAt(0)?.toUpperCase() || 'U'}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-bold text-sm truncate">{userToDelete.name || 'Unnamed User'}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{userToDelete.email}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-[10px] px-2 py-0.5 rounded-md font-bold uppercase bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
+                        {userToDelete.role || 'surveyor'}
+                      </span>
+                      <span className="text-[11px] text-gray-500 dark:text-gray-400">
+                        {allFamilies.filter(f => f.surveyorId === userToDelete.uid || f.createdBy === userToDelete.uid).length} {language === 'hi' ? 'सर्वे रिकॉर्ड्स' : 'survey records'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2.5 pt-3 border-t border-gray-200 dark:border-gray-800">
+              <button
+                type="button"
+                disabled={isDeletingUser}
+                onClick={() => setUserToDelete(null)}
+                className="px-4 py-2.5 rounded-xl border text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              >
+                {language === 'hi' ? 'रद्द करें' : 'Cancel'}
+              </button>
+              <button
+                type="button"
+                disabled={isDeletingUser}
+                onClick={handleDeleteUser}
+                className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white rounded-xl text-xs font-semibold shadow-md transition-all active:scale-95 disabled:opacity-50"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>
+                  {isDeletingUser
+                    ? (language === 'hi' ? 'हटा रहे हैं...' : 'Deleting...')
+                    : (language === 'hi' ? 'हाँ, यूज़र हटाएं' : 'Yes, Delete User')}
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

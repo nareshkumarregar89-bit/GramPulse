@@ -128,7 +128,21 @@ export const translations = {
     restore: 'Restore',
     permanently_delete: 'Permanently Delete',
     deleted_families: 'Deleted Families',
-    deleted_on: 'Deleted on'
+    deleted_on: 'Deleted on',
+    delete_user: 'Delete User',
+    confirm_delete_user: 'Delete User Account',
+    delete_user_warning: 'Are you sure you want to delete this user? Their account and access will be permanently revoked.',
+    confirm_permanent_delete: 'Confirm Permanent Deletion',
+    permanent_delete_warning: 'This action cannot be undone. All family records and member data will be permanently wiped.',
+    restore_all: 'Restore All',
+    empty_trash: 'Empty Bin',
+    confirm_empty_trash: 'Are you sure you want to permanently delete all archived records? This cannot be undone.',
+    no_deleted_records: 'Trash Bin is Empty',
+    no_deleted_records_desc: 'There are no deleted family records. Any deleted records will be safely archived here.',
+    search_deleted_records: 'Search deleted records...',
+    deleted_by: 'Deleted by',
+    view_members: 'View Members',
+    hide_members: 'Hide Members'
   },
   hi: {
     app_name: 'ग्रामपल्स',
@@ -259,6 +273,20 @@ export const translations = {
     restore: 'वापस लाएं',
     permanently_delete: 'स्थायी रूप से हटाएं',
     deleted_families: 'हटाए गए परिवार',
-    deleted_on: 'हटाया गया'
+    deleted_on: 'हटाया गया',
+    delete_user: 'यूज़र हटाएं',
+    confirm_delete_user: 'यूज़र खाता हटाएं',
+    delete_user_warning: 'क्या आप वाकई इस यूज़र को हटाना चाहते हैं? उनका खाता और एक्सेस स्थायी रूप से रद्द कर दिया जाएगा।',
+    confirm_permanent_delete: 'स्थायी रूप से हटाने की पुष्टि करें',
+    permanent_delete_warning: 'यह कार्रवाई पूर्ववत नहीं की जा सकती। परिवार का रिकॉर्ड और सभी सदस्य डेटा हमेशा के लिए हटा दिया जाएगा।',
+    restore_all: 'सभी वापस लाएं',
+    empty_trash: 'रीसायकल बिन खाली करें',
+    confirm_empty_trash: 'क्या आप वाकई सभी संग्रहीत रिकॉर्ड स्थायी रूप से हटाना चाहते हैं? इसे पूर्ववत नहीं किया जा सकता।',
+    no_deleted_records: 'रीसायकल बिन खाली है',
+    no_deleted_records_desc: 'कोई हटाया गया परिवार रिकॉर्ड नहीं है। भविष्य में हटाया गया डेटा यहाँ सुरक्षित संग्रहीत रहेगा।',
+    search_deleted_records: 'हटाए गए रिकॉर्ड खोजें...',
+    deleted_by: 'द्वारा हटाया गया',
+    view_members: 'सदस्य देखें',
+    hide_members: 'सदस्य छिपाएं'
   }
 };
