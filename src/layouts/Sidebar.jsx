@@ -60,11 +60,11 @@ export function Sidebar({ isMobileOpen, setIsMobileOpen }) {
           <div className="flex items-center gap-3">
             <img 
               src="/logo.png" 
-              alt="GramPulse Logo" 
+              alt="VillagePulse Logo" 
               className="w-10 h-10 object-contain rounded-xl shadow-xs" 
             />
             <div>
-              <h1 className="text-lg font-bold text-gray-900 dark:text-white">GramPulse</h1>
+              <h1 className="text-lg font-bold text-gray-900 dark:text-white">VillagePulse</h1>
               <p className="text-xs text-gray-500 dark:text-gray-400">Village Survey System</p>
             </div>
           </div>
@@ -136,7 +136,7 @@ export function Sidebar({ isMobileOpen, setIsMobileOpen }) {
       {/* Footer Branding */}
       <div className="p-4 border-t border-gray-200 dark:border-gray-800">
         <div className="text-center text-xs text-gray-500 dark:text-gray-400">
-          <p className="font-semibold">GramPulse v2.0</p>
+          <p className="font-semibold">VillagePulse v2.0</p>
           <p className="mt-0.5 text-[10px]">Smart Village Survey & Family Records</p>
         </div>
       </div>

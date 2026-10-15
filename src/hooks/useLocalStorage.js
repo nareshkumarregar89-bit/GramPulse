@@ -4,7 +4,11 @@ export function useLocalStorage(key, initialValue) {
   // Get from localStorage then parse stored json or return initialValue
   const [storedValue, setStoredValue] = useState(() => {
     try {
-      const item = window.localStorage.getItem(key);
+      let item = window.localStorage.getItem(key);
+      if (!item && key.startsWith('villagepulse-')) {
+        const legacyKey = key.replace('villagepulse-', 'grampulse-');
+        item = window.localStorage.getItem(legacyKey);
+      }
       return item ? JSON.parse(item) : initialValue;
     } catch (error) {
       console.log(error);

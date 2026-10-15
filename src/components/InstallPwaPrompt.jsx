@@ -56,12 +56,12 @@ export function InstallPwaPrompt() {
       <div className="flex items-start gap-3">
         <img 
           src="/logo.png" 
-          alt="GramPulse" 
+          alt="VillagePulse" 
           className="w-12 h-12 rounded-xl object-contain shrink-0 shadow-md bg-white/10 p-0.5" 
         />
         <div className="flex-1 min-w-0">
           <h4 className="font-bold text-sm md:text-base">
-            {language === 'hi' ? 'फ़ोन में GramPulse ऐप इंस्टॉल करें' : 'Install GramPulse App'}
+            {language === 'hi' ? 'फ़ोन में VillagePulse ऐप इंस्टॉल करें' : 'Install VillagePulse App'}
           </h4>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
             {language === 'hi'

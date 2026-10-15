@@ -188,7 +188,7 @@ export function AdminPanel() {
             </div>
 
             <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">
-              {language === 'hi' ? 'ग्रामपल्स प्रशासन एवं नियंत्रण कक्ष' : 'GramPulse System Administration'}
+              {language === 'hi' ? 'विलेजपल्स प्रशासन एवं नियंत्रण कक्ष' : 'VillagePulse System Administration'}
             </h1>
             <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 max-w-2xl">
               {language === 'hi'

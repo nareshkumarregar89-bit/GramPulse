@@ -63,14 +63,14 @@ export function DataProvider({ children }) {
   const auth = useAuth() || {};
   const { currentUser, isAdmin, userProfile, assignedVillages = [] } = auth;
 
-  const [rawFamilies, setRawFamilies] = useLocalStorage('grampulse-families', initialFamilies);
-  const [deletedFamilies, setDeletedFamilies] = useLocalStorage('grampulse-deleted-families', []);
-  const [villageRecords, setVillageRecords] = useLocalStorage('grampulse-village-records', initialVillages);
-  const [mohallas, setMohallas] = useLocalStorage('grampulse-mohallas', initialMohallas);
-  const [castes, setCastes] = useLocalStorage('grampulse-castes', initialCastes);
-  const [selectedVillage, setSelectedVillage] = useLocalStorage('grampulse-selected-village', 'all');
-  const [darkMode, setDarkMode] = useLocalStorage('grampulse-darkmode', false);
-  const [language, setLanguage] = useLocalStorage('grampulse-language', 'en');
+  const [rawFamilies, setRawFamilies] = useLocalStorage('villagepulse-families', initialFamilies);
+  const [deletedFamilies, setDeletedFamilies] = useLocalStorage('villagepulse-deleted-families', []);
+  const [villageRecords, setVillageRecords] = useLocalStorage('villagepulse-village-records', initialVillages);
+  const [mohallas, setMohallas] = useLocalStorage('villagepulse-mohallas', initialMohallas);
+  const [castes, setCastes] = useLocalStorage('villagepulse-castes', initialCastes);
+  const [selectedVillage, setSelectedVillage] = useLocalStorage('villagepulse-selected-village', 'all');
+  const [darkMode, setDarkMode] = useLocalStorage('villagepulse-darkmode', false);
+  const [language, setLanguage] = useLocalStorage('villagepulse-language', 'en');
   const [isFirebaseConnected, setIsFirebaseConnected] = useState(false);
 
   // Sync dark class on html root element for Tailwind dark: variants
@@ -850,7 +850,7 @@ export function DataProvider({ children }) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `grampulse-data-${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `villagepulse-data-${new Date().toISOString().split('T')[0]}.json`;
     a.click();
     URL.revokeObjectURL(url);
   };

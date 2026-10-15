@@ -779,7 +779,7 @@ export function UserManagement() {
                   required
                   value={formData.email}
                   onChange={(e) => setFormData(p => ({ ...p, email: e.target.value }))}
-                  placeholder="surveyor@grampulse.com"
+                  placeholder="surveyor@villagepulse.com"
                   className={`w-full px-3.5 py-2.5 rounded-xl border outline-none ${
                     darkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'
                   }`}

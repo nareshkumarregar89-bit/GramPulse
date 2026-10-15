@@ -5,7 +5,7 @@ export function PrintDocument({
   families = [],
   format = 'table', // 'table' | 'dossier'
   village = 'All Villages',
-  printedBy = 'GramPulse Admin',
+  printedBy = 'VillagePulse Admin',
   language = 'hi'
 }) {
   const currentDate = new Date().toLocaleDateString(language === 'hi' ? 'hi-IN' : 'en-IN', {
@@ -31,7 +31,7 @@ export function PrintDocument({
               <div className="flex items-center gap-3">
                 <img 
                   src="/logo.png" 
-                  alt="GramPulse Logo" 
+                  alt="VillagePulse Logo" 
                   className="w-12 h-12 object-contain rounded" 
                 />
                 <div>
@@ -125,8 +125,8 @@ export function PrintDocument({
           <div className="print-avoid-break pt-8 mt-6 border-t border-gray-400">
             <p className="text-[10px] text-gray-500 italic mb-8">
               * {language === 'hi' 
-                  ? 'प्रमाणित किया जाता है कि यह विवरण ग्राम पंचायत स्तर पर संकलित एवं ग्रामपल्स डेटाबेस में पंजीकृत सत्य प्रतिलिपि है।' 
-                  : 'Certified that this record is a true verified copy from the GramPulse Village Survey demographic database.'}
+                  ? 'प्रमाणित किया जाता है कि यह विवरण ग्राम पंचायत स्तर पर संकलित एवं विलेजपल्स डेटाबेस में पंजीकृत सत्य प्रतिलिपि है।' 
+                  : 'Certified that this record is a true verified copy from the VillagePulse Village Survey demographic database.'}
             </p>
             <div className="flex justify-between items-end px-6 text-xs text-gray-900">
               <div className="text-center">

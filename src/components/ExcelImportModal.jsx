@@ -118,7 +118,7 @@ export function ExcelImportModal({ isOpen, onClose }) {
     const worksheet = XLSX.utils.json_to_sheet(sampleRows);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Sample_Families');
-    XLSX.writeFile(workbook, 'GramPulse_Village_Survey_Sample_Template.xlsx');
+    XLSX.writeFile(workbook, 'VillagePulse_Village_Survey_Sample_Template.xlsx');
     addToast(language === 'hi' ? 'सैंपल टेम्पलेट डाउनलोड हो गया!' : 'Sample template downloaded!', 'success');
   };
 
@@ -443,7 +443,7 @@ export function ExcelImportModal({ isOpen, onClose }) {
     const worksheet = XLSX.utils.json_to_sheet(reportData);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Validation_Errors');
-    XLSX.writeFile(workbook, `GramPulse_Import_Errors_${new Date().toISOString().split('T')[0]}.xlsx`);
+    XLSX.writeFile(workbook, `VillagePulse_Import_Errors_${new Date().toISOString().split('T')[0]}.xlsx`);
     addToast(language === 'hi' ? 'त्रुटि रिपोर्ट (.xlsx) डाउनलोड हो गई!' : 'Error report (.xlsx) downloaded!', 'success');
   };
 

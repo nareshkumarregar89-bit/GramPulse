@@ -139,7 +139,7 @@ export function Settings() {
     const worksheet = XLSX.utils.json_to_sheet(excelData);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Complete Family Data");
-    XLSX.writeFile(workbook, `grampulse-data-${new Date().toISOString().split('T')[0]}.xlsx`);
+    XLSX.writeFile(workbook, `villagepulse-data-${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
   // Export as PDF for Settings - with ALL details
@@ -151,7 +151,7 @@ export function Settings() {
     // Title
     doc.setFontSize(22);
     doc.setFont(undefined, 'bold');
-    doc.text('GramPulse - Complete Village Survey Report', 14, yPos);
+    doc.text('VillagePulse - Complete Village Survey Report', 14, yPos);
     yPos += 10;
     doc.setFont(undefined, 'normal');
     
@@ -261,7 +261,7 @@ export function Settings() {
       yPos += 10;
     });
     
-    doc.save(`grampulse-data-${new Date().toISOString().split('T')[0]}.pdf`);
+    doc.save(`villagepulse-data-${new Date().toISOString().split('T')[0]}.pdf`);
   };
 
   const handleSettingsExport = () => {
@@ -518,12 +518,12 @@ export function Settings() {
       {/* Danger Zone */}
       <SettingSection title="About" icon={AlertTriangle}>
         <div className="p-4 rounded-xl bg-gradient-to-r from-green-50 to-indigo-50 dark:from-green-900/20 dark:to-indigo-900/20">
-          <h3 className="font-semibold text-gray-900 dark:text-white mb-2">GramPulse</h3>
+          <h3 className="font-semibold text-gray-900 dark:text-white mb-2">VillagePulse</h3>
           <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
             Smart Village Survey & Family Records Management System
           </p>
           <p className="text-xs text-gray-500 dark:text-gray-500">
-            Version 1.0.0 • © 2026 GramPulse
+            Version 1.0.0 • © 2026 VillagePulse
           </p>
         </div>
       </SettingSection>

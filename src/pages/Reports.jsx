@@ -97,7 +97,7 @@ export function Reports() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    let filename = `grampulse-report-${new Date().toISOString().split('T')[0]}`;
+    let filename = `villagepulse-report-${new Date().toISOString().split('T')[0]}`;
     if (exportFilter === 'mohalla') filename += `-mohalla-${selectedMohalla}`;
     if (exportFilter === 'caste') filename += `-caste-${selectedCaste}`;
     a.download = `${filename}.json`;
@@ -153,7 +153,7 @@ export function Reports() {
     const worksheet = XLSX.utils.json_to_sheet(excelData);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Complete Family Data");
-    let filename = `grampulse-report-${new Date().toISOString().split('T')[0]}`;
+    let filename = `villagepulse-report-${new Date().toISOString().split('T')[0]}`;
     if (exportFilter === 'mohalla') filename += `-mohalla-${selectedMohalla}`;
     if (exportFilter === 'caste') filename += `-caste-${selectedCaste}`;
     XLSX.writeFile(workbook, `${filename}.xlsx`);
@@ -168,7 +168,7 @@ export function Reports() {
     // Title
     doc.setFontSize(22);
     doc.setFont(undefined, 'bold');
-    doc.text('GramPulse - Complete Village Survey Report', 14, yPos);
+    doc.text('VillagePulse - Complete Village Survey Report', 14, yPos);
     yPos += 10;
     doc.setFont(undefined, 'normal');
     
@@ -285,7 +285,7 @@ export function Reports() {
       yPos += 10;
     });
     
-    let filename = `grampulse-report-${new Date().toISOString().split('T')[0]}`;
+    let filename = `villagepulse-report-${new Date().toISOString().split('T')[0]}`;
     if (exportFilter === 'mohalla') filename += `-mohalla-${selectedMohalla}`;
     if (exportFilter === 'caste') filename += `-caste-${selectedCaste}`;
     doc.save(`${filename}.pdf`);

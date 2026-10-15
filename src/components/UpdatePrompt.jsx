@@ -110,7 +110,7 @@ export function UpdatePrompt() {
           </div>
 
           <h4 className={`text-base font-bold mt-1 leading-snug ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-            {isHindi ? 'ग्रामपल्स का नया अपडेट तैयार है!' : 'A new version of GramPulse is ready!'}
+            {isHindi ? 'विलेजपल्स का नया अपडेट तैयार है!' : 'A new version of VillagePulse is ready!'}
           </h4>
 
           <p className={`text-xs mt-1 leading-relaxed ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>

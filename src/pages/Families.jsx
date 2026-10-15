@@ -97,7 +97,7 @@ export function Families() {
     ? [activePrintTarget] 
     : (selectedIds.size > 0 ? selectedFamiliesList : filteredFamilies);
 
-  const printedBy = userProfile?.name || currentUser?.displayName || (currentUser?.email ? currentUser.email.split('@')[0] : 'GramPulse Officer');
+  const printedBy = userProfile?.name || currentUser?.displayName || (currentUser?.email ? currentUser.email.split('@')[0] : 'VillagePulse Officer');
 
   return (
     <>

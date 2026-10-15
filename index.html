@@ -8,13 +8,13 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="apple-mobile-web-app-title" content="GramPulse" />
+    <meta name="apple-mobile-web-app-title" content="VillagePulse" />
     <link rel="apple-touch-icon" href="/logo.png" />
-    <title>GramPulse | Village Survey Management</title>
+    <title>VillagePulse | Village Survey Management</title>
     <script>
       (function() {
         try {
-          var isDark = localStorage.getItem('grampulse-darkmode');
+          var isDark = localStorage.getItem('villagepulse-darkmode') || localStorage.getItem('grampulse-darkmode');
           if (isDark === 'true') {
             document.documentElement.classList.add('dark');
           } else {

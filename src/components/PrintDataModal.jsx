@@ -31,7 +31,7 @@ export function PrintDataModal({
     ? selectedFamilies 
     : families;
 
-  const printedBy = userProfile?.name || currentUser?.displayName || (currentUser?.email ? currentUser.email.split('@')[0] : 'GramPulse Surveyor');
+  const printedBy = userProfile?.name || currentUser?.displayName || (currentUser?.email ? currentUser.email.split('@')[0] : 'VillagePulse Surveyor');
 
   const handleExecutePrint = () => {
     // Small timeout ensures any format change re-render is flushed

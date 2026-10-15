@@ -81,8 +81,8 @@ export function TopNavbar({ setIsMobileSidebarOpen }) {
           </button>
           
           <div className="flex md:hidden items-center gap-2">
-            <img src="/logo.png" alt="GramPulse" className="w-7 h-7 sm:w-8 sm:h-8 object-contain rounded-lg shadow-xs" />
-            <span className="font-bold text-base tracking-tight text-gray-900 dark:text-white">GramPulse</span>
+            <img src="/logo.png" alt="VillagePulse" className="w-7 h-7 sm:w-8 sm:h-8 object-contain rounded-lg shadow-xs" />
+            <span className="font-bold text-base tracking-tight text-gray-900 dark:text-white">VillagePulse</span>
           </div>
 
           <form onSubmit={handleSearch} className="hidden md:flex relative flex-1 max-w-md">

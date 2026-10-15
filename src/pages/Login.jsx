@@ -106,10 +106,10 @@ export function Login() {
           <div className="text-center mb-8">
             <img 
               src="/logo.png" 
-              alt="GramPulse Logo" 
+              alt="VillagePulse Logo" 
               className="w-20 h-20 mx-auto object-contain drop-shadow-lg mb-4" 
             />
-            <h1 className="text-2xl font-bold tracking-tight">GramPulse</h1>
+            <h1 className="text-2xl font-bold tracking-tight">VillagePulse</h1>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
               {language === 'hi' ? 'ग्राम सर्वेक्षण प्रबंधन पोर्टल' : 'Village Survey Management Portal'}
             </p>
@@ -135,7 +135,7 @@ export function Login() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder={language === 'hi' ? 'अपना ईमेल दर्ज करें' : 'name@grampulse.com'}
+                  placeholder={language === 'hi' ? 'अपना ईमेल दर्ज करें' : 'name@villagepulse.com'}
                   required
                   className={`w-full pl-11 pr-4 py-3 rounded-xl border text-sm outline-none transition-all ${
                     darkMode

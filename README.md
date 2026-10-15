@@ -1,4 +1,4 @@
-# GramPulse - Smart Village Survey & Family Records System
+# VillagePulse - Smart Village Survey & Family Records System
 
 A modern, mobile-first, offline-first village survey and family records management system designed for Gram Panchayats, NGOs, surveyors, and local administration.
 

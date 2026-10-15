@@ -63,7 +63,7 @@ export function IsometricVillageHero({ onOpenExcel }) {
             </h1>
             <p className="text-sm sm:text-base text-gray-600 dark:text-gray-300 mt-2 max-w-xl font-normal leading-relaxed">
               {language === 'hi'
-                ? 'ग्रामपल्स सर्वे प्रणाली में आपका स्वागत है। ग्रामीण परिवार डेटा, जनसांख्यिकी और सामाजिक कल्याण रिकॉर्ड्स का सुचारू डिजिटल प्रबंधन।'
+                ? 'विलेजपल्स सर्वे प्रणाली में आपका स्वागत है। ग्रामीण परिवार डेटा, जनसांख्यिकी और सामाजिक कल्याण रिकॉर्ड्स का सुचारू डिजिटल प्रबंधन।'
                 : 'Empowering rural administration with real-time family demographics, transparent surveys, and community intelligence.'}
             </p>
           </div>

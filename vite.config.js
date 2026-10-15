@@ -10,8 +10,8 @@ export default defineConfig({
       registerType: 'prompt',
       includeAssets: ['logo.png', 'favicon.png', 'pwa-192x192.png', 'pwa-512x512.png'],
       manifest: {
-        name: 'GramPulse - Village Survey Management',
-        short_name: 'GramPulse',
+        name: 'VillagePulse - Village Survey Management',
+        short_name: 'VillagePulse',
         description: 'Comprehensive village survey and demographic management system',
         theme_color: '#16a34a',
         background_color: '#ffffff',
