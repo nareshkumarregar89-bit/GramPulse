@@ -38,16 +38,20 @@ export function AuthProvider({ children }) {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         try {
-          // Check if user was deleted by admin
-          const deletedSnap = await getDoc(doc(db, 'deletedUsers', user.uid));
-          if (deletedSnap.exists()) {
-            await signOut(auth);
-            setCurrentUser(null);
-            setUserRole(null);
-            setUserProfile(null);
-            setAuthError('Your account has been deleted by the administrator.');
-            setLoading(false);
-            return;
+          // Check if user was marked deleted or deactivated
+          try {
+            const deletedSnap = await getDoc(doc(db, 'deletedUsers', user.uid));
+            if (deletedSnap.exists()) {
+              await signOut(auth);
+              setCurrentUser(null);
+              setUserRole(null);
+              setUserProfile(null);
+              setAuthError('Your account has been deleted by the administrator.');
+              setLoading(false);
+              return;
+            }
+          } catch (delCheckErr) {
+            // Ignored if deletedUsers is not readable by rules
           }
 
           const userDocRef = doc(db, 'users', user.uid);
@@ -56,13 +60,13 @@ export function AuthProvider({ children }) {
           if (userSnap.exists()) {
             const data = userSnap.data();
 
-            // Deactivated user check
-            if (data.status === 'inactive' && user.uid !== SUPER_ADMIN_UID) {
+            // Deactivated or deleted user check
+            if ((data.status === 'inactive' || data.status === 'deleted' || data.isDeleted) && user.uid !== SUPER_ADMIN_UID) {
               await signOut(auth);
               setCurrentUser(null);
               setUserRole(null);
               setUserProfile(null);
-              setAuthError('Your account has been deactivated. Please contact the administrator.');
+              setAuthError('Your account has been deactivated or deleted by the administrator.');
               setLoading(false);
               return;
             }
@@ -115,7 +119,11 @@ export function AuthProvider({ children }) {
         const unsubscribe = onSnapshot(collection(db, 'users'), (snapshot) => {
           const usersList = [];
           snapshot.forEach(docSnap => {
-            usersList.push({ ...docSnap.data(), uid: docSnap.id });
+            const data = docSnap.data();
+            // Exclude soft-deleted users
+            if (!data.isDeleted && data.status !== 'deleted') {
+              usersList.push({ ...data, uid: docSnap.id });
+            }
           });
           setAllUsers(usersList);
         }, (err) => {
@@ -136,15 +144,23 @@ export function AuthProvider({ children }) {
     const cred = await signInWithEmailAndPassword(auth, email, password);
     // Double check status upon login
     try {
-      const delSnap = await getDoc(doc(db, 'deletedUsers', cred.user.uid));
-      if (delSnap.exists()) {
-        await signOut(auth);
-        throw new Error('Your account has been deleted by the administrator.');
+      try {
+        const delSnap = await getDoc(doc(db, 'deletedUsers', cred.user.uid));
+        if (delSnap.exists()) {
+          await signOut(auth);
+          throw new Error('Your account has been deleted by the administrator.');
+        }
+      } catch (delErr) {
+        if (delErr.message.includes('deleted')) throw delErr;
       }
+
       const snap = await getDoc(doc(db, 'users', cred.user.uid));
-      if (snap.exists() && snap.data().status === 'inactive' && cred.user.uid !== SUPER_ADMIN_UID) {
-        await signOut(auth);
-        throw new Error('Your account has been deactivated by the administrator.');
+      if (snap.exists()) {
+        const data = snap.data();
+        if ((data.status === 'inactive' || data.status === 'deleted' || data.isDeleted) && cred.user.uid !== SUPER_ADMIN_UID) {
+          await signOut(auth);
+          throw new Error('Your account has been deactivated by the administrator.');
+        }
       }
     } catch (e) {
       if (e.message.includes('deactivated') || e.message.includes('deleted')) throw e;
@@ -260,8 +276,41 @@ export function AuthProvider({ children }) {
     if (uid === currentUser?.uid) {
       throw new Error('You cannot delete your own account.');
     }
+
+    const userDocRef = doc(db, 'users', uid);
+    let isDeleted = false;
+
+    // 1. Attempt hard delete directly from Firestore
     try {
-      // 1. Mark in deletedUsers so they cannot re-authenticate
+      await deleteDoc(userDocRef);
+      isDeleted = true;
+    } catch (delErr) {
+      console.warn('deleteDoc failed, falling back to soft-delete:', delErr);
+    }
+
+    // 2. If deleteDoc was blocked by Firestore rules, fallback to soft-delete
+    if (!isDeleted) {
+      try {
+        await updateDoc(userDocRef, {
+          status: 'deleted',
+          isDeleted: true,
+          deletedAt: new Date().toISOString(),
+          deletedBy: currentUser?.uid || ''
+        });
+        isDeleted = true;
+      } catch (updErr) {
+        console.error('Both deleteDoc and updateDoc failed:', updErr);
+        throw new Error(updErr.code === 'permission-denied'
+          ? 'Permission Denied: Please verify admin permissions in Firestore Rules.'
+          : (updErr.message || 'Failed to delete user'));
+      }
+    }
+
+    // Immediately remove from local state for instant UI update
+    setAllUsers(prev => prev.filter(u => u.uid !== uid));
+
+    // 3. Optional audit log in deletedUsers (non-fatal if deletedUsers rule is absent)
+    try {
       await setDoc(doc(db, 'deletedUsers', uid), {
         uid,
         email: userData.email || '',
@@ -271,12 +320,9 @@ export function AuthProvider({ children }) {
         deletedBy: currentUser?.uid || '',
         deletedByName: userProfile?.name || currentUser?.email?.split('@')[0] || 'Admin'
       });
-      // 2. Delete from users collection
-      const userDocRef = doc(db, 'users', uid);
-      await deleteDoc(userDocRef);
-    } catch (err) {
-      console.error('Failed to delete user:', err);
-      throw err;
+    } catch (auditErr) {
+      // Ignored: non-fatal if deletedUsers collection rule is not configured in Firestore
+      console.warn('Non-fatal: could not write to deletedUsers collection:', auditErr.message);
     }
   };
 

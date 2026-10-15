@@ -183,7 +183,7 @@ export function UserManagement() {
     } catch (err) {
       console.error('Delete user error:', err);
       addToast(
-        language === 'hi' ? 'यूज़र हटाने में त्रुटि हुई।' : 'Failed to delete user.',
+        err.message || (language === 'hi' ? 'यूज़र हटाने में त्रुटि हुई।' : 'Failed to delete user.'),
         'error'
       );
     } finally {
