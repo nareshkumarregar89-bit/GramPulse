@@ -37,6 +37,7 @@ export function Settings() {
     addCaste,
     deleteCaste,
     resetData,
+    clearAllSurveyData,
     exportData,
     importData
   } = useData();
@@ -298,10 +299,29 @@ export function Settings() {
     }
   };
 
-  const handleResetData = () => {
-    if (confirm('Are you sure you want to reset all data? This action cannot be undone.')) {
-      resetData();
-      addToast('Data reset successfully!', 'success');
+  const [isWiping, setIsWiping] = useState(false);
+
+  const handleResetData = async () => {
+    const confirmMsg = language === 'hi'
+      ? 'सावधानी: क्या आप वाकई डेटाबेस और ऐप से सभी (डमी / पुराने) परिवार रिकॉर्ड हटाना चाहते हैं? इसके बाद आप नया असली डेटा अपलोड कर सकेंगे।'
+      : 'Caution: Are you sure you want to permanently delete all survey/family records from the database? This action cannot be undone.';
+
+    if (window.confirm(confirmMsg)) {
+      try {
+        setIsWiping(true);
+        const res = await clearAllSurveyData();
+        addToast(
+          language === 'hi'
+            ? `सफलतापूर्वक डेटा साफ़ हुआ! (${res.count || 0} रिकॉर्ड हटाए गए)`
+            : `All dummy survey data deleted successfully! (${res.count || 0} records wiped)`,
+          'success'
+        );
+      } catch (err) {
+        console.error('Wipe data error:', err);
+        addToast(err.message || 'Failed to wipe survey data', 'error');
+      } finally {
+        setIsWiping(false);
+      }
     }
   };
 
@@ -504,12 +524,21 @@ export function Settings() {
 
           <button
             onClick={handleResetData}
-            className="w-full flex items-center justify-center gap-3 px-6 py-4 rounded-xl border border-red-200 dark:border-red-900/30 bg-red-50 dark:bg-red-900/10 hover:bg-red-100 dark:hover:bg-red-900/20 transition-colors"
+            disabled={isWiping}
+            className="w-full flex items-center justify-center gap-3 px-6 py-4 rounded-xl border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-900/15 hover:bg-red-100 dark:hover:bg-red-900/30 transition-all disabled:opacity-50"
           >
-            <RotateCcw className="w-5 h-5 text-red-600 dark:text-red-400" />
-            <div className="text-left">
-              <p className="font-medium text-red-700 dark:text-red-300">Reset All Data</p>
-              <p className="text-sm text-red-600 dark:text-red-400">Restore to initial state</p>
+            <Trash2 className={`w-5 h-5 text-red-600 dark:text-red-400 ${isWiping ? 'animate-spin' : ''}`} />
+            <div className="text-left flex-1">
+              <p className="font-semibold text-red-700 dark:text-red-300">
+                {isWiping
+                  ? (language === 'hi' ? 'डेटा साफ़ किया जा रहा है...' : 'Wiping all survey data...')
+                  : (language === 'hi' ? 'सभी डमी एवं सर्वे डेटा मिटाएं' : 'Wipe All Dummy & Survey Data')}
+              </p>
+              <p className="text-xs text-red-600/80 dark:text-red-400/80">
+                {language === 'hi'
+                  ? 'डेटाबेस और ऐप से सभी पुराने व डमी परिवार रिकॉर्ड स्थायी रूप से हटाएँ ताकि आप असली डेटा अपलोड कर सकें'
+                  : 'Permanently wipe all mock survey records from database to upload real data'}
+              </p>
             </div>
           </button>
         </div>

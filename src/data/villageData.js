@@ -143,4 +143,5 @@ const generateRandomFamily = (id) => {
   };
 };
 
-export const initialFamilies = Array.from({ length: 60 }, (_, i) => generateRandomFamily(i + 1));
+// Clean production initial state: No mock or dummy survey families
+export const initialFamilies = [];

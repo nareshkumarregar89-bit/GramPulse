@@ -43,6 +43,7 @@ export function AdminPanel() {
     activeVillageRecords = [], 
     isFamilyInVillage, 
     setSelectedVillage, 
+    clearAllSurveyData,
     darkMode, 
     language 
   } = useData();
@@ -57,6 +58,31 @@ export function AdminPanel() {
   const [userToAssignVillage, setUserToAssignVillage] = useState(null);
   const [selectedVillageForAssign, setSelectedVillageForAssign] = useState('');
   const [isAssigningVillage, setIsAssigningVillage] = useState(false);
+  const [isWipingData, setIsWipingData] = useState(false);
+
+  const handleClearAllData = async () => {
+    const confirmMsg = language === 'hi'
+      ? 'सावधानी: क्या आप वाकई डेटाबेस और ऐप से सभी (डमी / पुराने) परिवार रिकॉर्ड हटाना चाहते हैं? इसके बाद आप नया असली डेटा अपलोड कर सकेंगे।'
+      : 'Caution: Are you sure you want to permanently delete all survey/family records from the database? This action cannot be undone.';
+
+    if (window.confirm(confirmMsg)) {
+      try {
+        setIsWipingData(true);
+        const res = await clearAllSurveyData();
+        addToast(
+          language === 'hi'
+            ? `सफलतापूर्वक डेटाबेस साफ़ हुआ! (${res.count || 0} रिकॉर्ड हटाए गए)`
+            : `All dummy survey data wiped successfully! (${res.count || 0} records deleted)`,
+          'success'
+        );
+      } catch (err) {
+        console.error('Failed to wipe data:', err);
+        addToast(err.message || 'Failed to wipe data', 'error');
+      } finally {
+        setIsWipingData(false);
+      }
+    }
+  };
 
   // Overall dynamic metrics
   const totalVillages = villageRecords.length;
@@ -212,6 +238,19 @@ export function AdminPanel() {
             >
               <FileSpreadsheet className="w-4 h-4" />
               <span>{language === 'hi' ? 'एक्सेल आयात' : 'Import Excel'}</span>
+            </button>
+
+            <button
+              onClick={handleClearAllData}
+              disabled={isWipingData}
+              className="flex items-center gap-2 px-3.5 py-2.5 bg-red-50 hover:bg-red-100 dark:bg-red-950/40 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900/50 rounded-xl text-xs sm:text-sm font-semibold shadow-2xs transition-all active:scale-95 disabled:opacity-50"
+              title={language === 'hi' ? 'डेटाबेस से सभी डमी परिवार साफ़ करें' : 'Wipe all dummy survey families from database'}
+            >
+              <Trash2 className={`w-4 h-4 ${isWipingData ? 'animate-spin' : ''}`} />
+              <span>{isWipingData 
+                ? (language === 'hi' ? 'साफ़ हो रहा है...' : 'Wiping...') 
+                : (language === 'hi' ? 'डमी डेटा मिटाएं' : 'Wipe Dummy Data')}
+              </span>
             </button>
           </div>
         </div>

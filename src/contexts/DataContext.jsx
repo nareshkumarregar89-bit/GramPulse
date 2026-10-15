@@ -4,6 +4,7 @@ import {
   collection, 
   doc, 
   onSnapshot, 
+  getDocs,
   setDoc, 
   deleteDoc, 
   writeBatch,
@@ -63,7 +64,7 @@ export function DataProvider({ children }) {
   const auth = useAuth() || {};
   const { currentUser, isAdmin, userProfile, assignedVillages = [] } = auth;
 
-  const [rawFamilies, setRawFamilies] = useLocalStorage('villagepulse-families', initialFamilies);
+  const [rawFamilies, setRawFamilies] = useLocalStorage('villagepulse-families', []);
   const [deletedFamilies, setDeletedFamilies] = useLocalStorage('villagepulse-deleted-families', []);
   const [villageRecords, setVillageRecords] = useLocalStorage('villagepulse-village-records', initialVillages);
   const [mohallas, setMohallas] = useLocalStorage('villagepulse-mohallas', initialMohallas);
@@ -100,26 +101,13 @@ export function DataProvider({ children }) {
         ? collection(db, 'families')
         : query(collection(db, 'families'), where('surveyorId', '==', currentUser.uid));
 
-      const unsubscribe = onSnapshot(familiesQuery, async (snapshot) => {
+      const unsubscribe = onSnapshot(familiesQuery, (snapshot) => {
         setIsFirebaseConnected(true);
-        if (snapshot.empty && isAdmin) {
-          try {
-            const batch = writeBatch(db);
-            initialFamilies.slice(0, 30).forEach((fam) => {
-              const docRef = doc(db, 'families', fam.id);
-              batch.set(docRef, fam);
-            });
-            await batch.commit();
-          } catch (e) {
-            console.warn('Seeding initial families failed:', e);
-          }
-        } else {
-          const loaded = [];
-          snapshot.forEach(docSnap => {
-            loaded.push({ ...docSnap.data(), id: docSnap.id });
-          });
-          setRawFamilies(loaded);
-        }
+        const loaded = [];
+        snapshot.forEach(docSnap => {
+          loaded.push({ ...docSnap.data(), id: docSnap.id });
+        });
+        setRawFamilies(loaded);
       }, (error) => {
         console.error('Firestore families listener error:', error);
       });
@@ -810,29 +798,47 @@ export function DataProvider({ children }) {
     }
   };
 
-  // Reset all data
-  const resetData = async () => {
-    setRawFamilies(initialFamilies);
-    setVillageRecords(initialVillages);
-    setMohallas(initialMohallas);
-    setCastes(initialCastes);
-    setSelectedVillage('all');
+  // Admin function: Completely wipe all survey families and dummy records from database & cache
+  const clearAllSurveyData = async () => {
+    // 1. Immediately wipe local state & local storage
+    setRawFamilies([]);
+    setDeletedFamilies([]);
     try {
-      const batch = writeBatch(db);
-      initialFamilies.slice(0, 30).forEach((fam) => {
-        batch.set(doc(db, 'families', fam.id), fam);
-      });
-      initialVillages.forEach((v) => {
-        batch.set(doc(db, 'villages', v.id), v);
-      });
-      batch.set(doc(db, 'settings', 'villageConfig'), {
-        mohallas: initialMohallas,
-        castes: initialCastes
-      });
-      await batch.commit();
-    } catch (err) {
-      console.error('Firestore resetData error:', err);
+      localStorage.removeItem('villagepulse-families');
+      localStorage.removeItem('villagepulse-deleted-families');
+      localStorage.removeItem('grampulse-families');
+      localStorage.removeItem('grampulse-deleted-families');
+    } catch (e) {
+      console.warn('LocalStorage clear error:', e);
     }
+
+    // 2. Fetch and delete all documents in Firestore 'families' and 'deletedFamilies'
+    try {
+      const familiesSnap = await getDocs(collection(db, 'families'));
+      const deletedSnap = await getDocs(collection(db, 'deletedFamilies'));
+
+      const allDocs = [...familiesSnap.docs, ...deletedSnap.docs];
+      const chunkSize = 400;
+
+      for (let i = 0; i < allDocs.length; i += chunkSize) {
+        const chunk = allDocs.slice(i, i + chunkSize);
+        const batch = writeBatch(db);
+        chunk.forEach(d => {
+          batch.delete(d.ref);
+        });
+        await batch.commit();
+      }
+
+      return { success: true, count: allDocs.length };
+    } catch (err) {
+      console.error('Firestore clearAllSurveyData error:', err);
+      throw err;
+    }
+  };
+
+  // Reset all data: Purge survey data completely for clean production slate
+  const resetData = async () => {
+    await clearAllSurveyData();
   };
 
   // Export data as JSON
@@ -937,6 +943,7 @@ export function DataProvider({ children }) {
       addCaste,
       deleteCaste,
       resetData,
+      clearAllSurveyData,
       exportData,
       importData
     }}>
