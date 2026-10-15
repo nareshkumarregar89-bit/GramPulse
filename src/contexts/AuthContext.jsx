@@ -38,35 +38,42 @@ export function AuthProvider({ children }) {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         try {
-          // Check if user was marked deleted or deactivated
-          try {
-            const deletedSnap = await getDoc(doc(db, 'deletedUsers', user.uid));
-            if (deletedSnap.exists()) {
-              await signOut(auth);
-              setCurrentUser(null);
-              setUserRole(null);
-              setUserProfile(null);
-              setAuthError('Your account has been deleted by the administrator.');
-              setLoading(false);
-              return;
-            }
-          } catch (delCheckErr) {
-            // Ignored if deletedUsers is not readable by rules
-          }
-
           const userDocRef = doc(db, 'users', user.uid);
           const userSnap = await getDoc(userDocRef);
 
           if (userSnap.exists()) {
             const data = userSnap.data();
 
-            // Deactivated or deleted user check
-            if ((data.status === 'inactive' || data.status === 'deleted' || data.isDeleted) && user.uid !== SUPER_ADMIN_UID) {
+            // Deactivated user check (Admin explicitly deactivated account)
+            if (data.status === 'inactive' && user.uid !== SUPER_ADMIN_UID) {
               await signOut(auth);
               setCurrentUser(null);
               setUserRole(null);
               setUserProfile(null);
-              setAuthError('Your account has been deactivated or deleted by the administrator.');
+              setAuthError('Your account has been deactivated by the administrator.');
+              setLoading(false);
+              return;
+            }
+
+            // If user profile was previously marked deleted, re-register as fresh active surveyor (Option 1)
+            if ((data.status === 'deleted' || data.isDeleted) && user.uid !== SUPER_ADMIN_UID) {
+              const newProfile = {
+                uid: user.uid,
+                email: user.email,
+                name: user.displayName || (user.email ? user.email.split('@')[0] : 'Surveyor'),
+                photoURL: user.photoURL || '',
+                role: 'surveyor',
+                assignedVillages: [],
+                assignedVillageId: null,
+                assignmentStatus: 'Unassigned',
+                status: 'active',
+                createdAt: new Date().toISOString()
+              };
+              await setDoc(userDocRef, newProfile);
+              try { await deleteDoc(doc(db, 'deletedUsers', user.uid)); } catch (e) {}
+              setCurrentUser(user);
+              setUserRole(newProfile.role);
+              setUserProfile(newProfile);
               setLoading(false);
               return;
             }
@@ -126,9 +133,12 @@ export function AuthProvider({ children }) {
           const usersList = [];
           snapshot.forEach(docSnap => {
             const data = docSnap.data();
-            // Exclude soft-deleted users
+            // Exclude soft-deleted users and clean them up automatically
             if (!data.isDeleted && data.status !== 'deleted') {
               usersList.push({ ...data, uid: docSnap.id });
+            } else {
+              // Legacy soft-deleted record found: remove it completely so user can re-register cleanly
+              deleteDoc(docSnap.ref).catch(() => {});
             }
           });
           setAllUsers(usersList);
@@ -148,28 +158,18 @@ export function AuthProvider({ children }) {
   const login = async (email, password) => {
     setAuthError('');
     const cred = await signInWithEmailAndPassword(auth, email, password);
-    // Double check status upon login
+    // Double check active status upon login
     try {
-      try {
-        const delSnap = await getDoc(doc(db, 'deletedUsers', cred.user.uid));
-        if (delSnap.exists()) {
-          await signOut(auth);
-          throw new Error('Your account has been deleted by the administrator.');
-        }
-      } catch (delErr) {
-        if (delErr.message.includes('deleted')) throw delErr;
-      }
-
       const snap = await getDoc(doc(db, 'users', cred.user.uid));
       if (snap.exists()) {
         const data = snap.data();
-        if ((data.status === 'inactive' || data.status === 'deleted' || data.isDeleted) && cred.user.uid !== SUPER_ADMIN_UID) {
+        if (data.status === 'inactive' && cred.user.uid !== SUPER_ADMIN_UID) {
           await signOut(auth);
           throw new Error('Your account has been deactivated by the administrator.');
         }
       }
     } catch (e) {
-      if (e.message.includes('deactivated') || e.message.includes('deleted')) throw e;
+      if (e.message.includes('deactivated')) throw e;
     }
     return cred;
   };
@@ -195,6 +195,23 @@ export function AuthProvider({ children }) {
         if (data.status === 'inactive' && user.uid !== SUPER_ADMIN_UID) {
           await signOut(auth);
           throw new Error('Your account has been deactivated by the administrator.');
+        }
+        // If previously soft-deleted, reset to fresh unassigned profile
+        if ((data.status === 'deleted' || data.isDeleted) && user.uid !== SUPER_ADMIN_UID) {
+          const newProfile = {
+            uid: user.uid,
+            email: user.email,
+            name: user.displayName || (user.email ? user.email.split('@')[0] : 'User'),
+            photoURL: user.photoURL || '',
+            role: 'surveyor',
+            assignedVillages: [],
+            assignedVillageId: null,
+            assignmentStatus: 'Unassigned',
+            status: 'active',
+            createdAt: new Date().toISOString()
+          };
+          await setDoc(userDocRef, newProfile);
+          try { await deleteDoc(doc(db, 'deletedUsers', user.uid)); } catch (e) {}
         }
       } else {
         const isSuperAdmin = user.uid === SUPER_ADMIN_UID;
@@ -365,38 +382,41 @@ export function AuthProvider({ children }) {
       console.warn('Serverless endpoint unreachable (proceeding with resilient Firestore cleanup):', apiErr.message);
     }
 
-    // 2. Direct Firestore profile cleanup & immediate access revocation
+    // 2. Direct Firestore profile complete hard deletion
     const userDocRef = doc(db, 'users', uid);
     const now = new Date().toISOString();
 
     try {
-      await updateDoc(userDocRef, {
-        status: 'deleted',
-        isDeleted: true,
-        deletionState: 'completed',
-        authDeleted,
-        assignedVillages: [],
-        assignedVillageId: null,
-        assignmentStatus: 'Unassigned',
-        deletedAt: now,
-        deletedBy: currentUser?.uid || ''
-      });
-    } catch (updErr) {
-      // If updateDoc is blocked by rules, attempt deleteDoc
+      await deleteDoc(userDocRef);
+    } catch (delErr) {
+      console.warn('deleteDoc failed, attempting soft cleanup fallback:', delErr);
       try {
-        await deleteDoc(userDocRef);
-      } catch (delErr) {
-        console.error('Both updateDoc and deleteDoc failed:', delErr);
-        throw new Error(updErr.code === 'permission-denied'
+        await updateDoc(userDocRef, {
+          status: 'deleted',
+          isDeleted: true,
+          assignedVillages: [],
+          assignmentStatus: 'Unassigned',
+          deletedAt: now
+        });
+      } catch (updErr) {
+        console.error('Failed to remove user profile:', updErr);
+        throw new Error(delErr.code === 'permission-denied'
           ? 'Permission Denied: Please verify administrator permissions in Firestore Rules.'
-          : (updErr.message || 'Failed to delete user profile.'));
+          : (delErr.message || 'Failed to delete user profile.'));
       }
     }
 
     // Immediately remove from local state for instant UI update
     setAllUsers(prev => prev.filter(u => u.uid !== uid));
 
-    // 3. Record protected Administrative Audit Log (non-fatal if rules unconfigured)
+    // Also remove any legacy record in deletedUsers collection
+    try {
+      await deleteDoc(doc(db, 'deletedUsers', uid));
+    } catch (e) {
+      // Non-fatal
+    }
+
+    // 3. Record protected Administrative Audit Log (for admin history/compliance)
     try {
       await setDoc(doc(db, 'adminAuditLogs', `del_${uid}_${Date.now()}`), {
         action: 'DELETE_USER',
@@ -413,28 +433,10 @@ export function AuthProvider({ children }) {
       console.warn('Non-fatal: could not write to adminAuditLogs:', auditErr.message);
     }
 
-    // Compatibility record in deletedUsers
-    try {
-      await setDoc(doc(db, 'deletedUsers', uid), {
-        uid,
-        email: userData.email || '',
-        name: userData.name || '',
-        role: userData.role || 'surveyor',
-        authDeleted,
-        deletedAt: now,
-        deletedBy: currentUser?.uid || '',
-        deletedByName: userProfile?.name || currentUser?.email?.split('@')[0] || 'Admin'
-      });
-    } catch (legacyErr) {
-      // Non-fatal
-    }
-
     return {
       success: true,
       authDeleted,
-      message: authDeleted 
-        ? 'User account permanently removed from Firebase Authentication.' 
-        : 'User permissions revoked and profile deactivated.'
+      message: 'User account deleted successfully. The user can re-register with their Google account as a fresh user if needed.'
     };
   };
 

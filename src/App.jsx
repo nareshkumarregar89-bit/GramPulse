@@ -20,6 +20,7 @@ import { AdminPanel } from './pages/AdminPanel';
 import { Profile } from './pages/Profile';
 import { ToastContainer } from './components/ToastContainer';
 import { InstallPwaPrompt } from './components/InstallPwaPrompt';
+import { UpdatePrompt } from './components/UpdatePrompt';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { CustomCursor } from './components/CustomCursor';
 
@@ -99,6 +100,7 @@ function App() {
             </Routes>
             <ToastContainer />
             <InstallPwaPrompt />
+            <UpdatePrompt />
             <CustomCursor />
           </Router>
         </ToastProvider>

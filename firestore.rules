@@ -106,17 +106,28 @@ service cloud.firestore {
       // Updates: Admins can update any field. Non-admin users cannot alter privileges or village assignments.
       allow update: if isAuthenticated() && (
         isAdmin() || (
-          request.auth.uid == userId &&
-          isUserActive() &&
-          // Prevent non-admin from modifying roles, village assignments, or status
-          !request.resource.data.diff(resource.data).affectedKeys().hasAny([
-            'role', 
-            'assignedVillages', 
-            'assignedVillageId', 
-            'assignmentStatus', 
-            'status', 
-            'isDeleted'
-          ])
+          request.auth.uid == userId && (
+            (
+              isUserActive() &&
+              // Prevent non-admin from modifying roles, village assignments, or status
+              !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+                'role', 
+                'assignedVillages', 
+                'assignedVillageId', 
+                'assignmentStatus', 
+                'status', 
+                'isDeleted'
+              ])
+            ) ||
+            // Re-initialization for previously deleted users re-joining as unassigned surveyors
+            (
+              (resource.data.status == 'deleted' || resource.data.isDeleted == true) &&
+              request.resource.data.role == 'surveyor' &&
+              request.resource.data.status == 'active' &&
+              request.resource.data.assignmentStatus == 'Unassigned' &&
+              request.resource.data.assignedVillages.size() == 0
+            )
+          )
         )
       );
 

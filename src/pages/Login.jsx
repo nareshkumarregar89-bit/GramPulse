@@ -11,7 +11,7 @@ export function Login() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
-  const { login, signInWithGoogle } = useAuth();
+  const { login, signInWithGoogle, authError } = useAuth();
   const { darkMode, setDarkMode, language, setLanguage } = useData();
   const navigate = useNavigate();
 
@@ -116,10 +116,10 @@ export function Login() {
           </div>
 
           {/* Error Message */}
-          {error && (
+          {(error || authError) && (
             <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 text-sm flex items-center gap-2">
               <Shield className="w-4 h-4 shrink-0" />
-              <span>{error}</span>
+              <span>{error || authError}</span>
             </div>
           )}
 

@@ -131,21 +131,16 @@ export default async function handler(req, res) {
       }
     }
 
-    // 4. Update Application Profile & Revoke Village Assignments in Firestore
+    // 4. Completely remove user document from Firestore (Hard Delete)
     const userDocRef = admin.firestore().collection('users').doc(targetUid);
     const now = new Date().toISOString();
 
-    await userDocRef.set({
-      status: 'deleted',
-      isDeleted: true,
-      deletionState: 'completed',
-      authDeleted,
-      assignedVillages: [],
-      assignedVillageId: null,
-      assignmentStatus: 'Unassigned',
-      deletedAt: now,
-      deletedBy: callerUid
-    }, { merge: true });
+    await userDocRef.delete();
+
+    // Also remove from legacy deletedUsers if exists
+    try {
+      await admin.firestore().collection('deletedUsers').doc(targetUid).delete();
+    } catch (e) {}
 
     // 5. Record Protected Administrative Audit Log
     try {
