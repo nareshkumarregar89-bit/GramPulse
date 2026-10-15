@@ -10,7 +10,8 @@ import {
   User,
   LogOut,
   Building2,
-  Shield
+  Shield,
+  RefreshCw
 } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -21,7 +22,28 @@ export function TopNavbar({ setIsMobileSidebarOpen }) {
   const { currentUser, userProfile, isAdmin, logout } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const navigate = useNavigate();
+
+  const handleRefresh = () => {
+    if (isRefreshing) return;
+
+    // Safety check: Warn user if refreshing while on a survey form to prevent accidental data loss
+    if (window.location.pathname.startsWith('/survey')) {
+      const confirmMsg = language === 'hi'
+        ? 'क्या आप पेज रिफ्रेश करना चाहते हैं? यदि आपने कोई नया डेटा भरा है और सेव नहीं किया है, तो वह खो सकता है।'
+        : 'Are you sure you want to refresh? Any unsaved survey inputs may be lost.';
+      if (!window.confirm(confirmMsg)) {
+        return;
+      }
+    }
+
+    setIsRefreshing(true);
+    // Smooth transition with immediate feedback before reloading current route
+    setTimeout(() => {
+      window.location.reload();
+    }, 150);
+  };
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -118,6 +140,33 @@ export function TopNavbar({ setIsMobileSidebarOpen }) {
               </span>
             </div>
           )}
+
+          {/* Refresh Button - Desktop (Icon + Text) & Mobile (Accessible 44x44 Icon Button) */}
+          <button
+            type="button"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            aria-label={language === 'hi' ? 'पेज रिफ्रेश करें' : 'Refresh page'}
+            title={language === 'hi' ? 'पेज रिफ्रेश करें' : 'Refresh page'}
+            className={`
+              group relative flex items-center justify-center gap-1.5 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 px-2 sm:px-3 py-2 sm:py-1.5 rounded-xl text-xs font-semibold
+              border transition-all duration-200 active:scale-95 outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50
+              ${isRefreshing ? 'opacity-75 cursor-wait' : 'cursor-pointer'}
+              ${darkMode 
+                ? 'bg-gray-800/80 hover:bg-gray-700/90 border-gray-700 hover:border-blue-500/40 text-blue-300 hover:text-white shadow-2xs' 
+                : 'bg-blue-50/70 hover:bg-blue-100/80 border-blue-200/80 hover:border-blue-300 text-blue-700 hover:text-blue-900 shadow-2xs'
+              }
+            `}
+          >
+            <RefreshCw 
+              className={`w-4 h-4 text-blue-600 dark:text-blue-400 transition-transform duration-500 ${
+                isRefreshing ? 'animate-spin' : 'group-hover:rotate-180'
+              }`} 
+            />
+            <span className="hidden sm:inline tracking-tight font-medium">
+              {language === 'hi' ? 'रिफ्रेश' : 'Refresh'}
+            </span>
+          </button>
 
           {/* Language Toggle */}
           <button
