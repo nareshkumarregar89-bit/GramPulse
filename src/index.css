@@ -37,7 +37,8 @@ body {
 
 /* Screen Mode: Hide print-only components */
 @media screen {
-  .print-only {
+  .print-only,
+  .print-portal-area {
     display: none !important;
   }
 }
@@ -62,6 +63,14 @@ body {
   /* Force light theme colors on printing */
   * {
     color-scheme: light !important;
+  }
+
+  /* Completely hide the application shell and web pages when printing a report */
+  body.is-printing-report #root,
+  body:has(.print-portal-area) #root {
+    display: none !important;
+    height: 0 !important;
+    overflow: hidden !important;
   }
 
   /* Hide navigation, sidebar, and non-printable interactive elements */
@@ -89,10 +98,19 @@ body {
     max-width: 100% !important;
   }
 
-  /* Show the dedicated print document */
-  .print-only {
+  /* Show ONLY the dedicated print document */
+  .print-only,
+  .print-portal-area {
     display: block !important;
+    visibility: visible !important;
+    position: static !important;
     width: 100% !important;
+    height: auto !important;
+    background: #ffffff !important;
+    color: #111827 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
   }
 
   /* Table rules for clean multi-page pagination */

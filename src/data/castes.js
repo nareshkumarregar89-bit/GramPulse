@@ -6,6 +6,7 @@ export const castes = [
   "Meena",
   "Bishnoi",
   "Jain",
+  "Regar",
   "Scheduled Caste",
   "Scheduled Tribe",
   "Other Backward Classes",

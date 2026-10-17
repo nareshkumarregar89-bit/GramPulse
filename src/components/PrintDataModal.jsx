@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   X, 
   Printer, 
@@ -25,6 +26,18 @@ export function PrintDataModal({
   const [printFormat, setPrintFormat] = useState('table'); // 'table' | 'dossier'
   const [useOnlySelected, setUseOnlySelected] = useState(selectedFamilies.length > 0);
 
+  // Clean up print classes on print dialog completion or modal close
+  useEffect(() => {
+    const handleAfterPrint = () => {
+      document.body.classList.remove('is-printing-report');
+    };
+    window.addEventListener('afterprint', handleAfterPrint);
+    return () => {
+      window.removeEventListener('afterprint', handleAfterPrint);
+      document.body.classList.remove('is-printing-report');
+    };
+  }, []);
+
   if (!isOpen) return null;
 
   const dataToPrint = useOnlySelected && selectedFamilies.length > 0 
@@ -34,15 +47,22 @@ export function PrintDataModal({
   const printedBy = userProfile?.name || currentUser?.displayName || (currentUser?.email ? currentUser.email.split('@')[0] : 'VillagePulse Surveyor');
 
   const handleExecutePrint = () => {
-    // Small timeout ensures any format change re-render is flushed
+    document.body.classList.add('is-printing-report');
+    // Ensure state and portal DOM are painted before triggering browser print
     setTimeout(() => {
       window.print();
+      // Auto-fallback cleanup in case afterprint does not fire
+      setTimeout(() => {
+        document.body.classList.remove('is-printing-report');
+      }, 800);
     }, 150);
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs no-print">
-      <div className="fixed inset-0" onClick={onClose} />
+    <>
+      {/* 1. INTERACTIVE SCREEN MODAL (COMPLETELY HIDDEN ON PRINT) */}
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs no-print">
+        <div className="fixed inset-0" onClick={onClose} />
 
       <div className="relative w-full max-w-4xl max-h-[92vh] flex flex-col rounded-3xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-2xl overflow-hidden z-10">
         
@@ -174,5 +194,20 @@ export function PrintDataModal({
         </div>
       </div>
     </div>
+
+    {/* 2. DEDICATED CLEAN PRINTABLE DOCUMENT (PORTALED DIRECTLY TO BODY, VISIBLE ONLY IN PRINT MODE) */}
+    {createPortal(
+      <div id="print-report-portal" className="print-only print-portal-area">
+        <PrintDocument 
+          families={dataToPrint}
+          format={printFormat}
+          village={selectedVillage}
+          printedBy={printedBy}
+          language={language}
+        />
+      </div>,
+      document.body
+    )}
+  </>
   );
 }

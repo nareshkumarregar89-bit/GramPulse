@@ -11,8 +11,7 @@ import {
   LogOut,
   Building2,
   Shield,
-  RefreshCw,
-  FlaskConical
+  RefreshCw
 } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -28,9 +27,7 @@ export function TopNavbar({ setIsMobileSidebarOpen }) {
     t, 
     villages, 
     selectedVillage, 
-    setSelectedVillage,
-    showDummyData,
-    setShowDummyData
+    setSelectedVillage
   } = useData();
   const { currentUser, userProfile, isAdmin, logout } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
@@ -181,39 +178,7 @@ export function TopNavbar({ setIsMobileSidebarOpen }) {
             </span>
           </button>
 
-          {/* Dummy Data Toggle Button - Instant on-demand preview */}
-          <button
-            type="button"
-            onClick={() => setShowDummyData(!showDummyData)}
-            aria-label={showDummyData ? 'Hide dummy data' : 'Show dummy data'}
-            title={showDummyData 
-              ? (language === 'hi' ? 'डमी डेटा छिपाएं (केवल असली डेटा देखें)' : 'Hide dummy data (show real data only)')
-              : (language === 'hi' ? 'डमी डेटा देखें (डेमो मोड)' : 'Show dummy data (demo mode)')
-            }
-            className={`
-              group relative flex items-center justify-center gap-1.5 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 px-2 sm:px-3 py-2 sm:py-1.5 rounded-xl text-xs font-semibold
-              border transition-all duration-200 active:scale-95 outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50 cursor-pointer
-              ${showDummyData
-                ? 'bg-amber-500/20 hover:bg-amber-500/30 border-amber-500/50 text-amber-700 dark:text-amber-300 shadow-xs'
-                : darkMode 
-                  ? 'bg-gray-800/80 hover:bg-gray-700/90 border-gray-700 text-gray-300 hover:text-white' 
-                  : 'bg-gray-50/80 hover:bg-gray-100/90 border-gray-200 text-gray-600 hover:text-gray-900'
-              }
-            `}
-          >
-            <FlaskConical className={`w-4 h-4 transition-transform duration-200 ${showDummyData ? 'text-amber-500 scale-110' : 'text-gray-500 dark:text-gray-400'}`} />
-            <span className="hidden sm:inline tracking-tight font-medium">
-              {showDummyData 
-                ? (language === 'hi' ? 'डमी: ऑन' : 'Demo: ON') 
-                : (language === 'hi' ? 'डमी डेटा' : 'Dummy Data')}
-            </span>
-            {showDummyData && (
-              <span className="absolute -top-1 -right-1 flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
-              </span>
-            )}
-          </button>
+
 
           {/* Language Toggle */}
           <button

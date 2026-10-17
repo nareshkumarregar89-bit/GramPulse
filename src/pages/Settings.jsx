@@ -13,8 +13,7 @@ import {
   AlertTriangle,
   Building2,
   FileSpreadsheet,
-  ArrowRight,
-  FlaskConical
+  ArrowRight
 } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
 import { useToast } from '../contexts/ToastContext';
@@ -31,8 +30,6 @@ export function Settings() {
     darkMode,
     setDarkMode,
     language,
-    showDummyData,
-    setShowDummyData,
     addVillage,
     deleteVillage,
     addMohalla,
@@ -316,7 +313,7 @@ export function Settings() {
         addToast(
           language === 'hi'
             ? `सफलतापूर्वक डेटा साफ़ हुआ! (${res.count || 0} रिकॉर्ड हटाए गए)`
-            : `All dummy survey data deleted successfully! (${res.count || 0} records wiped)`,
+            : `All survey data deleted successfully! (${res.count || 0} records wiped)`,
           'success'
         );
       } catch (err) {
@@ -525,61 +522,6 @@ export function Settings() {
             />
           </button>
 
-          {/* Dummy Data (Demo Mode) Toggle Controls */}
-          <div className="p-4 rounded-xl border border-amber-200 dark:border-amber-900/50 bg-amber-50/60 dark:bg-amber-950/20 space-y-3">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
-                  <FlaskConical className="w-5 h-5" />
-                </div>
-                <div>
-                  <h4 className="text-sm font-semibold text-gray-900 dark:text-white">
-                    {language === 'hi' ? 'डमी डेटा मोड (Demo Data Mode)' : 'Dummy Data Mode (Demo Preview)'}
-                  </h4>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    {language === 'hi'
-                      ? 'जब चाहें तब डमी डेटा देखें और जब चाहें छिपाएं। असली डेटाबेस सुरक्षित रहता है।'
-                      : 'Toggle dummy data preview on demand. Your real database remains completely safe.'}
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  const next = !showDummyData;
-                  setShowDummyData(next);
-                  addToast(
-                    next 
-                      ? (language === 'hi' ? 'डमी डेटा सक्रिय किया गया!' : 'Dummy data preview enabled!') 
-                      : (language === 'hi' ? 'डमी डेटा छिपा दिया गया!' : 'Dummy data hidden! Real data only'),
-                    'info'
-                  );
-                }}
-                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                  showDummyData ? 'bg-amber-500' : 'bg-gray-300 dark:bg-gray-700'
-                }`}
-              >
-                <span
-                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
-                    showDummyData ? 'translate-x-5' : 'translate-x-0'
-                  }`}
-                />
-              </button>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-amber-200/60 dark:border-amber-900/40">
-              <span className={`text-xs font-semibold px-2.5 py-1 rounded-lg ${
-                showDummyData 
-                  ? 'bg-amber-500/20 text-amber-800 dark:text-amber-200' 
-                  : 'bg-gray-200/60 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
-              }`}>
-                {showDummyData 
-                  ? (language === 'hi' ? 'स्थिति: डमी डेटा दिख रहा है' : 'Status: Dummy Data Visible') 
-                  : (language === 'hi' ? 'स्थिति: डमी डेटा छिपा हुआ है' : 'Status: Hidden (Real Data Only)')}
-              </span>
-            </div>
-          </div>
-
           <button
             onClick={handleResetData}
             disabled={isWiping}
@@ -590,12 +532,12 @@ export function Settings() {
               <p className="font-semibold text-red-700 dark:text-red-300">
                 {isWiping
                   ? (language === 'hi' ? 'डेटा साफ़ किया जा रहा है...' : 'Wiping all survey data...')
-                  : (language === 'hi' ? 'सभी डमी एवं सर्वे डेटा मिटाएं' : 'Wipe All Dummy & Survey Data')}
+                  : (language === 'hi' ? 'सभी सर्वे डेटा मिटाएं' : 'Wipe All Survey Data')}
               </p>
               <p className="text-xs text-red-600/80 dark:text-red-400/80">
                 {language === 'hi'
-                  ? 'डेटाबेस और ऐप से सभी पुराने व डमी परिवार रिकॉर्ड स्थायी रूप से हटाएँ ताकि आप असली डेटा अपलोड कर सकें'
-                  : 'Permanently wipe all mock survey records from database to upload real data'}
+                  ? 'डेटाबेस और ऐप से सभी परिवार रिकॉर्ड स्थायी रूप से हटाएँ'
+                  : 'Permanently wipe all survey records from database'}
               </p>
             </div>
           </button>

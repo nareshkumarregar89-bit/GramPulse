@@ -26,8 +26,7 @@ import {
   XCircle,
   Shield,
   Mail,
-  Clock,
-  FlaskConical
+  Clock
 } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -46,8 +45,6 @@ export function AdminPanel() {
     isFamilyInVillage, 
     setSelectedVillage, 
     clearAllSurveyData,
-    showDummyData,
-    setShowDummyData,
     darkMode, 
     language 
   } = useData();
@@ -76,7 +73,7 @@ export function AdminPanel() {
         addToast(
           language === 'hi'
             ? `सफलतापूर्वक डेटाबेस साफ़ हुआ! (${res.count || 0} रिकॉर्ड हटाए गए)`
-            : `All dummy survey data wiped successfully! (${res.count || 0} records deleted)`,
+            : `All survey data wiped successfully! (${res.count || 0} records deleted)`,
           'success'
         );
       } catch (err) {
@@ -245,41 +242,15 @@ export function AdminPanel() {
             </button>
 
             <button
-              onClick={() => {
-                const next = !showDummyData;
-                setShowDummyData(next);
-                addToast(
-                  next 
-                    ? (language === 'hi' ? 'डमी डेटा सक्रिय किया गया! (40 सैंपल परिवार)' : 'Dummy data preview enabled! (40 sample families)') 
-                    : (language === 'hi' ? 'डमी डेटा छिपा दिया गया! (केवल असली डेटा)' : 'Dummy data hidden! Real data only'),
-                  'info'
-                );
-              }}
-              className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all border shadow-2xs active:scale-95 cursor-pointer ${
-                showDummyData
-                  ? 'bg-amber-500/20 hover:bg-amber-500/30 border-amber-500/50 text-amber-700 dark:text-amber-300'
-                  : 'bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/40 border-indigo-200 dark:border-indigo-900/50 text-indigo-700 dark:text-indigo-300'
-              }`}
-              title={language === 'hi' ? 'डमी डेटा देखने या छिपाने के लिए क्लिक करें' : 'Click to toggle dummy data'}
-            >
-              <FlaskConical className={`w-4 h-4 ${showDummyData ? 'text-amber-500' : ''}`} />
-              <span>
-                {showDummyData
-                  ? (language === 'hi' ? 'डमी डेटा: ऑन (Hide)' : 'Dummy: ON (Hide)')
-                  : (language === 'hi' ? 'डमी डेटा दिखाएं' : 'Show Dummy Data')}
-              </span>
-            </button>
-
-            <button
               onClick={handleClearAllData}
               disabled={isWipingData}
               className="flex items-center gap-2 px-3.5 py-2.5 bg-red-50 hover:bg-red-100 dark:bg-red-950/40 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900/50 rounded-xl text-xs sm:text-sm font-semibold shadow-2xs transition-all active:scale-95 disabled:opacity-50"
-              title={language === 'hi' ? 'डेटाबेस से सभी डमी परिवार साफ़ करें' : 'Wipe all dummy survey families from database'}
+              title={language === 'hi' ? 'डेटाबेस से सभी परिवार साफ़ करें' : 'Wipe all survey families from database'}
             >
               <Trash2 className={`w-4 h-4 ${isWipingData ? 'animate-spin' : ''}`} />
               <span>{isWipingData 
                 ? (language === 'hi' ? 'साफ़ हो रहा है...' : 'Wiping...') 
-                : (language === 'hi' ? 'डमी डेटा मिटाएं' : 'Wipe Dummy Data')}
+                : (language === 'hi' ? 'सर्वे डेटा मिटाएं' : 'Wipe Survey Data')}
               </span>
             </button>
           </div>

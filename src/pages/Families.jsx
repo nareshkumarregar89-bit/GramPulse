@@ -497,16 +497,18 @@ export function Families() {
         />
       </div>
 
-      {/* DEDICATED PRINT CONTAINER - VISIBLE ONLY WHEN BROWSER PRINT DIALOG OPENS */}
-      <div className="print-only">
-        <PrintDocument
-          families={currentPrintedFamilies}
-          format={activePrintTarget ? 'dossier' : 'table'}
-          village={selectedVillage}
-          printedBy={printedBy}
-          language={language}
-        />
-      </div>
+      {/* Fallback print container only if print triggered without modal */}
+      {!isPrintModalOpen && activePrintTarget && (
+        <div className="print-only">
+          <PrintDocument
+            families={currentPrintedFamilies}
+            format="dossier"
+            village={selectedVillage}
+            printedBy={printedBy}
+            language={language}
+          />
+        </div>
+      )}
     </>
   );
 }

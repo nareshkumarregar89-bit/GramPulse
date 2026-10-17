@@ -215,7 +215,7 @@ export function Dashboard() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 no-print">
       {/* 3D Isometric Village Hero Welcome Banner */}
       <IsometricVillageHero onOpenExcel={() => setIsExcelModalOpen(true)} />
 

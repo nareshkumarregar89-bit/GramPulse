@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ChevronLeft,
@@ -13,13 +14,14 @@ import {
 } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
 import { useAuth } from '../contexts/AuthContext';
-import { PrintDocument } from '../components/PrintDocument';
+import { PrintDataModal } from '../components/PrintDataModal';
 
 export function FamilyProfile() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { getFamilyById, darkMode, language } = useData();
   const { currentUser, userProfile } = useAuth();
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const family = getFamilyById(id);
 
   if (!family) {
@@ -35,10 +37,6 @@ export function FamilyProfile() {
       </div>
     );
   }
-
-  const handlePrint = () => {
-    window.print();
-  };
 
   const printedBy = userProfile?.name || currentUser?.displayName || (currentUser?.email ? currentUser.email.split('@')[0] : 'VillagePulse Officer');
 
@@ -62,7 +60,7 @@ export function FamilyProfile() {
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={handlePrint}
+            onClick={() => setIsPrintModalOpen(true)}
             className={`p-3 rounded-xl ${darkMode ? 'bg-gray-800 text-white hover:bg-gray-700' : 'bg-white text-gray-900 hover:bg-gray-50'} border`}
             title="Print"
           >
@@ -230,18 +228,30 @@ export function FamilyProfile() {
           </div>
         </ProfileSection>
       )}
-      </div>
 
-      {/* DEDICATED PRINT CONTAINER - TRIGGERED BY BROWSER PRINT */}
-      <div className="print-only">
-        <PrintDocument
+        <PrintDataModal
+          isOpen={isPrintModalOpen}
+          onClose={() => setIsPrintModalOpen(false)}
           families={[family]}
-          format="dossier"
-          village={family.village || ''}
-          printedBy={printedBy}
+          selectedVillage={family.village || 'all'}
+          currentUser={currentUser}
+          userProfile={userProfile}
           language={language}
         />
       </div>
+
+      {/* Fallback print container if direct print triggered without modal */}
+      {!isPrintModalOpen && (
+        <div className="print-only">
+          <PrintDocument
+            families={[family]}
+            format="dossier"
+            village={family.village || ''}
+            printedBy={printedBy}
+            language={language}
+          />
+        </div>
+      )}
     </>
   );
 }
