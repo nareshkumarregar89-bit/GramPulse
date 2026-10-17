@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Users,
@@ -57,10 +57,7 @@ export function Dashboard() {
   const [copiedUid, setCopiedUid] = useState(false);
 
   // Deduplicated assigned village display
-  const displayVillageNames = useMemo(() => {
-    const list = getUniqueAssignedVillageNames(userProfile || assignedVillages, activeVillageRecords, language);
-    return list.join(', ');
-  }, [userProfile, assignedVillages, activeVillageRecords, language]);
+  const displayVillageNames = getUniqueAssignedVillageNames(userProfile || assignedVillages, activeVillageRecords, language).join(', ');
 
   // Check if current user is an unassigned surveyor
   const isUnassigned = !isAdmin && (!assignedVillages || assignedVillages.length === 0);

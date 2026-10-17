@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Eye,
@@ -44,10 +44,7 @@ export function Families() {
   const [activePrintTarget, setActivePrintTarget] = useState(null); // null = all / selected
   const [selectedIds, setSelectedIds] = useState(new Set());
 
-  const displayVillageNames = useMemo(() => {
-    const list = getUniqueAssignedVillageNames(userProfile || assignedVillages, villages, language);
-    return list.join(', ');
-  }, [userProfile, assignedVillages, villages, language]);
+  const displayVillageNames = getUniqueAssignedVillageNames(userProfile || assignedVillages, villages, language).join(', ');
 
   const filteredFamilies = families.filter(family =>
     (family.familyHeadNameEnglish && family.familyHeadNameEnglish.toLowerCase().includes(searchQuery.toLowerCase())) ||

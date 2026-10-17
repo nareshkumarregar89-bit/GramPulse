@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   X,
@@ -67,9 +67,7 @@ export function UserProfileModal({ isOpen, onClose }) {
   const roleLabel = role === 'admin' 
     ? (language === 'hi' ? 'सुपर एडमिन (Super Admin)' : 'Super Admin')
     : (language === 'hi' ? 'गाँव सर्वेयर (Village Surveyor)' : 'Village Surveyor');
-  const uniqueAssignedVillages = useMemo(() => {
-    return getUniqueAssignedVillageNames(userProfile, activeVillageRecords, language);
-  }, [userProfile, activeVillageRecords, language]);
+  const uniqueAssignedVillages = getUniqueAssignedVillageNames(userProfile, activeVillageRecords, language);
   const initial = name.charAt(0).toUpperCase();
 
   // Statistics (Village-wide shared access & personal submissions)

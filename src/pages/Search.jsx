@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Search as SearchIcon, Eye, Edit, Trash2, Users, Building2 } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
@@ -20,11 +20,8 @@ export function Search() {
     category: ''
   });
 
-  const availableVillages = useMemo(() => {
-    if (isAdmin) return villages;
-    const uniqueAssigned = getUniqueAssignedVillageNames(userProfile || assignedVillages, activeVillageRecords, language);
-    return uniqueAssigned.length > 0 ? uniqueAssigned : villages;
-  }, [isAdmin, userProfile, assignedVillages, activeVillageRecords, language, villages]);
+  const uniqueAssigned = getUniqueAssignedVillageNames(userProfile || assignedVillages, activeVillageRecords, language);
+  const availableVillages = isAdmin ? villages : (uniqueAssigned.length > 0 ? uniqueAssigned : villages);
 
   const filteredFamilies = families.filter(family => {
     const matchesQuery = query === '' || (
