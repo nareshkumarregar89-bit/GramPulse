@@ -96,7 +96,7 @@ export function NewSurvey() {
   const [currentStep, setCurrentStep] = useState(1);
 
   // Check if current user is an unassigned surveyor
-  const isUnassigned = !isAdmin && (!assignedVillages || assignedVillages.length === 0 || userProfile?.assignmentStatus === 'Unassigned');
+  const isUnassigned = !isAdmin && (!assignedVillages || assignedVillages.length === 0);
 
   // Initial village choice respects assigned villages
   const initialVillage = (!isAdmin && assignedVillages.length > 0)

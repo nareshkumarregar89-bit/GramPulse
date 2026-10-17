@@ -145,7 +145,7 @@ export function AdminPanel() {
   // Unassigned users awaiting village assignment
   const unassignedUsers = allUsers.filter(u => 
     u.role !== 'admin' && 
-    (!u.assignedVillages || u.assignedVillages.length === 0 || u.assignmentStatus === 'Unassigned')
+    (!u.assignedVillages || u.assignedVillages.length === 0)
   );
 
   // Filtered users for quick admin management

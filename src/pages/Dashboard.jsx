@@ -56,7 +56,7 @@ export function Dashboard() {
   const [copiedUid, setCopiedUid] = useState(false);
 
   // Check if current user is an unassigned surveyor
-  const isUnassigned = !isAdmin && (!assignedVillages || assignedVillages.length === 0 || userProfile?.assignmentStatus === 'Unassigned');
+  const isUnassigned = !isAdmin && (!assignedVillages || assignedVillages.length === 0);
 
   // Copy UID helper
   const handleCopyUid = () => {

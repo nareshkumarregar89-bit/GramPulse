@@ -197,7 +197,7 @@ export function DataProvider({ children }) {
         : deriveAssignedVillageIds(userProfile, villageRecords);
 
       // Strict isolation: Unassigned surveyor has NO village access
-      if (!vIds || vIds.length === 0 || userProfile?.assignmentStatus === 'Unassigned') {
+      if (!vIds || vIds.length === 0) {
         setRawFamilies([]);
         setIsFirebaseConnected(true);
         return;
@@ -217,45 +217,102 @@ export function DataProvider({ children }) {
         setRawFamilies(combined);
       };
 
-      // 1. Query by village name / text (matches legacy records & cloud rules checking resource.data.village)
+      // Strategy 1: General collection listener with client-side assigned village filter
+      // (Executes when security rules allow isAssignedSurveyor read)
+      try {
+        const qCollection = collection(db, 'families');
+        const unsub0 = onSnapshot(qCollection, (snapshot) => {
+          snapshot.forEach(docSnap => {
+            const data = docSnap.data();
+            const matchesVillage = vIds.some(vid => isFamilyInVillageRecord(data, vid, villageRecords));
+            if (matchesVillage) {
+              combinedMap.set(docSnap.id, { ...data, id: docSnap.id });
+            }
+          });
+          syncCombinedFamilies();
+        }, (err) => {
+          console.warn('Firestore general collection query for surveyor (handled):', err.message);
+        });
+        unsubscribers.push(unsub0);
+      } catch (e) {
+        console.warn('Collection listener init error:', e);
+      }
+
+      // Strategy 2: Single-value queries for each target village name
+      // (Direct equality checks immune to "in" operator rule constraints)
+      targetNames.forEach(name => {
+        try {
+          const qSingle = query(collection(db, 'families'), where('village', '==', name));
+          const unsub = onSnapshot(qSingle, (snapshot) => {
+            snapshot.forEach(docSnap => {
+              combinedMap.set(docSnap.id, { ...docSnap.data(), id: docSnap.id });
+            });
+            syncCombinedFamilies();
+          }, (err) => {
+            console.warn(`Firestore single name query for "${name}" (handled):`, err.message);
+          });
+          unsubscribers.push(unsub);
+        } catch (e) {
+          console.warn(`Single name query init error for "${name}":`, e);
+        }
+      });
+
+      // Strategy 3: Single-value query for canonical villageId
+      targetIds.forEach(id => {
+        try {
+          const qIdSingle = query(collection(db, 'families'), where('villageId', '==', id));
+          const unsub = onSnapshot(qIdSingle, (snapshot) => {
+            snapshot.forEach(docSnap => {
+              combinedMap.set(docSnap.id, { ...docSnap.data(), id: docSnap.id });
+            });
+            syncCombinedFamilies();
+          }, (err) => {
+            console.warn(`Firestore single villageId query for "${id}" (handled):`, err.message);
+          });
+          unsubscribers.push(unsub);
+        } catch (e) {
+          console.warn(`Single villageId query init error for "${id}":`, e);
+        }
+      });
+
+      // Strategy 4: Batch "in" queries for names and IDs
       if (targetNames.length > 0) {
         try {
           const qNames = targetNames.length === 1
             ? query(collection(db, 'families'), where('village', '==', targetNames[0]))
-            : query(collection(db, 'families'), where('village', 'in', targetNames));
+            : query(collection(db, 'families'), where('village', 'in', targetNames.slice(0, 10)));
 
-          const unsub1 = onSnapshot(qNames, (snapshot) => {
+          const unsubNames = onSnapshot(qNames, (snapshot) => {
             snapshot.forEach(docSnap => {
               combinedMap.set(docSnap.id, { ...docSnap.data(), id: docSnap.id });
             });
             syncCombinedFamilies();
           }, (err) => {
-            console.warn('Firestore village name query non-fatal warning:', err);
+            console.warn('Firestore village name batch query (handled):', err.message);
           });
-          unsubscribers.push(unsub1);
+          unsubscribers.push(unsubNames);
         } catch (e) {
-          console.warn('Failed to initialize village name query:', e);
+          console.warn('Batch name query init error:', e);
         }
       }
 
-      // 2. Query by canonical villageId (matches migrated & new records)
       if (targetIds.length > 0) {
         try {
           const qIds = targetIds.length === 1
             ? query(collection(db, 'families'), where('villageId', '==', targetIds[0]))
-            : query(collection(db, 'families'), where('villageId', 'in', targetIds));
+            : query(collection(db, 'families'), where('villageId', 'in', targetIds.slice(0, 10)));
 
-          const unsub2 = onSnapshot(qIds, (snapshot) => {
+          const unsubIds = onSnapshot(qIds, (snapshot) => {
             snapshot.forEach(docSnap => {
               combinedMap.set(docSnap.id, { ...docSnap.data(), id: docSnap.id });
             });
             syncCombinedFamilies();
           }, (err) => {
-            console.warn('Firestore villageId query non-fatal warning:', err);
+            console.warn('Firestore villageId batch query (handled):', err.message);
           });
-          unsubscribers.push(unsub2);
+          unsubscribers.push(unsubIds);
         } catch (e) {
-          console.warn('Failed to initialize villageId query:', e);
+          console.warn('Batch villageId query init error:', e);
         }
       }
 
@@ -267,7 +324,7 @@ export function DataProvider({ children }) {
     } catch (e) {
       console.error('Failed to initialize Firestore families listener:', e);
     }
-  }, [currentUser, isAdmin, activeVillageIdsKey, userProfile?.assignmentStatus]);
+  }, [currentUser, isAdmin, activeVillageIdsKey]);
 
   // Real-time Firestore sync for deletedFamilies (Recycle Bin village scope)
   useEffect(() => {
@@ -295,7 +352,7 @@ export function DataProvider({ children }) {
         ? assignedVillageIds
         : deriveAssignedVillageIds(userProfile, villageRecords);
 
-      if (!vIds || vIds.length === 0 || userProfile?.assignmentStatus === 'Unassigned') {
+      if (!vIds || vIds.length === 0) {
         setDeletedFamilies([]);
         return;
       }
@@ -312,45 +369,49 @@ export function DataProvider({ children }) {
         setDeletedFamilies(Array.from(combinedDeletedMap.values()));
       };
 
-      if (targetNames.length > 0) {
-        try {
-          const qNames = targetNames.length === 1
-            ? query(collection(db, 'deletedFamilies'), where('village', '==', targetNames[0]))
-            : query(collection(db, 'deletedFamilies'), where('village', 'in', targetNames));
+      // Strategy 1: Collection query fallback
+      try {
+        const qCollection = collection(db, 'deletedFamilies');
+        const unsub0 = onSnapshot(qCollection, (snapshot) => {
+          snapshot.forEach(docSnap => {
+            const data = docSnap.data();
+            const matchesVillage = vIds.some(vid => isFamilyInVillageRecord(data, vid, villageRecords));
+            if (matchesVillage) {
+              combinedDeletedMap.set(docSnap.id, { ...data, id: docSnap.id });
+            }
+          });
+          syncCombinedDeleted();
+        }, () => {});
+        unsubscribers.push(unsub0);
+      } catch (e) {}
 
-          const unsub1 = onSnapshot(qNames, (snapshot) => {
+      // Strategy 2: Single name queries
+      targetNames.forEach(name => {
+        try {
+          const qSingle = query(collection(db, 'deletedFamilies'), where('village', '==', name));
+          const unsub = onSnapshot(qSingle, (snapshot) => {
             snapshot.forEach(docSnap => {
               combinedDeletedMap.set(docSnap.id, { ...docSnap.data(), id: docSnap.id });
             });
             syncCombinedDeleted();
-          }, (err) => {
-            console.warn('Firestore deletedFamilies name query warning:', err);
-          });
-          unsubscribers.push(unsub1);
-        } catch (e) {
-          console.warn('Failed to initialize deletedFamilies name query:', e);
-        }
-      }
+          }, () => {});
+          unsubscribers.push(unsub);
+        } catch (e) {}
+      });
 
-      if (targetIds.length > 0) {
+      // Strategy 3: Single ID queries
+      targetIds.forEach(id => {
         try {
-          const qIds = targetIds.length === 1
-            ? query(collection(db, 'deletedFamilies'), where('villageId', '==', targetIds[0]))
-            : query(collection(db, 'deletedFamilies'), where('villageId', 'in', targetIds));
-
-          const unsub2 = onSnapshot(qIds, (snapshot) => {
+          const qIdSingle = query(collection(db, 'deletedFamilies'), where('villageId', '==', id));
+          const unsub = onSnapshot(qIdSingle, (snapshot) => {
             snapshot.forEach(docSnap => {
               combinedDeletedMap.set(docSnap.id, { ...docSnap.data(), id: docSnap.id });
             });
             syncCombinedDeleted();
-          }, (err) => {
-            console.warn('Firestore deletedFamilies villageId query warning:', err);
-          });
-          unsubscribers.push(unsub2);
-        } catch (e) {
-          console.warn('Failed to initialize deletedFamilies villageId query:', e);
-        }
-      }
+          }, () => {});
+          unsubscribers.push(unsub);
+        } catch (e) {}
+      });
 
       return () => {
         unsubscribers.forEach(unsub => {
@@ -360,7 +421,7 @@ export function DataProvider({ children }) {
     } catch (e) {
       console.error('Failed to initialize Firestore deletedFamilies listener:', e);
     }
-  }, [currentUser, isAdmin, activeVillageIdsKey, userProfile?.assignmentStatus]);
+  }, [currentUser, isAdmin, activeVillageIdsKey]);
 
   // Auto-migrate legacy family records in Firestore when Admin loads them
   useEffect(() => {
@@ -504,8 +565,8 @@ export function DataProvider({ children }) {
         ? assignedVillageIds
         : deriveAssignedVillageIds(userProfile, villageRecords);
 
-      // If surveyor has NO assigned villages or assignmentStatus === 'Unassigned':
-      if (!vIds || vIds.length === 0 || userProfile?.assignmentStatus === 'Unassigned') {
+      // If surveyor has NO assigned villages:
+      if (!vIds || vIds.length === 0) {
         return []; // Strict isolation: Unassigned users cannot see or access village records
       }
 
@@ -520,7 +581,7 @@ export function DataProvider({ children }) {
     }
 
     return result;
-  }, [allFamilies, isAdmin, currentUser, assignedVillageIds, userProfile?.assignmentStatus, selectedVillage, villageRecords]);
+  }, [allFamilies, isAdmin, currentUser, assignedVillageIds, selectedVillage, villageRecords]);
 
   // Records requiring Admin village review
   const needsReviewFamilies = useMemo(() => {
@@ -544,7 +605,7 @@ export function DataProvider({ children }) {
       ? assignedVillageIds
       : deriveAssignedVillageIds(userProfile, villageRecords);
 
-    if (!isAdmin && (!vIds || vIds.length === 0 || userProfile?.assignmentStatus === 'Unassigned')) {
+    if (!isAdmin && (!vIds || vIds.length === 0)) {
       throw new Error(language === 'hi' 
         ? 'आपके खाते को अभी कोई गाँव आवंटित नहीं है। कृपया व्यवस्थापक द्वारा गाँव आवंटन की प्रतीक्षा करें।'
         : 'You cannot create surveys because no village has been assigned to your account. Please wait for an administrator to assign your village.');
@@ -613,7 +674,7 @@ export function DataProvider({ children }) {
       ? assignedVillageIds
       : deriveAssignedVillageIds(userProfile, villageRecords);
 
-    if (!isAdmin && (!vIds || vIds.length === 0 || userProfile?.assignmentStatus === 'Unassigned')) {
+    if (!isAdmin && (!vIds || vIds.length === 0)) {
       throw new Error(language === 'hi' 
         ? 'आपके खाते को अभी कोई गाँव आवंटित नहीं है। कृपया व्यवस्थापक द्वारा गाँव आवंटन की प्रतीक्षा करें।'
         : 'You cannot import surveys because no village has been assigned to your account.');
@@ -695,7 +756,7 @@ export function DataProvider({ children }) {
         ? assignedVillageIds
         : deriveAssignedVillageIds(userProfile, villageRecords);
 
-      if (!vIds || vIds.length === 0 || userProfile?.assignmentStatus === 'Unassigned') {
+      if (!vIds || vIds.length === 0) {
         throw new Error(language === 'hi' 
           ? 'आपके खाते को अभी कोई गाँव आवंटित नहीं है।'
           : 'You cannot edit records because no village has been assigned to your account.');

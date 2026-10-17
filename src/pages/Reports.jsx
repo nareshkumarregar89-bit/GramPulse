@@ -33,7 +33,7 @@ const COLORS = ['#22c55e', '#6366f1', '#f59e0b', '#ef4444', '#8b5cf6', '#14b8a6'
 export function Reports() {
   const { families, mohallas, castes, darkMode, language, selectedVillage } = useData();
   const { currentUser, userProfile, isAdmin, assignedVillages = [] } = useAuth();
-  const isUnassigned = !isAdmin && (!assignedVillages || assignedVillages.length === 0 || userProfile?.assignmentStatus === 'Unassigned');
+  const isUnassigned = !isAdmin && (!assignedVillages || assignedVillages.length === 0);
   const [exportFormat, setExportFormat] = useState('json');
   const [exportFilter, setExportFilter] = useState('all');
   const [selectedMohalla, setSelectedMohalla] = useState('');

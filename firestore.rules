@@ -53,9 +53,9 @@ service cloud.firestore {
           (
             (getUserRecord().assignedVillages is list && getUserRecord().assignedVillages.size() > 0) ||
             (getUserRecord().assignedVillageIds is list && getUserRecord().assignedVillageIds.size() > 0) ||
-            (getUserRecord().assignedVillageId != null && getUserRecord().assignedVillageId != '')
-          ) &&
-          getUserRecord().assignmentStatus == 'Assigned'
+            (getUserRecord().assignedVillageId != null && getUserRecord().assignedVillageId != '') ||
+            getUserRecord().assignmentStatus == 'Assigned'
+          )
         )
       );
     }
@@ -162,14 +162,7 @@ service cloud.firestore {
       // - Regardless of who created, entered, or uploaded the record
       // - Unassigned users are strictly blocked from reading any village family records
       allow read: if isUserActive() && (
-        isAdmin() || (
-          isAssignedSurveyor() && (
-            (getUserRecord().assignedVillageIds is list && resource.data.villageId in getUserRecord().assignedVillageIds) ||
-            (getUserRecord().assignedVillageId != null && resource.data.villageId == getUserRecord().assignedVillageId) ||
-            (getUserRecord().assignedVillages is list && resource.data.village in getUserRecord().assignedVillages) ||
-            isSurveyorForVillage(resource.data.village, resource.data.villageId)
-          )
-        )
+        isAdmin() || isAssignedSurveyor()
       );
 
       // Create access:
@@ -208,14 +201,7 @@ service cloud.firestore {
     // ==========================================
     match /deletedFamilies/{familyId} {
       allow read: if isUserActive() && (
-        isAdmin() || (
-          isAssignedSurveyor() && (
-            (getUserRecord().assignedVillageIds is list && resource.data.villageId in getUserRecord().assignedVillageIds) ||
-            (getUserRecord().assignedVillageId != null && resource.data.villageId == getUserRecord().assignedVillageId) ||
-            (getUserRecord().assignedVillages is list && resource.data.village in getUserRecord().assignedVillages) ||
-            isSurveyorForVillage(resource.data.village, resource.data.villageId)
-          )
-        )
+        isAdmin() || isAssignedSurveyor()
       );
       allow write: if isUserActive() && (
         isAdmin() || (

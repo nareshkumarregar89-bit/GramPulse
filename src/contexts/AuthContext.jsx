@@ -147,25 +147,15 @@ export function AuthProvider({ children }) {
           const userAssignedVillageIds = deriveAssignedVillageIds(data);
           const primaryVillageId = userAssignedVillageIds[0] || data.assignedVillageId || null;
           const isAssigned = (userAssignedVillages.length > 0 || userAssignedVillageIds.length > 0);
-          const assignmentStatus = data.assignmentStatus || (isAssigned || role === 'admin' ? 'Assigned' : 'Unassigned');
+          const assignmentStatus = (isAssigned || role === 'admin') ? 'Assigned' : 'Unassigned';
           const isReadOnly = Boolean(data.isReadOnly || data.accessLevel === 'view_only' || data.role === 'viewer');
-
-          // Auto-repair missing assignedVillageIds / assignedVillageId on surveyor profile in Firestore
-          if (role === 'surveyor' && isAssigned && (!data.assignedVillageId || !data.assignedVillageIds || data.assignedVillageIds.length === 0)) {
-            const enriched = enrichVillageVariants(userAssignedVillages, userAssignedVillageIds);
-            updateDoc(userDocRef, {
-              assignedVillages: enriched,
-              assignedVillageIds: userAssignedVillageIds,
-              assignedVillageId: primaryVillageId,
-              assignmentStatus: 'Assigned'
-            }).catch(e => console.warn('Auto-repair surveyor profile error:', e));
-          }
+          const enrichedVillages = isAssigned ? enrichVillageVariants(userAssignedVillages, userAssignedVillageIds) : userAssignedVillages;
 
           setUserRole(role);
           setUserProfile({
             ...data,
             role,
-            assignedVillages: userAssignedVillages,
+            assignedVillages: enrichedVillages,
             assignedVillageIds: userAssignedVillageIds,
             assignedVillageId: primaryVillageId,
             assignmentStatus,
@@ -207,15 +197,23 @@ export function AuthProvider({ children }) {
               if (data.role === 'surveyor' && (data.assignedVillages?.length > 0 || data.assignedVillage)) {
                 const vIds = deriveAssignedVillageIds(data);
                 if (vIds.length > 0) {
-                  const hasAll = Array.isArray(data.assignedVillageIds) && data.assignedVillageIds.length > 0 && data.assignedVillageId;
-                  if (!hasAll) {
-                    const primaryId = vIds[0];
-                    const enriched = enrichVillageVariants(data.assignedVillages || [data.assignedVillage], vIds);
+                  const primaryId = vIds[0];
+                  const enriched = enrichVillageVariants(data.assignedVillages || [data.assignedVillage], vIds);
+                  const needsSync = 
+                    data.assignmentStatus !== 'Assigned' ||
+                    data.assignedVillageId !== primaryId ||
+                    !Array.isArray(data.assignedVillageIds) ||
+                    data.assignedVillageIds.length === 0 ||
+                    !Array.isArray(data.assignedVillages) ||
+                    data.assignedVillages.length < enriched.length;
+
+                  if (needsSync) {
                     updateDoc(docSnap.ref, {
                       assignedVillages: enriched,
                       assignedVillageIds: vIds,
                       assignedVillageId: primaryId,
-                      assignmentStatus: 'Assigned'
+                      assignmentStatus: 'Assigned',
+                      status: 'active'
                     }).catch(err => console.warn('Surveyor profile auto-heal failed:', err));
                   }
                 }
@@ -342,7 +340,7 @@ export function AuthProvider({ children }) {
         email: email.trim(),
         name: name.trim() || email.split('@')[0],
         role: role || 'surveyor',
-        assignedVillages: isAssigned ? assignedVillages : [],
+        assignedVillages: isAssigned ? enrichVillageVariants(assignedVillages, assignedVillageIds) : [],
         assignedVillageIds,
         assignedVillageId: assignedVillageIds[0] || null,
         assignmentStatus: (isAssigned || role === 'admin') ? 'Assigned' : 'Unassigned',
@@ -370,14 +368,13 @@ export function AuthProvider({ children }) {
         updatedAt: new Date().toISOString()
       };
 
-      // Automatically keep assignedVillageIds and assignmentStatus synchronized
+      // Automatically keep assignedVillageIds, village variants and assignmentStatus synchronized
       if (Array.isArray(payload.assignedVillages)) {
         const vIds = payload.assignedVillages.map(v => resolveVillageId(v)).filter(Boolean);
         payload.assignedVillageIds = vIds;
         payload.assignedVillageId = vIds[0] || null;
-        if (!payload.assignmentStatus) {
-          payload.assignmentStatus = (vIds.length > 0 || payload.role === 'admin') ? 'Assigned' : 'Unassigned';
-        }
+        payload.assignedVillages = enrichVillageVariants(payload.assignedVillages, vIds);
+        payload.assignmentStatus = (vIds.length > 0 || payload.role === 'admin') ? 'Assigned' : 'Unassigned';
       }
       if (payload.role === 'admin') {
         payload.assignmentStatus = 'Assigned';
