@@ -34,7 +34,7 @@ export function Families() {
     selectedVillage, 
     setSelectedVillage 
   } = useData();
-  const { isAdmin, assignedVillages, currentUser, userProfile } = useAuth();
+  const { isAdmin, assignedVillages, currentUser, userProfile, isReadOnly } = useAuth();
   const { addToast } = useToast();
   
   const [searchQuery, setSearchQuery] = useState('');
@@ -178,23 +178,33 @@ export function Families() {
             </button>
 
             {/* Excel Import Button */}
-            <button
-              type="button"
-              onClick={() => setIsExcelModalOpen(true)}
-              className="flex items-center gap-2 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs md:text-sm font-semibold shadow-md transition-all shrink-0"
-            >
-              <FileSpreadsheet className="w-4 h-4" />
-              <span>{t('import_excel')}</span>
-            </button>
+            {!isReadOnly && (
+              <button
+                type="button"
+                onClick={() => setIsExcelModalOpen(true)}
+                className="flex items-center gap-2 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs md:text-sm font-semibold shadow-md transition-all shrink-0"
+              >
+                <FileSpreadsheet className="w-4 h-4" />
+                <span>{t('import_excel')}</span>
+              </button>
+            )}
 
             {/* Add Family Button */}
-            <button
-              onClick={() => navigate('/survey')}
-              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-500 to-indigo-600 hover:from-green-600 hover:to-indigo-700 text-white rounded-xl text-xs md:text-sm font-semibold shadow-md transition-all shrink-0"
-            >
-              <Plus className="w-4 h-4" />
-              <span>{language === 'hi' ? 'नया परिवार' : 'Add Family'}</span>
-            </button>
+            {!isReadOnly && (
+              <button
+                onClick={() => navigate('/survey')}
+                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-500 to-indigo-600 hover:from-green-600 hover:to-indigo-700 text-white rounded-xl text-xs md:text-sm font-semibold shadow-md transition-all shrink-0"
+              >
+                <Plus className="w-4 h-4" />
+                <span>{language === 'hi' ? 'नया परिवार' : 'Add Family'}</span>
+              </button>
+            )}
+
+            {isReadOnly && (
+              <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 text-xs font-semibold">
+                <span>{language === 'hi' ? 'केवल अवलोकन' : 'View-Only'}</span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -335,13 +345,6 @@ export function Families() {
                         >
                           <Eye className="w-4 h-4" />
                         </button>
-                        <button
-                          onClick={() => navigate(`/survey/${family.id}`)}
-                          className={`p-2 rounded-lg transition-colors ${darkMode ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-100 text-gray-600'}`}
-                          title={language === 'hi' ? 'संपादित करें' : 'Edit'}
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
                         {/* Direct Print Dossier Button */}
                         <button
                           onClick={() => handleOpenPrintModal(family)}
@@ -350,13 +353,24 @@ export function Families() {
                         >
                           <Printer className="w-4 h-4" />
                         </button>
-                        <button
-                          onClick={() => handleDelete(family.id)}
-                          className="p-2 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                          title={language === 'hi' ? 'हटाएं' : 'Delete'}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        {!isReadOnly && (
+                          <>
+                            <button
+                              onClick={() => navigate(`/survey/${family.id}`)}
+                              className={`p-2 rounded-lg transition-colors ${darkMode ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-100 text-gray-600'}`}
+                              title={language === 'hi' ? 'संपादित करें' : 'Edit'}
+                            >
+                              <Edit className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(family.id)}
+                              className="p-2 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                              title={language === 'hi' ? 'हटाएं' : 'Delete'}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -436,12 +450,14 @@ export function Families() {
                   >
                     {language === 'hi' ? 'देखें' : 'View'}
                   </button>
-                  <button
-                    onClick={() => navigate(`/survey/${family.id}`)}
-                    className={`flex-1 py-2 rounded-xl text-xs font-semibold border ${darkMode ? 'border-gray-700 text-white' : 'border-gray-200 text-gray-900'}`}
-                  >
-                    {language === 'hi' ? 'संपादित करें' : 'Edit'}
-                  </button>
+                  {!isReadOnly && (
+                    <button
+                      onClick={() => navigate(`/survey/${family.id}`)}
+                      className={`flex-1 py-2 rounded-xl text-xs font-semibold border ${darkMode ? 'border-gray-700 text-white' : 'border-gray-200 text-gray-900'}`}
+                    >
+                      {language === 'hi' ? 'संपादित करें' : 'Edit'}
+                    </button>
+                  )}
                   {/* Direct Print Button Mobile */}
                   <button
                     onClick={() => handleOpenPrintModal(family)}
@@ -450,13 +466,15 @@ export function Families() {
                   >
                     <Printer className="w-4 h-4" />
                   </button>
-                  <button
-                    onClick={() => handleDelete(family.id)}
-                    className="p-2 text-red-500 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20"
-                    title={language === 'hi' ? 'हटाएं' : 'Delete'}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  {!isReadOnly && (
+                    <button
+                      onClick={() => handleDelete(family.id)}
+                      className="p-2 text-red-500 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20"
+                      title={language === 'hi' ? 'हटाएं' : 'Delete'}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
               </div>
             );

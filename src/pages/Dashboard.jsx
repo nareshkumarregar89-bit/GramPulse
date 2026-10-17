@@ -225,8 +225,8 @@ export function Dashboard() {
           <Activity className="w-4 h-4 text-emerald-500 animate-pulse" />
           <span className="text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300">
             {language === 'hi' 
-              ? (!isAdmin ? `सर्वेयर डैशबोर्ड • आपके द्वारा जोड़े गए परिवार` : `व्यवस्थापक डेटा अवलोकन • समोड़ी एवं कोटड़ी`)
-              : (!isAdmin ? `Surveyor Dashboard • Showing your records` : `Administrative Overview • Live Village Records`)}
+              ? (!isAdmin ? `सर्वेयर डैशबोर्ड • आवंटित गाँव का साझा डेटा (${assignedVillages?.join(', ') || 'समोड़ी'})` : `व्यवस्थापक डेटा अवलोकन • समोड़ी एवं कोटड़ी`)
+              : (!isAdmin ? `Surveyor Dashboard • Village-Wide Shared Access (${assignedVillages?.join(', ') || 'Samodi'})` : `Administrative Overview • Live Village Records`)}
           </span>
         </div>
 

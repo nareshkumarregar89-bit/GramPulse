@@ -18,10 +18,17 @@ import { castes as initialCastes } from '../data/castes';
 import { initialVillages, villages as fallbackVillages } from '../data/villages';
 import { translations } from '../utils/translations';
 import { useAuth } from './AuthContext';
+import { 
+  resolveVillageId, 
+  getVillageDisplayName, 
+  isFamilyInVillageRecord, 
+  isRecordVillageUncertain, 
+  deriveAssignedVillageIds 
+} from '../utils/villageUtils';
 
 const DataContext = createContext();
 
-const normalizeFamily = (f) => {
+const normalizeFamily = (f, villageRecords = []) => {
   if (!f) return f;
   const headNameEn = f.familyHeadNameEnglish || f.familyHeadName || '';
   const headNameHi = f.familyHeadNameHindi || f.familyHeadName || '';
@@ -31,13 +38,15 @@ const normalizeFamily = (f) => {
   const fatherName = f.fatherName || fatherNameEn || fatherNameHi || '';
 
   const villageStr = f.village || (initialVillages[0]?.name || 'समोड़ी (Samodi)');
-  const isKotdi = villageStr.includes('Kotdi') || villageStr.includes('कोटड़ी');
-  const villageId = f.villageId || (isKotdi ? 'kotdi' : 'samodi');
+  const resolvedId = f.villageId || resolveVillageId(villageStr, villageRecords);
+  const isUncertain = isRecordVillageUncertain(f, villageRecords);
 
   return {
     ...f,
     village: villageStr,
-    villageId,
+    villageId: resolvedId || (isUncertain ? '' : 'samodi'),
+    needsVillageReview: Boolean(f.needsVillageReview || isUncertain),
+    villageReviewReason: f.villageReviewReason || (isUncertain ? 'Uncertain or missing village association' : ''),
     familyHeadName: headName,
     familyHeadNameEnglish: headNameEn || headName,
     familyHeadNameHindi: headNameHi || headName,
@@ -47,6 +56,8 @@ const normalizeFamily = (f) => {
     surveyorId: f.surveyorId || '',
     surveyorName: f.surveyorName || '',
     surveyorEmail: f.surveyorEmail || '',
+    createdBy: f.createdBy || f.surveyorId || '',
+    createdByName: f.createdByName || f.surveyorName || 'Surveyor',
     members: (f.members || []).map((m, idx) => {
       const nameEn = m.nameEnglish || m.name || `Member ${idx + 1}`;
       const nameHi = m.nameHindi || m.name || `सदस्य ${idx + 1}`;
@@ -62,7 +73,14 @@ const normalizeFamily = (f) => {
 
 export function DataProvider({ children }) {
   const auth = useAuth() || {};
-  const { currentUser, isAdmin, userProfile, assignedVillages = [] } = auth;
+  const { 
+    currentUser, 
+    isAdmin, 
+    userProfile, 
+    assignedVillages = [], 
+    assignedVillageIds = [], 
+    isReadOnly = false 
+  } = auth;
 
   const [rawFamilies, setRawFamilies] = useLocalStorage('villagepulse-families', []);
   const [deletedFamilies, setDeletedFamilies] = useLocalStorage('villagepulse-deleted-families', []);
@@ -92,56 +110,273 @@ export function DataProvider({ children }) {
     }
   }, [mohallas, setMohallas]);
 
-  // Real-time Firestore sync for families
+  // Purge stale cached family records when assignment changes or user logs out
+  const activeVillageIdsKey = useMemo(() => {
+    if (isAdmin) return 'admin_all';
+    const vIds = (assignedVillageIds && assignedVillageIds.length > 0)
+      ? assignedVillageIds
+      : deriveAssignedVillageIds(userProfile, villageRecords);
+    return vIds.sort().join(',');
+  }, [isAdmin, assignedVillageIds, userProfile, villageRecords]);
+
+  // Helper to derive all name and ID query variations for assigned villages
+  const getAssignedVillageQueryVariants = (vIds = [], assignedVillagesList = []) => {
+    const nameVariants = new Set();
+    const idVariants = new Set();
+
+    (vIds || []).forEach(id => {
+      if (id && typeof id === 'string') {
+        const cleanId = id.trim().toLowerCase();
+        idVariants.add(cleanId);
+        if (cleanId === 'samodi') {
+          nameVariants.add('समोड़ी (Samodi)');
+          nameVariants.add('समोड़ी (Samodi)');
+          nameVariants.add('Samodi');
+          nameVariants.add('समोड़ी');
+          nameVariants.add('समोड़ी');
+        } else if (cleanId === 'kotdi') {
+          nameVariants.add('कोटड़ी (Kotdi)');
+          nameVariants.add('कोटड़ी (Kotdi)');
+          nameVariants.add('Kotdi');
+          nameVariants.add('कोटड़ी');
+          nameVariants.add('कोटड़ी');
+        }
+      }
+    });
+
+    (assignedVillagesList || []).forEach(v => {
+      if (v && typeof v === 'string') {
+        nameVariants.add(v.trim());
+        if (v.includes('Samodi') || v.includes('समो')) {
+          nameVariants.add('समोड़ी (Samodi)');
+          nameVariants.add('समोड़ी (Samodi)');
+          nameVariants.add('Samodi');
+          idVariants.add('samodi');
+        } else if (v.includes('Kotdi') || v.includes('कोट')) {
+          nameVariants.add('कोटड़ी (Kotdi)');
+          nameVariants.add('कोटड़ी (Kotdi)');
+          nameVariants.add('Kotdi');
+          idVariants.add('kotdi');
+        }
+      }
+    });
+
+    return {
+      names: Array.from(nameVariants).slice(0, 10),
+      ids: Array.from(idVariants).slice(0, 10)
+    };
+  };
+
+  // Real-time Firestore sync for families (Village-Level Shared Access)
   useEffect(() => {
-    if (!currentUser) return;
+    if (!currentUser) {
+      setRawFamilies([]);
+      return;
+    }
 
     try {
-      const familiesQuery = isAdmin
-        ? collection(db, 'families')
-        : query(collection(db, 'families'), where('surveyorId', '==', currentUser.uid));
-
-      const unsubscribe = onSnapshot(familiesQuery, (snapshot) => {
-        setIsFirebaseConnected(true);
-        const loaded = [];
-        snapshot.forEach(docSnap => {
-          loaded.push({ ...docSnap.data(), id: docSnap.id });
+      if (isAdmin) {
+        // Admin: Unrestricted access across all villages
+        const familiesQuery = collection(db, 'families');
+        const unsubscribe = onSnapshot(familiesQuery, (snapshot) => {
+          setIsFirebaseConnected(true);
+          const loaded = [];
+          snapshot.forEach(docSnap => {
+            loaded.push({ ...docSnap.data(), id: docSnap.id });
+          });
+          setRawFamilies(loaded);
+        }, (error) => {
+          console.error('Firestore admin families listener error:', error);
         });
-        setRawFamilies(loaded);
-      }, (error) => {
-        console.error('Firestore families listener error:', error);
-      });
+        return () => unsubscribe();
+      }
 
-      return () => unsubscribe();
+      // Surveyor: Strict Village-Level Shared Access
+      const vIds = (assignedVillageIds && assignedVillageIds.length > 0)
+        ? assignedVillageIds
+        : deriveAssignedVillageIds(userProfile, villageRecords);
+
+      // Strict isolation: Unassigned surveyor has NO village access
+      if (!vIds || vIds.length === 0 || userProfile?.assignmentStatus === 'Unassigned') {
+        setRawFamilies([]);
+        setIsFirebaseConnected(true);
+        return;
+      }
+
+      const { names: targetNames, ids: targetIds } = getAssignedVillageQueryVariants(
+        vIds, 
+        userProfile?.assignedVillages || assignedVillages
+      );
+
+      const combinedMap = new Map();
+      const unsubscribers = [];
+
+      const syncCombinedFamilies = () => {
+        setIsFirebaseConnected(true);
+        const combined = Array.from(combinedMap.values());
+        setRawFamilies(combined);
+      };
+
+      // 1. Query by village name / text (matches legacy records & cloud rules checking resource.data.village)
+      if (targetNames.length > 0) {
+        try {
+          const qNames = targetNames.length === 1
+            ? query(collection(db, 'families'), where('village', '==', targetNames[0]))
+            : query(collection(db, 'families'), where('village', 'in', targetNames));
+
+          const unsub1 = onSnapshot(qNames, (snapshot) => {
+            snapshot.forEach(docSnap => {
+              combinedMap.set(docSnap.id, { ...docSnap.data(), id: docSnap.id });
+            });
+            syncCombinedFamilies();
+          }, (err) => {
+            console.warn('Firestore village name query non-fatal warning:', err);
+          });
+          unsubscribers.push(unsub1);
+        } catch (e) {
+          console.warn('Failed to initialize village name query:', e);
+        }
+      }
+
+      // 2. Query by canonical villageId (matches migrated & new records)
+      if (targetIds.length > 0) {
+        try {
+          const qIds = targetIds.length === 1
+            ? query(collection(db, 'families'), where('villageId', '==', targetIds[0]))
+            : query(collection(db, 'families'), where('villageId', 'in', targetIds));
+
+          const unsub2 = onSnapshot(qIds, (snapshot) => {
+            snapshot.forEach(docSnap => {
+              combinedMap.set(docSnap.id, { ...docSnap.data(), id: docSnap.id });
+            });
+            syncCombinedFamilies();
+          }, (err) => {
+            console.warn('Firestore villageId query non-fatal warning:', err);
+          });
+          unsubscribers.push(unsub2);
+        } catch (e) {
+          console.warn('Failed to initialize villageId query:', e);
+        }
+      }
+
+      return () => {
+        unsubscribers.forEach(unsub => {
+          try { unsub(); } catch (e) {}
+        });
+      };
     } catch (e) {
       console.error('Failed to initialize Firestore families listener:', e);
     }
-  }, [currentUser, isAdmin]);
+  }, [currentUser, isAdmin, activeVillageIdsKey, userProfile?.assignmentStatus]);
 
-  // Real-time Firestore sync for deletedFamilies
+  // Real-time Firestore sync for deletedFamilies (Recycle Bin village scope)
   useEffect(() => {
-    if (!currentUser) return;
+    if (!currentUser) {
+      setDeletedFamilies([]);
+      return;
+    }
 
     try {
-      const deletedQuery = isAdmin
-        ? collection(db, 'deletedFamilies')
-        : query(collection(db, 'deletedFamilies'), where('surveyorId', '==', currentUser.uid));
-
-      const unsubscribe = onSnapshot(deletedQuery, (snapshot) => {
-        const loaded = [];
-        snapshot.forEach(docSnap => {
-          loaded.push({ ...docSnap.data(), id: docSnap.id });
+      if (isAdmin) {
+        const deletedQuery = collection(db, 'deletedFamilies');
+        const unsubscribe = onSnapshot(deletedQuery, (snapshot) => {
+          const loaded = [];
+          snapshot.forEach(docSnap => {
+            loaded.push({ ...docSnap.data(), id: docSnap.id });
+          });
+          setDeletedFamilies(loaded);
+        }, (error) => {
+          console.error('Firestore admin deletedFamilies listener error:', error);
         });
-        setDeletedFamilies(loaded);
-      }, (error) => {
-        console.error('Firestore deletedFamilies listener error:', error);
-      });
+        return () => unsubscribe();
+      }
 
-      return () => unsubscribe();
+      const vIds = (assignedVillageIds && assignedVillageIds.length > 0)
+        ? assignedVillageIds
+        : deriveAssignedVillageIds(userProfile, villageRecords);
+
+      if (!vIds || vIds.length === 0 || userProfile?.assignmentStatus === 'Unassigned') {
+        setDeletedFamilies([]);
+        return;
+      }
+
+      const { names: targetNames, ids: targetIds } = getAssignedVillageQueryVariants(
+        vIds, 
+        userProfile?.assignedVillages || assignedVillages
+      );
+
+      const combinedDeletedMap = new Map();
+      const unsubscribers = [];
+
+      const syncCombinedDeleted = () => {
+        setDeletedFamilies(Array.from(combinedDeletedMap.values()));
+      };
+
+      if (targetNames.length > 0) {
+        try {
+          const qNames = targetNames.length === 1
+            ? query(collection(db, 'deletedFamilies'), where('village', '==', targetNames[0]))
+            : query(collection(db, 'deletedFamilies'), where('village', 'in', targetNames));
+
+          const unsub1 = onSnapshot(qNames, (snapshot) => {
+            snapshot.forEach(docSnap => {
+              combinedDeletedMap.set(docSnap.id, { ...docSnap.data(), id: docSnap.id });
+            });
+            syncCombinedDeleted();
+          }, (err) => {
+            console.warn('Firestore deletedFamilies name query warning:', err);
+          });
+          unsubscribers.push(unsub1);
+        } catch (e) {
+          console.warn('Failed to initialize deletedFamilies name query:', e);
+        }
+      }
+
+      if (targetIds.length > 0) {
+        try {
+          const qIds = targetIds.length === 1
+            ? query(collection(db, 'deletedFamilies'), where('villageId', '==', targetIds[0]))
+            : query(collection(db, 'deletedFamilies'), where('villageId', 'in', targetIds));
+
+          const unsub2 = onSnapshot(qIds, (snapshot) => {
+            snapshot.forEach(docSnap => {
+              combinedDeletedMap.set(docSnap.id, { ...docSnap.data(), id: docSnap.id });
+            });
+            syncCombinedDeleted();
+          }, (err) => {
+            console.warn('Firestore deletedFamilies villageId query warning:', err);
+          });
+          unsubscribers.push(unsub2);
+        } catch (e) {
+          console.warn('Failed to initialize deletedFamilies villageId query:', e);
+        }
+      }
+
+      return () => {
+        unsubscribers.forEach(unsub => {
+          try { unsub(); } catch (e) {}
+        });
+      };
     } catch (e) {
       console.error('Failed to initialize Firestore deletedFamilies listener:', e);
     }
-  }, [currentUser, isAdmin]);
+  }, [currentUser, isAdmin, activeVillageIdsKey, userProfile?.assignmentStatus]);
+
+  // Auto-migrate legacy family records in Firestore when Admin loads them
+  useEffect(() => {
+    if (!isAdmin || !currentUser) return;
+    if (!rawFamilies || rawFamilies.length === 0) return;
+
+    const unmigrated = rawFamilies.filter(f => !f.villageId || f.villageId === '');
+    if (unmigrated.length > 0) {
+      console.log(`Admin detected ${unmigrated.length} unmigrated family records. Running automatic backfill...`);
+      migrateMissingVillageIds().then(res => {
+        console.log('Automatic village ID migration completed:', res);
+      }).catch(err => {
+        console.warn('Automatic village ID migration non-fatal warning:', err);
+      });
+    }
+  }, [isAdmin, currentUser, rawFamilies?.length]);
 
   // Real-time Firestore sync for dynamic villages collection
   useEffect(() => {
@@ -245,46 +480,16 @@ export function DataProvider({ children }) {
   }, [villageRecords]);
 
   const allFamilies = useMemo(() => {
-    return (rawFamilies || []).map(normalizeFamily);
-  }, [rawFamilies]);
+    return (rawFamilies || []).map(f => normalizeFamily(f, villageRecords));
+  }, [rawFamilies, villageRecords]);
 
   const normalizedDeletedFamilies = useMemo(() => {
-    return (deletedFamilies || []).map(normalizeFamily);
-  }, [deletedFamilies]);
+    return (deletedFamilies || []).map(f => normalizeFamily(f, villageRecords));
+  }, [deletedFamilies, villageRecords]);
 
   // Helper function to match whether a family belongs to a village identifier (name, Hindi, English, or ID)
   const isFamilyInVillage = useCallback((family, villageIdentifier) => {
-    if (!family || !villageIdentifier) return false;
-    if (villageIdentifier === 'all') return true;
-
-    const target = villageIdentifier.toString().trim().toLowerCase();
-
-    // Direct villageId match
-    if (family.villageId && family.villageId.toLowerCase() === target) return true;
-
-    const famV = (family.village || '').trim().toLowerCase();
-    if (!famV) return false;
-
-    if (famV === target) return true;
-    if (famV.includes(target) || target.includes(famV)) return true;
-
-    // Check against all villageRecords for cross-matching English & Hindi names
-    const matching = (villageRecords || []).find(v => {
-      const vId = (v.id || '').toLowerCase();
-      const vName = (v.name || '').toLowerCase();
-      const vEn = (v.nameEnglish || '').toLowerCase();
-      const vHi = (v.nameHindi || '').toLowerCase();
-      return vId === target || vName === target || vEn === target || vHi === target;
-    });
-
-    if (matching) {
-      if (family.villageId && family.villageId.toLowerCase() === matching.id.toLowerCase()) return true;
-      if (matching.nameEnglish && famV.includes(matching.nameEnglish.toLowerCase())) return true;
-      if (matching.nameHindi && (family.village || '').includes(matching.nameHindi)) return true;
-      if (matching.name && famV === matching.name.toLowerCase()) return true;
-    }
-
-    return false;
+    return isFamilyInVillageRecord(family, villageIdentifier, villageRecords);
   }, [villageRecords]);
 
   // Scoped families according to user role and assigned villages
@@ -295,23 +500,32 @@ export function DataProvider({ children }) {
     if (!isAdmin) {
       if (!currentUser) return [];
 
+      const vIds = (assignedVillageIds && assignedVillageIds.length > 0)
+        ? assignedVillageIds
+        : deriveAssignedVillageIds(userProfile, villageRecords);
+
       // If surveyor has NO assigned villages or assignmentStatus === 'Unassigned':
-      if (!assignedVillages || assignedVillages.length === 0 || userProfile?.assignmentStatus === 'Unassigned') {
+      if (!vIds || vIds.length === 0 || userProfile?.assignmentStatus === 'Unassigned') {
         return []; // Strict isolation: Unassigned users cannot see or access village records
       }
 
       result = result.filter(f => {
-        return assignedVillages.some(av => isFamilyInVillage(f, av));
+        return vIds.some(vid => isFamilyInVillageRecord(f, vid, villageRecords));
       });
     }
 
-    // Filter by selected village if not 'all'
-    if (selectedVillage && selectedVillage !== 'all') {
-      result = result.filter(f => isFamilyInVillage(f, selectedVillage));
+    // Filter by selected village only for Admin (surveyors see all records for their assigned villages)
+    if (isAdmin && selectedVillage && selectedVillage !== 'all') {
+      result = result.filter(f => isFamilyInVillageRecord(f, selectedVillage, villageRecords));
     }
 
     return result;
-  }, [allFamilies, isAdmin, currentUser, assignedVillages, userProfile?.assignmentStatus, selectedVillage, isFamilyInVillage]);
+  }, [allFamilies, isAdmin, currentUser, assignedVillageIds, userProfile?.assignmentStatus, selectedVillage, villageRecords]);
+
+  // Records requiring Admin village review
+  const needsReviewFamilies = useMemo(() => {
+    return (allFamilies || []).filter(f => f.needsVillageReview);
+  }, [allFamilies]);
 
   // Translation function
   const t = useCallback((key) => {
@@ -320,7 +534,17 @@ export function DataProvider({ children }) {
 
   // Add a single family with village validation
   const addFamily = async (family) => {
-    if (!isAdmin && (!assignedVillages || assignedVillages.length === 0 || userProfile?.assignmentStatus === 'Unassigned')) {
+    if (isReadOnly) {
+      throw new Error(language === 'hi' 
+        ? 'आपके खाते को केवल देखने (View-Only) की अनुमति है। आप नए रिकॉर्ड नहीं जोड़ सकते।'
+        : 'Your account has view-only permissions. You cannot add survey records.');
+    }
+
+    const vIds = (assignedVillageIds && assignedVillageIds.length > 0)
+      ? assignedVillageIds
+      : deriveAssignedVillageIds(userProfile, villageRecords);
+
+    if (!isAdmin && (!vIds || vIds.length === 0 || userProfile?.assignmentStatus === 'Unassigned')) {
       throw new Error(language === 'hi' 
         ? 'आपके खाते को अभी कोई गाँव आवंटित नहीं है। कृपया व्यवस्थापक द्वारा गाँव आवंटन की प्रतीक्षा करें।'
         : 'You cannot create surveys because no village has been assigned to your account. Please wait for an administrator to assign your village.');
@@ -330,17 +554,17 @@ export function DataProvider({ children }) {
     let targetVillage = family.village;
 
     if (!isAdmin) {
-      const isTargetAssigned = assignedVillages.some(av => isFamilyInVillage({ village: targetVillage }, av));
+      const isTargetAssigned = vIds.some(vid => isFamilyInVillageRecord({ village: targetVillage }, vid, villageRecords));
       if (!isTargetAssigned) {
-        targetVillage = assignedVillages[0];
+        targetVillage = assignedVillages[0] || vIds[0] || defaultVillage;
       }
     } else {
       targetVillage = targetVillage || (selectedVillage !== 'all' ? selectedVillage : defaultVillage);
     }
 
-    // Resolve villageId
-    const matchedRecord = (villageRecords || []).find(v => isFamilyInVillage({ village: targetVillage }, v.id || v.name));
-    const targetVillageId = matchedRecord ? matchedRecord.id : (family.villageId || (targetVillage.includes('Kotdi') ? 'kotdi' : 'samodi'));
+    // Resolve canonical villageId and formatted display name
+    const targetVillageId = resolveVillageId(targetVillage, villageRecords) || 'samodi';
+    const targetVillageDisplay = getVillageDisplayName(targetVillage, villageRecords, language);
 
     const maxNum = (rawFamilies || []).reduce((max, f) => {
       const match = f.id && String(f.id).match(/FAM-(\d+)/);
@@ -350,8 +574,9 @@ export function DataProvider({ children }) {
     const newFamily = {
       ...family,
       id: newId,
-      village: targetVillage,
+      village: targetVillageDisplay || targetVillage,
       villageId: targetVillageId,
+      needsVillageReview: false,
       surveyorId: (!isAdmin || !family.surveyorId) ? (currentUser?.uid || '') : family.surveyorId,
       surveyorName: family.surveyorName || userProfile?.name || currentUser?.email?.split('@')[0] || 'Surveyor',
       surveyorEmail: family.surveyorEmail || currentUser?.email || '',
@@ -370,6 +595,7 @@ export function DataProvider({ children }) {
       await setDoc(doc(db, 'families', newId), newFamily);
     } catch (err) {
       console.error('Firestore addFamily error:', err);
+      throw err;
     }
 
     return newFamily;
@@ -377,7 +603,17 @@ export function DataProvider({ children }) {
 
   // Bulk add families (for Excel import)
   const bulkAddFamilies = async (importedFamilies) => {
-    if (!isAdmin && (!assignedVillages || assignedVillages.length === 0 || userProfile?.assignmentStatus === 'Unassigned')) {
+    if (isReadOnly) {
+      throw new Error(language === 'hi' 
+        ? 'आपके खाते को केवल देखने (View-Only) की अनुमति है। आप रिकॉर्ड आयात नहीं कर सकते।'
+        : 'Your account has view-only permissions. You cannot import survey records.');
+    }
+
+    const vIds = (assignedVillageIds && assignedVillageIds.length > 0)
+      ? assignedVillageIds
+      : deriveAssignedVillageIds(userProfile, villageRecords);
+
+    if (!isAdmin && (!vIds || vIds.length === 0 || userProfile?.assignmentStatus === 'Unassigned')) {
       throw new Error(language === 'hi' 
         ? 'आपके खाते को अभी कोई गाँव आवंटित नहीं है। कृपया व्यवस्थापक द्वारा गाँव आवंटन की प्रतीक्षा करें।'
         : 'You cannot import surveys because no village has been assigned to your account.');
@@ -395,22 +631,23 @@ export function DataProvider({ children }) {
       const famId = fam.id || `FAM-${String(currentMax).padStart(4, '0')}`;
       let targetVillage = fam.village;
       if (!isAdmin) {
-        if (assignedVillages && assignedVillages.length > 0) {
-          const isAssigned = assignedVillages.some(av => isFamilyInVillage({ village: targetVillage }, av));
-          targetVillage = isAssigned ? targetVillage : assignedVillages[0];
+        if (vIds && vIds.length > 0) {
+          const isAssigned = vIds.some(vid => isFamilyInVillageRecord({ village: targetVillage }, vid, villageRecords));
+          targetVillage = isAssigned ? targetVillage : (assignedVillages[0] || defaultVillage);
         }
       } else {
         targetVillage = targetVillage || (selectedVillage !== 'all' ? selectedVillage : defaultVillage);
       }
 
-      const matchedRecord = (villageRecords || []).find(v => isFamilyInVillage({ village: targetVillage }, v.id || v.name));
-      const targetVillageId = matchedRecord ? matchedRecord.id : (fam.villageId || (targetVillage.includes('Kotdi') ? 'kotdi' : 'samodi'));
+      const targetVillageId = resolveVillageId(targetVillage, villageRecords) || 'samodi';
+      const targetVillageDisplay = getVillageDisplayName(targetVillage, villageRecords, language);
 
       return normalizeFamily({
         ...fam,
         id: famId,
-        village: targetVillage,
+        village: targetVillageDisplay || targetVillage,
         villageId: targetVillageId,
+        needsVillageReview: false,
         surveyorId: (!isAdmin || !fam.surveyorId) ? (currentUser?.uid || '') : fam.surveyorId,
         surveyorName: fam.surveyorName || userProfile?.name || currentUser?.email?.split('@')[0] || 'Surveyor',
         surveyorEmail: fam.surveyorEmail || currentUser?.email || '',
@@ -418,7 +655,7 @@ export function DataProvider({ children }) {
         createdByName: userProfile?.name || currentUser?.email?.split('@')[0] || 'Surveyor',
         createdAt: fam.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString()
-      });
+      }, villageRecords);
     });
 
     setRawFamilies(prev => {
@@ -439,6 +676,7 @@ export function DataProvider({ children }) {
       }
     } catch (err) {
       console.error('Firestore bulkAddFamilies error:', err);
+      throw err;
     }
 
     return prepared;
@@ -446,8 +684,18 @@ export function DataProvider({ children }) {
 
   // Update a family
   const updateFamily = async (id, updatedFamily) => {
+    if (isReadOnly) {
+      throw new Error(language === 'hi' 
+        ? 'आपके खाते को केवल देखने (View-Only) की अनुमति है।'
+        : 'Your account has view-only permissions. You cannot edit records.');
+    }
+
     if (!isAdmin) {
-      if (!assignedVillages || assignedVillages.length === 0 || userProfile?.assignmentStatus === 'Unassigned') {
+      const vIds = (assignedVillageIds && assignedVillageIds.length > 0)
+        ? assignedVillageIds
+        : deriveAssignedVillageIds(userProfile, villageRecords);
+
+      if (!vIds || vIds.length === 0 || userProfile?.assignmentStatus === 'Unassigned') {
         throw new Error(language === 'hi' 
           ? 'आपके खाते को अभी कोई गाँव आवंटित नहीं है।'
           : 'You cannot edit records because no village has been assigned to your account.');
@@ -459,8 +707,14 @@ export function DataProvider({ children }) {
       }
     }
 
+    const targetVillage = updatedFamily.village;
+    const targetVillageId = targetVillage ? resolveVillageId(targetVillage, villageRecords) : updatedFamily.villageId;
+    const targetVillageDisplay = targetVillage ? getVillageDisplayName(targetVillage, villageRecords, language) : undefined;
+
     const enriched = {
       ...updatedFamily,
+      ...(targetVillageId ? { villageId: targetVillageId } : {}),
+      ...(targetVillageDisplay ? { village: targetVillageDisplay } : {}),
       updatedAt: new Date().toISOString(),
       updatedBy: currentUser?.uid || '',
       updatedByName: userProfile?.name || currentUser?.email?.split('@')[0] || 'User'
@@ -471,11 +725,18 @@ export function DataProvider({ children }) {
       await setDoc(doc(db, 'families', id), enriched, { merge: true });
     } catch (err) {
       console.error('Firestore updateFamily error:', err);
+      throw err;
     }
   };
 
   // Delete a family (move to deletedFamilies)
   const deleteFamily = async (id) => {
+    if (isReadOnly) {
+      throw new Error(language === 'hi' 
+        ? 'आपके खाते को केवल देखने (View-Only) की अनुमति है।'
+        : 'Your account has view-only permissions. You cannot delete records.');
+    }
+
     if (!isAdmin) {
       const allowed = scopedFamilies.some(f => f.id === id);
       if (!allowed) {
@@ -901,11 +1162,104 @@ export function DataProvider({ children }) {
     }
   };
 
+  // Safe migration of older records missing villageId
+  const migrateMissingVillageIds = async () => {
+    if (!isAdmin) {
+      throw new Error('Only administrators can perform village ID data migration.');
+    }
+
+    try {
+      const snap = await getDocs(collection(db, 'families'));
+      let migratedCount = 0;
+      let reviewCount = 0;
+      let alreadyValidCount = 0;
+      const batch = writeBatch(db);
+      let batchOps = 0;
+
+      for (const d of snap.docs) {
+        const data = d.data();
+        const hasValidVillageId = data.villageId && (villageRecords || []).some(v => v.id === data.villageId);
+
+        if (hasValidVillageId) {
+          alreadyValidCount++;
+        } else {
+          const isUncertain = isRecordVillageUncertain(data, villageRecords);
+          if (!isUncertain) {
+            // Unambiguous and certain association: migrate to canonical villageId
+            const canonicalId = resolveVillageId(data.village, villageRecords);
+            const canonicalName = getVillageDisplayName(data.village, villageRecords);
+            if (canonicalId) {
+              batch.update(d.ref, {
+                villageId: canonicalId,
+                village: canonicalName || data.village,
+                needsVillageReview: false,
+                villageReviewReason: '',
+                updatedAt: new Date().toISOString()
+              });
+              batchOps++;
+              migratedCount++;
+            }
+          } else {
+            // Uncertain association: flag for authorized Admin review (do NOT guess!)
+            batch.update(d.ref, {
+              needsVillageReview: true,
+              villageReviewReason: 'Uncertain or missing village association',
+              updatedAt: new Date().toISOString()
+            });
+            batchOps++;
+            reviewCount++;
+          }
+        }
+      }
+
+      if (batchOps > 0) {
+        await batch.commit();
+      }
+
+      return {
+        migratedCount,
+        reviewCount,
+        alreadyValidCount,
+        totalChecked: snap.docs.length
+      };
+    } catch (err) {
+      console.error('migrateMissingVillageIds error:', err);
+      throw err;
+    }
+  };
+
+  // Admin assigns verified village to an uncertain record
+  const resolveUncertainRecordVillage = async (familyId, targetVillageObj) => {
+    if (!isAdmin) {
+      throw new Error('Only administrators can verify and assign villages to flagged records.');
+    }
+
+    const vId = resolveVillageId(targetVillageObj, villageRecords);
+    const vName = getVillageDisplayName(targetVillageObj, villageRecords, language);
+    if (!vId) {
+      throw new Error('Invalid village specified');
+    }
+
+    const payload = {
+      villageId: vId,
+      village: vName,
+      needsVillageReview: false,
+      villageReviewReason: '',
+      updatedAt: new Date().toISOString(),
+      updatedBy: currentUser?.uid || ''
+    };
+
+    setRawFamilies(prev => prev.map(f => f.id === familyId ? { ...f, ...payload } : f));
+    await setDoc(doc(db, 'families', familyId), payload, { merge: true });
+    return payload;
+  };
+
   return (
     <DataContext.Provider value={{
       families: scopedFamilies,
       allFamilies,
       deletedFamilies: normalizedDeletedFamilies,
+      needsReviewFamilies,
       // Active villages array for dropdowns & dashboard (Samodi and Kotdi initially)
       villages: activeVillages,
       activeVillages,
@@ -948,7 +1302,9 @@ export function DataProvider({ children }) {
       resetData,
       clearAllSurveyData,
       exportData,
-      importData
+      importData,
+      migrateMissingVillageIds,
+      resolveUncertainRecordVillage
     }}>
       {children}
     </DataContext.Provider>

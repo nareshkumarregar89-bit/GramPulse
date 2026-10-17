@@ -65,12 +65,13 @@ export function Profile() {
   const assignedVillages = userProfile?.assignedVillages || (userProfile?.assignedVillage ? [userProfile?.assignedVillage] : []);
   const initial = name.charAt(0).toUpperCase();
 
-  // Statistics
+  // Statistics (Village-wide shared access & personal submissions)
   const userFamilies = (allFamilies || []).filter(
-    f => f.surveyorId === currentUser.uid || f.surveyorEmail === currentUser.email
+    f => f.surveyorId === currentUser.uid || f.surveyorEmail === currentUser.email || f.createdBy === currentUser.uid
   );
-  const totalSurveysDone = isAdmin ? (allFamilies || []).length : userFamilies.length;
-  const totalMembersCount = (isAdmin ? allFamilies || [] : userFamilies).reduce(
+  const accessibleVillageSurveys = (allFamilies || []).length;
+  const personalSurveysCount = userFamilies.length;
+  const totalMembersCount = (allFamilies || []).reduce(
     (acc, f) => acc + (f.members?.length || 0), 0
   );
 
@@ -134,19 +135,34 @@ export function Profile() {
         {/* Card Body */}
         <div className="p-5 sm:p-7 space-y-6">
           {/* Stats */}
-          <div className="grid grid-cols-2 gap-3 sm:gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
             <div className={`p-4 rounded-2xl border ${darkMode ? 'bg-gray-800/60 border-gray-700/80' : 'bg-emerald-50/60 border-emerald-100'}`}>
               <div className="flex items-center gap-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400 mb-1">
                 <FileText className="w-4 h-4" />
-                <span>{isAdmin ? (language === 'hi' ? 'कुल सर्वे' : 'Total Surveys') : (language === 'hi' ? 'मेरे सर्वे' : 'My Surveys')}</span>
+                <span>{isAdmin ? (language === 'hi' ? 'कुल सर्वे' : 'Total Surveys') : (language === 'hi' ? 'गाँव के कुल सर्वे' : 'Village Survey Access')}</span>
               </div>
               <p className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white">
-                {totalSurveysDone}
+                {accessibleVillageSurveys}
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                {language === 'hi' ? 'पंजीकृत परिवार' : 'Families recorded'}
+                {language === 'hi' ? 'साझा गाँव अधिकार' : 'Accessible village records'}
               </p>
             </div>
+
+            {!isAdmin && (
+              <div className={`p-4 rounded-2xl border ${darkMode ? 'bg-gray-800/60 border-gray-700/80' : 'bg-teal-50/60 border-teal-100'}`}>
+                <div className="flex items-center gap-2 text-xs font-semibold text-teal-600 dark:text-teal-400 mb-1">
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>{language === 'hi' ? 'व्यक्तिगत सबमिशन' : 'My Submissions'}</span>
+                </div>
+                <p className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white">
+                  {personalSurveysCount}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                  {language === 'hi' ? 'आपके द्वारा दर्ज' : 'Submitted by you'}
+                </p>
+              </div>
+            )}
 
             <div className={`p-4 rounded-2xl border ${darkMode ? 'bg-gray-800/60 border-gray-700/80' : 'bg-indigo-50/60 border-indigo-100'}`}>
               <div className="flex items-center gap-2 text-xs font-semibold text-indigo-600 dark:text-indigo-400 mb-1">

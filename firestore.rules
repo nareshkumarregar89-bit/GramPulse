@@ -52,6 +52,7 @@ service cloud.firestore {
           exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
           (
             (getUserRecord().assignedVillages is list && getUserRecord().assignedVillages.size() > 0) ||
+            (getUserRecord().assignedVillageIds is list && getUserRecord().assignedVillageIds.size() > 0) ||
             (getUserRecord().assignedVillageId != null && getUserRecord().assignedVillageId != '')
           ) &&
           getUserRecord().assignmentStatus == 'Assigned'
@@ -59,16 +60,25 @@ service cloud.firestore {
       );
     }
 
+    // Check if user has write permissions (view-only / read-only users cannot create, update, or delete)
+    function canSurveyorWrite() {
+      let user = getUserRecord();
+      return !('isReadOnly' in user && user.isReadOnly == true) &&
+             !('accessLevel' in user && user.accessLevel == 'view_only') &&
+             !('role' in user && user.role == 'viewer');
+    }
+
     // Check if family record matches the surveyor's assigned village
     function isSurveyorForVillage(villageVal, villageIdVal) {
       let user = getUserRecord();
       return isAdmin() || (
         isAssignedSurveyor() && (
-          (villageVal in user.assignedVillages) ||
-          (user.assignedVillageId != null && user.assignedVillageId == villageIdVal) ||
+          (user.assignedVillageIds is list && villageIdVal != null && villageIdVal in user.assignedVillageIds) ||
+          (user.assignedVillageId != null && villageIdVal != null && user.assignedVillageId == villageIdVal) ||
+          (user.assignedVillages is list && villageVal != null && villageVal in user.assignedVillages) ||
           (user.assignedVillageId != null && villageVal != null && (
-            (user.assignedVillageId == 'kotdi' && (villageVal == 'कोटड़ी' || villageVal == 'Kotdi')) ||
-            (user.assignedVillageId == 'samodi' && (villageVal == 'समोड़ी' || villageVal == 'Samodi'))
+            (user.assignedVillageId == 'kotdi' && (villageVal == 'कोटड़ी' || villageVal == 'कोटड़ी' || villageVal == 'Kotdi' || villageVal == 'कोटड़ी (Kotdi)' || villageVal == 'कोटड़ी (Kotdi)')) ||
+            (user.assignedVillageId == 'samodi' && (villageVal == 'समोड़ी' || villageVal == 'समोड़ी' || villageVal == 'Samodi' || villageVal == 'समोड़ी (Samodi)' || villageVal == 'समोड़ी (Samodi)'))
           ))
         )
       );
@@ -97,6 +107,10 @@ service cloud.firestore {
             !('assignedVillages' in request.resource.data)
           ) &&
           (
+            request.resource.data.assignedVillageIds.size() == 0 ||
+            !('assignedVillageIds' in request.resource.data)
+          ) &&
+          (
             request.resource.data.assignedVillageId == null ||
             !('assignedVillageId' in request.resource.data)
           )
@@ -113,10 +127,13 @@ service cloud.firestore {
               !request.resource.data.diff(resource.data).affectedKeys().hasAny([
                 'role', 
                 'assignedVillages', 
+                'assignedVillageIds',
                 'assignedVillageId', 
                 'assignmentStatus', 
                 'status', 
-                'isDeleted'
+                'isDeleted',
+                'isReadOnly',
+                'accessLevel'
               ])
             ) ||
             // Re-initialization for previously deleted users re-joining as unassigned surveyors
@@ -136,53 +153,77 @@ service cloud.firestore {
     }
 
     // ==========================================
-    // 2. FAMILIES COLLECTION (SURVEY DATA)
+    // 2. FAMILIES COLLECTION (VILLAGE-WISE SHARED SURVEY DATA)
     // ==========================================
     match /families/{familyId} {
       // Read access:
-      // - Admins can read all families
-      // - Assigned surveyors can read records belonging to their assigned villages
-      // - Unassigned users are strictly blocked from reading village family records
+      // - Admins can read all families across all villages
+      // - Assigned surveyors automatically gain access to ALL existing & future records in their assigned villages
+      // - Regardless of who created, entered, or uploaded the record
+      // - Unassigned users are strictly blocked from reading any village family records
       allow read: if isUserActive() && (
         isAdmin() || (
           isAssignedSurveyor() && (
-            resource.data.village in getUserRecord().assignedVillages ||
-            resource.data.villageId == getUserRecord().assignedVillageId
+            (getUserRecord().assignedVillageIds is list && resource.data.villageId in getUserRecord().assignedVillageIds) ||
+            (getUserRecord().assignedVillageId != null && resource.data.villageId == getUserRecord().assignedVillageId) ||
+            (getUserRecord().assignedVillages is list && resource.data.village in getUserRecord().assignedVillages) ||
+            isSurveyorForVillage(resource.data.village, resource.data.villageId)
           )
         )
       );
 
       // Create access:
       // - Only active, assigned surveyors (or Admins) can submit family surveys
+      // - View-only / read-only users cannot create records
       // - Unassigned users CANNOT create records
       allow create: if isUserActive() && isAssignedSurveyor() && (
-        isAdmin() || 
-        isSurveyorForVillage(request.resource.data.village, request.resource.data.villageId)
+        isAdmin() || (
+          canSurveyorWrite() &&
+          isSurveyorForVillage(request.resource.data.village, request.resource.data.villageId)
+        )
       );
 
       // Update access:
-      // - Admins or assigned surveyors for that village
+      // - Admins or assigned surveyors for that village (unless view-only)
       allow update: if isUserActive() && (
         isAdmin() || (
           isAssignedSurveyor() && 
-          isSurveyorForVillage(resource.data.village, resource.data.villageId)
+          canSurveyorWrite() &&
+          isSurveyorForVillage(resource.data.village, resource.data.villageId) &&
+          isSurveyorForVillage(request.resource.data.village, request.resource.data.villageId)
         )
       );
 
       // Delete access:
-      // - Soft-delete or permanent deletion allowed only by Admin or assigned surveyor
+      // - Soft-delete or permanent deletion allowed only by Admin or assigned surveyor (unless view-only)
       allow delete: if isAdmin() || (
         isAssignedSurveyor() && 
+        canSurveyorWrite() &&
         isSurveyorForVillage(resource.data.village, resource.data.villageId)
       );
     }
 
     // ==========================================
-    // 3. DELETED FAMILIES (RECYCLE BIN)
+    // 3. DELETED FAMILIES (VILLAGE-SCOPED RECYCLE BIN)
     // ==========================================
     match /deletedFamilies/{familyId} {
-      allow read: if isUserActive() && (isAdmin() || isAssignedSurveyor());
-      allow write: if isUserActive() && (isAdmin() || isAssignedSurveyor());
+      allow read: if isUserActive() && (
+        isAdmin() || (
+          isAssignedSurveyor() && (
+            (getUserRecord().assignedVillageIds is list && resource.data.villageId in getUserRecord().assignedVillageIds) ||
+            (getUserRecord().assignedVillageId != null && resource.data.villageId == getUserRecord().assignedVillageId) ||
+            (getUserRecord().assignedVillages is list && resource.data.village in getUserRecord().assignedVillages) ||
+            isSurveyorForVillage(resource.data.village, resource.data.villageId)
+          )
+        )
+      );
+      allow write: if isUserActive() && (
+        isAdmin() || (
+          isAssignedSurveyor() && 
+          canSurveyorWrite() &&
+          isSurveyorForVillage(resource.data.village, resource.data.villageId)
+        )
+      );
     }
 
     // ==========================================

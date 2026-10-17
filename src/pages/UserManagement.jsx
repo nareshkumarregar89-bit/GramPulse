@@ -21,6 +21,11 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
 import { useToast } from '../contexts/ToastContext';
+import { 
+  deriveAssignedVillageIds, 
+  isFamilyInVillageRecord, 
+  getVillageDisplayName 
+} from '../utils/villageUtils';
 
 export function UserManagement() {
   const { 
@@ -54,7 +59,8 @@ export function UserManagement() {
     email: '',
     password: '',
     role: 'surveyor',
-    assignedVillages: []
+    assignedVillages: [],
+    isReadOnly: false
   });
   const [formError, setFormError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -101,7 +107,8 @@ export function UserManagement() {
         email: '',
         password: '',
         role: 'surveyor',
-        assignedVillages: []
+        assignedVillages: [],
+        isReadOnly: false
       });
     } catch (err) {
       console.error('Error adding user:', err);
@@ -126,7 +133,8 @@ export function UserManagement() {
         name: editingUser.name,
         role: editingUser.role,
         assignedVillages: editingUser.assignedVillages || [],
-        status: editingUser.status || 'active'
+        status: editingUser.status || 'active',
+        isReadOnly: Boolean(editingUser.isReadOnly)
       });
       addToast(language === 'hi' ? 'यूज़र विवरण सफलतापूर्वक अपडेट हुआ!' : 'User updated successfully!', 'success');
       setEditingUser(null);
@@ -211,11 +219,13 @@ export function UserManagement() {
     try {
       setIsAssigningVillage(true);
       const villageObj = activeVillageRecords.find(v => v.id === selectedVillageForAssign || v.name === selectedVillageForAssign) || selectedVillageForAssign;
-      await assignVillageToUser(userToAssignVillage.uid, villageObj);
+      const res = await assignVillageToUser(userToAssignVillage.uid, villageObj);
+      const villageDisplayName = res?.villageName || (typeof villageObj === 'object' ? (villageObj.nameEnglish || villageObj.name) : selectedVillageForAssign);
+
       addToast(
         language === 'hi'
-          ? `यूज़र "${userToAssignVillage.name || userToAssignVillage.email}" को गाँव सफलतापूर्वक आवंटित किया गया!`
-          : `Village successfully assigned to user "${userToAssignVillage.name || userToAssignVillage.email}"!`,
+          ? `${villageDisplayName} सफलतापूर्वक आवंटित किया गया। अब आप ${villageDisplayName} के सभी सर्वे रिकॉर्ड्स देख सकते हैं।`
+          : `${villageDisplayName} assigned successfully. You can now access all ${villageDisplayName} survey records.`,
         'success'
       );
       setUserToAssignVillage(null);
@@ -415,16 +425,30 @@ export function UserManagement() {
                 <th className="p-4 font-semibold">{language === 'hi' ? 'यूज़र विवरण' : 'User Details'}</th>
                 <th className="p-4 font-semibold">{language === 'hi' ? 'रोल' : 'Role'}</th>
                 <th className="p-4 font-semibold">{language === 'hi' ? 'आवंटित गाँव (Assigned Villages)' : 'Assigned Villages'}</th>
-                <th className="p-4 font-semibold">{language === 'hi' ? 'दर्ज परिवार' : 'Families Surveyed'}</th>
+                <th className="p-4 font-semibold">{language === 'hi' ? 'डेटा उपलब्धता एवं सर्वे' : 'Data Access & Surveys'}</th>
                 <th className="p-4 font-semibold">{language === 'hi' ? 'स्थिति' : 'Status'}</th>
                 <th className="p-4 font-semibold text-right">{language === 'hi' ? 'कार्रवाई' : 'Actions'}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
               {filteredUsers.map((user) => {
+                const userAssignedVids = (user.assignedVillageIds && user.assignedVillageIds.length > 0)
+                  ? user.assignedVillageIds
+                  : deriveAssignedVillageIds(user, activeVillageRecords);
+
+                const villageAccessibleCount = user.role === 'admin'
+                  ? (allFamilies || []).length
+                  : (allFamilies || []).filter(f => userAssignedVids.some(vid => isFamilyInVillage ? isFamilyInVillage(f, vid) : isFamilyInVillageRecord(f, vid, activeVillageRecords))).length;
+
                 const surveyCount = (allFamilies || []).filter(f => f.surveyorId === user.uid || f.createdBy === user.uid).length;
                 const isUserActive = user.status !== 'inactive';
                 const isSelf = user.uid === currentUser?.uid;
+
+                const uniqueAssignedDisplay = Array.from(new Set(
+                  (userAssignedVids.length > 0 ? userAssignedVids : (user.assignedVillages || []))
+                    .map(item => getVillageDisplayName(item, activeVillageRecords, language))
+                    .filter(Boolean)
+                ));
 
                 return (
                   <tr key={user.uid} className="hover:bg-gray-50 dark:hover:bg-gray-800/40">
@@ -459,6 +483,11 @@ export function UserManagement() {
                         <Shield className="w-3 h-3" />
                         <span>{user.role === 'admin' ? (language === 'hi' ? 'एडमिन' : 'Admin') : (language === 'hi' ? 'सर्वेयर' : 'Surveyor')}</span>
                       </span>
+                      {user.isReadOnly && (
+                        <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-gray-500/10 text-gray-600 dark:text-gray-400 border border-gray-500/20">
+                          {language === 'hi' ? 'केवल दृश्य' : 'View-Only'}
+                        </span>
+                      )}
                     </td>
 
                     <td className="p-4">
@@ -466,9 +495,9 @@ export function UserManagement() {
                         <span className="text-gray-500 text-[11px] italic">
                           {language === 'hi' ? 'सभी गाँव (Global Access)' : 'All Villages (Global Access)'}
                         </span>
-                      ) : (user.assignedVillages && user.assignedVillages.length > 0) ? (
+                      ) : (uniqueAssignedDisplay.length > 0) ? (
                         <div className="flex flex-wrap gap-1 max-w-xs">
-                          {user.assignedVillages.map(v => (
+                          {uniqueAssignedDisplay.map(v => (
                             <span 
                               key={v}
                               className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800"
@@ -486,9 +515,34 @@ export function UserManagement() {
                     </td>
 
                     <td className="p-4">
-                      <span className="font-semibold text-gray-900 dark:text-white">
-                        {surveyCount} {language === 'hi' ? 'परिवार' : 'families'}
-                      </span>
+                      {user.role === 'admin' ? (
+                        <div>
+                          <span className="font-semibold text-gray-900 dark:text-white">
+                            {allFamilies.length} {language === 'hi' ? 'परिवार' : 'families'}
+                          </span>
+                          <p className="text-[10px] text-gray-500 dark:text-gray-400">
+                            {language === 'hi' ? 'सभी गाँव (ग्लोबल एक्सेस)' : 'All Villages (Global Access)'}
+                          </p>
+                        </div>
+                      ) : (uniqueAssignedDisplay.length > 0) ? (
+                        <div>
+                          <span className="font-semibold text-gray-900 dark:text-white flex items-center gap-1">
+                            <span>{villageAccessibleCount} {language === 'hi' ? 'गाँव के परिवार' : 'village families'}</span>
+                          </span>
+                          <p className="text-[10px] text-gray-500 dark:text-gray-400">
+                            {surveyCount} {language === 'hi' ? 'स्वयं द्वारा सर्वे' : 'surveyed by user'}
+                          </p>
+                        </div>
+                      ) : (
+                        <div>
+                          <span className="text-gray-400 dark:text-gray-500 font-medium">
+                            0 {language === 'hi' ? 'परिवार' : 'families'}
+                          </span>
+                          <p className="text-[10px] text-red-500 italic">
+                            {language === 'hi' ? 'कोई गाँव नहीं' : 'Unassigned'}
+                          </p>
+                        </div>
+                      )}
                     </td>
 
                     <td className="p-4">
@@ -577,10 +631,24 @@ export function UserManagement() {
             </div>
           ) : (
             filteredUsers.map((user) => {
+              const userAssignedVids = (user.assignedVillageIds && user.assignedVillageIds.length > 0)
+                ? user.assignedVillageIds
+                : deriveAssignedVillageIds(user, activeVillageRecords);
+
+              const villageAccessibleCount = user.role === 'admin'
+                ? (allFamilies || []).length
+                : (allFamilies || []).filter(f => userAssignedVids.some(vid => isFamilyInVillage ? isFamilyInVillage(f, vid) : isFamilyInVillageRecord(f, vid, activeVillageRecords))).length;
+
               const surveyCount = (allFamilies || []).filter(f => f.surveyorId === user.uid || f.createdBy === user.uid).length;
               const isUserActive = user.status !== 'inactive';
               const isSelf = user.uid === currentUser?.uid;
               const isSuperAdmin = user.uid === 'sJwiZZ6cf8Ze8YAmMMK8T1FwF232';
+
+              const uniqueAssignedDisplay = Array.from(new Set(
+                (userAssignedVids.length > 0 ? userAssignedVids : (user.assignedVillages || []))
+                  .map(item => getVillageDisplayName(item, activeVillageRecords, language))
+                  .filter(Boolean)
+              ));
 
               return (
                 <div key={user.uid} className="p-4 space-y-3">
@@ -614,15 +682,25 @@ export function UserManagement() {
                     }`}>
                       <Shield className="w-3 h-3" />
                       <span>{user.role === 'admin' ? (language === 'hi' ? 'एडमिन' : 'Admin') : (language === 'hi' ? 'सर्वेयर' : 'Surveyor')}</span>
+                      {user.isReadOnly && (
+                        <span className="text-[9px] px-1 py-0.2 rounded bg-gray-500/20 text-gray-700 dark:text-gray-300">
+                          {language === 'hi' ? 'दृश्य' : 'View'}
+                        </span>
+                      )}
                     </span>
                   </div>
 
                   {/* Village and Survey stats row */}
                   <div className="flex flex-wrap items-center justify-between gap-2 text-xs pt-1">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-gray-400 text-[11px]">{language === 'hi' ? 'सर्वेक्षण:' : 'Surveys:'}</span>
-                      <span className="font-bold text-gray-900 dark:text-white px-2 py-0.5 rounded-md bg-gray-100 dark:bg-gray-800">
-                        {surveyCount} {language === 'hi' ? 'परिवार' : 'families'}
+                    <div className="flex flex-col gap-0.5">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-gray-400 text-[11px]">{language === 'hi' ? 'गाँव डेटा:' : 'Village Data:'}</span>
+                        <span className="font-bold text-gray-900 dark:text-white px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300">
+                          {user.role === 'admin' ? allFamilies.length : villageAccessibleCount} {language === 'hi' ? 'परिवार' : 'families'}
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-gray-500 dark:text-gray-400">
+                        {surveyCount} {language === 'hi' ? 'स्वयं द्वारा सर्वे' : 'surveyed by user'}
                       </span>
                     </div>
 
@@ -659,9 +737,9 @@ export function UserManagement() {
                       <span className="text-gray-500 text-[11px] italic">
                         {language === 'hi' ? 'सभी गाँव (Global Access)' : 'All Villages (Global Access)'}
                       </span>
-                    ) : (user.assignedVillages && user.assignedVillages.length > 0) ? (
+                    ) : (uniqueAssignedDisplay.length > 0) ? (
                       <div className="flex flex-wrap gap-1">
-                        {user.assignedVillages.map(v => (
+                        {uniqueAssignedDisplay.map(v => (
                           <span 
                             key={v}
                             className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800"
@@ -850,6 +928,27 @@ export function UserManagement() {
                 </div>
               )}
 
+              {formData.role === 'surveyor' && (
+                <label className="flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer select-none border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/40">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(formData.isReadOnly)}
+                    onChange={(e) => setFormData(p => ({ ...p, isReadOnly: e.target.checked }))}
+                    className="w-4 h-4 mt-0.5 rounded text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <div>
+                    <span className="text-xs font-bold text-gray-900 dark:text-white block">
+                      {language === 'hi' ? 'केवल देखने की अनुमति (View-Only / Read-Only)' : 'View-Only Permissions (Read-Only)'}
+                    </span>
+                    <span className="text-[11px] text-gray-500 dark:text-gray-400 block mt-0.5">
+                      {language === 'hi' 
+                        ? 'सर्वेयर आवंटित गाँव के सभी रिकॉर्ड्स देख सकेगा, किंतु रिकॉर्ड जोड़ना, संपादन या विलोपन वर्जित रहेगा।'
+                        : 'Surveyor can view all records for assigned villages but cannot add, edit, or delete records.'}
+                    </span>
+                  </div>
+                </label>
+              )}
+
               <div className="flex justify-end gap-2 pt-3 border-t border-gray-200 dark:border-gray-800">
                 <button
                   type="button"
@@ -965,6 +1064,27 @@ export function UserManagement() {
                     })}
                   </div>
                 </div>
+              )}
+
+              {editingUser.role === 'surveyor' && (
+                <label className="flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer select-none border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/40">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(editingUser.isReadOnly)}
+                    onChange={(e) => setEditingUser(p => ({ ...p, isReadOnly: e.target.checked }))}
+                    className="w-4 h-4 mt-0.5 rounded text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <div>
+                    <span className="text-xs font-bold text-gray-900 dark:text-white block">
+                      {language === 'hi' ? 'केवल देखने की अनुमति (View-Only / Read-Only)' : 'View-Only Permissions (Read-Only)'}
+                    </span>
+                    <span className="text-[11px] text-gray-500 dark:text-gray-400 block mt-0.5">
+                      {language === 'hi' 
+                        ? 'सर्वेयर आवंटित गाँव के सभी रिकॉर्ड्स देख सकेगा, किंतु रिकॉर्ड जोड़ना, संपादन या विलोपन वर्जित रहेगा।'
+                        : 'Surveyor can view all records for assigned villages but cannot add, edit, or delete records.'}
+                    </span>
+                  </div>
+                </label>
               )}
 
               <div className="flex justify-end gap-2 pt-3 border-t border-gray-200 dark:border-gray-800">

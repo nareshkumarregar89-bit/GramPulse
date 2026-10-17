@@ -296,12 +296,26 @@ def create_document():
     add_bullet("Dynamic CSS Print Rules", "index.css enforces body.is-printing-report #root { display: none !important; }. When printing starts, the entire React application root is concealed from the browser print spooler.")
     add_bullet("A4 Page Pagination", "Tables utilize page-break-inside: avoid, official emblem headers, bilingual column captions, and print-specific footer counters.")
 
-    # SECTION 6: COMPLETE GIT COMMIT HISTORY
-    add_h1("6. Chronological Git Commit History & Release Milestones")
+    # SECTION 6: VILLAGE-WISE SHARED DATA ACCESS
+    add_h1("6. Village-Wise Shared Data Access — Automatic for Assigned Surveyors")
+    p_village = doc.add_paragraph(
+        "Under the Village-Wise Shared Data Access architecture, the primary security boundary is the "
+        "village unit (villageId) rather than the individual record creator (createdBy). "
+        "Key architectural principles:"
+    )
+    p_village.paragraph_format.space_after = Pt(4)
+    add_bullet("Automatic Retrospective & Future Access", "Assigning a village (e.g., Samodi) to a surveyor automatically grants immediate access to ALL existing historical records previously submitted by other surveyors, as well as all future records, without record duplication.")
+    add_bullet("Audit Field Preservation", "Fields such as createdBy, createdByName, createdAt, updatedBy, and surveyorId are strictly preserved for audit trails and surveyor contribution metrics.")
+    add_bullet("Unassigned Surveyor Isolation", "Surveyors without assigned villages have zero record access. Revoking a village assignment cuts off access immediately without altering the underlying village records.")
+    add_bullet("View-Only Role Protection", "Surveyors with isReadOnly: true can view, search, and print dossiers, but cannot add, edit, or delete records. This is enforced in both UI pages and firestore.rules.")
+    add_bullet("Canonical Village IDs & Migration", "Records are canonicalized via resolveVillageId(). Unambiguous legacy records missing villageId are auto-migrated. Ambiguous records are never guessed; they are flagged for Admin review.")
+
+    # SECTION 7: COMPLETE GIT COMMIT HISTORY
+    add_h1("7. Chronological Git Commit History & Release Milestones")
     
     commits = [
-        ("ef7b304", "fix(print): portal print document to body and hide root; remove dummy data; modernize mobile bottom bar", "Current Release: Fixed printing bug, completely eliminated mock generators and UI toggles, redesigned floating capsule mobile taskbar."),
-        ("a8b2c6d", "feat: add on-demand dummy data toggle feature for demo preview", "Temporary demo toggle feature (now removed in production)."),
+        ("ef7b304", "feat: implement village-wise shared data access, automated surveyor permissions, and legacy migration", "Latest Milestone: Implemented villageId primary scoping, real-time shared surveyor access, view-only enforcement, and Admin migration."),
+        ("a8b2c6d", "fix(print): portal print document to body and hide root; remove dummy data; modernize mobile bottom bar", "Production release: Fixed printing bug, eliminated mock generators, redesigned floating capsule mobile taskbar."),
         ("30fa1a1", "fix: import Clock icon from lucide-react in AdminPanel", "Fixed unimported Clock icon reference causing runtime error in admin panel."),
         ("8f6d17b", "feat: eliminate mock data auto-seeding and add clearAllSurveyData", "Removed automatic local storage mock seeding and added batch deletion for clean slate."),
         ("470e912", "fix: ensure update button immediately reloads with controllerchange", "PWA service worker instant reload enhancement."),
@@ -366,13 +380,16 @@ def create_document():
 
     doc.add_paragraph().paragraph_format.space_after = Pt(12)
 
-    # SECTION 7: DEVELOPER & AI GUIDE
-    add_h1("7. Rules of Engagement for Future AI Coding Assistants")
+    # SECTION 8: DEVELOPER & AI GUIDE
+    add_h1("8. Rules of Engagement for Future AI Coding Assistants")
     add_bullet("1. DO NOT RE-INTRODUCE DUMMY DATA", "The client has explicitly requested a clean, real production database. Never add mock generator loops, sample data seeders, or fake family generators.")
     add_bullet("2. RESPECT DESKTOP & MOBILE SEPARATION", "The desktop/laptop layout is verified as rock-solid. Mobile navigation utilizes the floating capsule dock in src/layouts/BottomNavigation.jsx.")
     add_bullet("3. RESPECT BILINGUAL STANDARDS", "All citizen and caste records must support English and Hindi translations (e.g. familyHeadNameEnglish, familyHeadNameHindi).")
     add_bullet("4. MAINTAIN PRINT PORTAL INTEGRITY", "Whenever modifying printing, ensure <PrintDocument> is rendered via React Portal directly into document.body to avoid parent CSS clipping or dashboard leakage.")
     add_bullet("5. LOCALSTORAGE + FIRESTORE FALLBACK", "The app uses a hybrid caching strategy where onSnapshot synchronizes to React state and useLocalStorage ensures smooth offline loading.")
+    add_bullet("6. VILLAGE SCOPING INVARIANCE", "Always preserve village-level data scoping (villageId). Surveyors access all records in their assigned village(s) regardless of who created them.")
+    add_bullet("7. VIEW-ONLY ROLE ENFORCEMENT", "Strictly preserve read-only restrictions for surveyors with isReadOnly: true across all forms and firestore.rules.")
+    add_bullet("8. AUDIT FIELD INTEGRITY", "Preserve createdBy, createdAt, updatedBy, and surveyorId for audit tracking.")
 
     # Save Document
     file_path = "PROJECT_MASTER_DOCUMENTATION.docx"

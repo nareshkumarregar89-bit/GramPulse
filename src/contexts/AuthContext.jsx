@@ -20,8 +20,36 @@ import {
 } from 'firebase/firestore';
 import { initializeApp, getApps } from 'firebase/app';
 import { auth, db } from '../firebase';
+import { resolveVillageId, deriveAssignedVillageIds, getVillageDisplayName } from '../utils/villageUtils';
 
 const AuthContext = createContext();
+
+// Helper to provide both Unicode spellings and canonical names for Firestore security rules
+export const enrichVillageVariants = (villageList = [], vIds = []) => {
+  const set = new Set();
+  (villageList || []).forEach(v => {
+    if (v && typeof v === 'string') set.add(v.trim());
+  });
+  (vIds || []).forEach(id => {
+    if (id && typeof id === 'string') {
+      const clean = id.trim().toLowerCase();
+      if (clean === 'samodi') {
+        set.add('समोड़ी (Samodi)');
+        set.add('समोड़ी (Samodi)');
+        set.add('Samodi');
+        set.add('समोड़ी');
+        set.add('समोड़ी');
+      } else if (clean === 'kotdi') {
+        set.add('कोटड़ी (Kotdi)');
+        set.add('कोटड़ी (Kotdi)');
+        set.add('Kotdi');
+        set.add('कोटड़ी');
+        set.add('कोटड़ी');
+      }
+    }
+  });
+  return Array.from(set);
+};
 
 // Super Admin UID
 const SUPER_ADMIN_UID = 'sJwiZZ6cf8Ze8YAmMMK8T1FwF232';
@@ -59,6 +87,7 @@ export function AuthProvider({ children }) {
               name: isSuperAdmin ? 'Admin' : (user.displayName || (user.email ? user.email.split('@')[0] : 'Surveyor')),
               role: isSuperAdmin ? 'admin' : 'surveyor',
               assignedVillages: [],
+              assignedVillageIds: [],
               assignedVillageId: null,
               assignmentStatus: isSuperAdmin ? 'Assigned' : 'Unassigned',
               status: 'active',
@@ -99,6 +128,7 @@ export function AuthProvider({ children }) {
               photoURL: user.photoURL || '',
               role: 'surveyor',
               assignedVillages: [],
+              assignedVillageIds: [],
               assignedVillageId: null,
               assignmentStatus: 'Unassigned',
               status: 'active',
@@ -114,15 +144,32 @@ export function AuthProvider({ children }) {
 
           const role = data.role || (user.uid === SUPER_ADMIN_UID ? 'admin' : 'surveyor');
           const userAssignedVillages = data.assignedVillages || (data.assignedVillage ? [data.assignedVillage] : []);
-          const assignmentStatus = data.assignmentStatus || (userAssignedVillages.length > 0 || role === 'admin' ? 'Assigned' : 'Unassigned');
+          const userAssignedVillageIds = deriveAssignedVillageIds(data);
+          const primaryVillageId = userAssignedVillageIds[0] || data.assignedVillageId || null;
+          const isAssigned = (userAssignedVillages.length > 0 || userAssignedVillageIds.length > 0);
+          const assignmentStatus = data.assignmentStatus || (isAssigned || role === 'admin' ? 'Assigned' : 'Unassigned');
+          const isReadOnly = Boolean(data.isReadOnly || data.accessLevel === 'view_only' || data.role === 'viewer');
+
+          // Auto-repair missing assignedVillageIds / assignedVillageId on surveyor profile in Firestore
+          if (role === 'surveyor' && isAssigned && (!data.assignedVillageId || !data.assignedVillageIds || data.assignedVillageIds.length === 0)) {
+            const enriched = enrichVillageVariants(userAssignedVillages, userAssignedVillageIds);
+            updateDoc(userDocRef, {
+              assignedVillages: enriched,
+              assignedVillageIds: userAssignedVillageIds,
+              assignedVillageId: primaryVillageId,
+              assignmentStatus: 'Assigned'
+            }).catch(e => console.warn('Auto-repair surveyor profile error:', e));
+          }
 
           setUserRole(role);
           setUserProfile({
             ...data,
             role,
             assignedVillages: userAssignedVillages,
-            assignedVillageId: data.assignedVillageId || null,
-            assignmentStatus
+            assignedVillageIds: userAssignedVillageIds,
+            assignedVillageId: primaryVillageId,
+            assignmentStatus,
+            isReadOnly
           });
           setLoading(false);
         }, (err) => {
@@ -156,6 +203,23 @@ export function AuthProvider({ children }) {
             // Exclude soft-deleted users and clean them up automatically
             if (!data.isDeleted && data.status !== 'deleted') {
               usersList.push({ ...data, uid: docSnap.id });
+              // Auto-repair missing assignedVillageIds / assignedVillageId for surveyors in Firestore
+              if (data.role === 'surveyor' && (data.assignedVillages?.length > 0 || data.assignedVillage)) {
+                const vIds = deriveAssignedVillageIds(data);
+                if (vIds.length > 0) {
+                  const hasAll = Array.isArray(data.assignedVillageIds) && data.assignedVillageIds.length > 0 && data.assignedVillageId;
+                  if (!hasAll) {
+                    const primaryId = vIds[0];
+                    const enriched = enrichVillageVariants(data.assignedVillages || [data.assignedVillage], vIds);
+                    updateDoc(docSnap.ref, {
+                      assignedVillages: enriched,
+                      assignedVillageIds: vIds,
+                      assignedVillageId: primaryId,
+                      assignmentStatus: 'Assigned'
+                    }).catch(err => console.warn('Surveyor profile auto-heal failed:', err));
+                  }
+                }
+              }
             } else {
               // Legacy soft-deleted record found: remove it completely so user can re-register cleanly
               deleteDoc(docSnap.ref).catch(() => {});
@@ -225,6 +289,7 @@ export function AuthProvider({ children }) {
             photoURL: user.photoURL || '',
             role: 'surveyor',
             assignedVillages: [],
+            assignedVillageIds: [],
             assignedVillageId: null,
             assignmentStatus: 'Unassigned',
             status: 'active',
@@ -242,6 +307,7 @@ export function AuthProvider({ children }) {
           photoURL: user.photoURL || '',
           role: isSuperAdmin ? 'admin' : 'surveyor',
           assignedVillages: [],
+          assignedVillageIds: [],
           assignedVillageId: null,
           assignmentStatus: isSuperAdmin ? 'Assigned' : 'Unassigned',
           status: 'active',
@@ -257,7 +323,7 @@ export function AuthProvider({ children }) {
   };
 
   // Admin function: Create user without signing out Admin
-  const createUserByAdmin = async ({ name, email, password, role, assignedVillages }) => {
+  const createUserByAdmin = async ({ name, email, password, role, assignedVillages, isReadOnly = false, accessLevel = 'standard' }) => {
     const secondaryAppName = 'SecondaryAuthApp';
     const existingApp = getApps().find(a => a.name === secondaryAppName);
     const secondaryApp = existingApp || initializeApp(auth.app.options, secondaryAppName);
@@ -267,6 +333,9 @@ export function AuthProvider({ children }) {
       const userCred = await createUserWithEmailAndPassword(secondaryAuth, email.trim(), password);
       const newUid = userCred.user.uid;
       const isAssigned = Array.isArray(assignedVillages) && assignedVillages.length > 0;
+      const assignedVillageIds = isAssigned
+        ? assignedVillages.map(v => resolveVillageId(v)).filter(Boolean)
+        : [];
 
       const profile = {
         uid: newUid,
@@ -274,10 +343,11 @@ export function AuthProvider({ children }) {
         name: name.trim() || email.split('@')[0],
         role: role || 'surveyor',
         assignedVillages: isAssigned ? assignedVillages : [],
-        assignedVillageId: isAssigned && assignedVillages[0]
-          ? (assignedVillages[0].toLowerCase().includes('kotdi') ? 'kotdi' : 'samodi')
-          : null,
-        assignmentStatus: isAssigned || role === 'admin' ? 'Assigned' : 'Unassigned',
+        assignedVillageIds,
+        assignedVillageId: assignedVillageIds[0] || null,
+        assignmentStatus: (isAssigned || role === 'admin') ? 'Assigned' : 'Unassigned',
+        isReadOnly: Boolean(isReadOnly || accessLevel === 'view_only' || role === 'viewer'),
+        accessLevel: accessLevel || (isReadOnly ? 'view_only' : 'standard'),
         status: 'active',
         createdAt: new Date().toISOString()
       };
@@ -299,14 +369,32 @@ export function AuthProvider({ children }) {
         ...updates,
         updatedAt: new Date().toISOString()
       };
+
+      // Automatically keep assignedVillageIds and assignmentStatus synchronized
+      if (Array.isArray(payload.assignedVillages)) {
+        const vIds = payload.assignedVillages.map(v => resolveVillageId(v)).filter(Boolean);
+        payload.assignedVillageIds = vIds;
+        payload.assignedVillageId = vIds[0] || null;
+        if (!payload.assignmentStatus) {
+          payload.assignmentStatus = (vIds.length > 0 || payload.role === 'admin') ? 'Assigned' : 'Unassigned';
+        }
+      }
+      if (payload.role === 'admin') {
+        payload.assignmentStatus = 'Assigned';
+      }
+      if (payload.isReadOnly !== undefined || payload.accessLevel !== undefined) {
+        payload.isReadOnly = Boolean(payload.isReadOnly || payload.accessLevel === 'view_only');
+      }
+
       await updateDoc(userDocRef, payload);
 
       // Instant optimistic state update for admin UI without waiting for network re-fetch
-      setAllUsers(prev => prev.map(u => u.uid === uid ? { ...u, ...updates } : u));
+      setAllUsers(prev => prev.map(u => u.uid === uid ? { ...u, ...payload } : u));
       if (currentUser?.uid === uid) {
-        if (updates.role) setUserRole(updates.role);
-        setUserProfile(prev => ({ ...prev, ...updates }));
+        if (payload.role) setUserRole(payload.role);
+        setUserProfile(prev => ({ ...prev, ...payload }));
       }
+      return payload;
     } catch (err) {
       console.error('Failed to update user:', err);
       throw err;
@@ -316,15 +404,12 @@ export function AuthProvider({ children }) {
   // Admin function: Assign or Change village for a user
   const assignVillageToUser = async (uid, villageObj) => {
     try {
-      const villageName = typeof villageObj === 'string'
-        ? villageObj
-        : (villageObj.name || villageObj.nameHindi || villageObj.nameEnglish || villageObj.id);
-      const villageId = typeof villageObj === 'object' && villageObj.id
-        ? villageObj.id
-        : (villageName.toLowerCase().includes('kotdi') ? 'kotdi' : 'samodi');
+      const villageId = resolveVillageId(villageObj) || (typeof villageObj === 'string' ? villageObj.toLowerCase() : 'samodi');
+      const villageName = getVillageDisplayName(villageObj) || (typeof villageObj === 'string' ? villageObj : villageId);
 
       const updates = {
-        assignedVillages: [villageName],
+        assignedVillages: enrichVillageVariants([villageName], [villageId]),
+        assignedVillageIds: [villageId],
         assignedVillageId: villageId,
         assignmentStatus: 'Assigned',
         status: 'active',
@@ -339,6 +424,11 @@ export function AuthProvider({ children }) {
       if (currentUser?.uid === uid) {
         setUserProfile(prev => ({ ...prev, ...updates }));
       }
+
+      return {
+        villageId,
+        villageName
+      };
     } catch (err) {
       console.error('Failed to assign village to user:', err);
       throw err;
@@ -471,6 +561,12 @@ export function AuthProvider({ children }) {
     ? userProfile.assignedVillages
     : (userProfile?.assignedVillage ? [userProfile.assignedVillage] : []);
 
+  const assignedVillageIds = (userProfile?.assignedVillageIds && userProfile.assignedVillageIds.length > 0)
+    ? userProfile.assignedVillageIds
+    : deriveAssignedVillageIds(userProfile);
+
+  const isReadOnly = Boolean(userProfile?.isReadOnly || userProfile?.accessLevel === 'view_only' || userRole === 'viewer');
+
   const value = {
     currentUser,
     userRole,
@@ -479,6 +575,8 @@ export function AuthProvider({ children }) {
     isAdmin: userRole === 'admin',
     isSurveyor: userRole === 'surveyor',
     assignedVillages,
+    assignedVillageIds,
+    isReadOnly,
     login,
     logout,
     signInWithGoogle,

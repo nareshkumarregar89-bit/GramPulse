@@ -198,9 +198,60 @@ Global configuration document storing dynamic arrays:
 
 ---
 
-## 8. Complete Commit Log & Milestones
+## 8. Village-Wise Shared Data Access Architecture
 
-1. `ef7b304` — **fix(print): portal print document to body and hide root; remove dummy data; modernize mobile bottom bar** (Current production release)
+### 8.1 Core Business Rule
+- **Village-Centric Data Access:** The primary access boundary for all family records, surveys, and attachments is the **village** (`villageId`), not the individual creator ID (`createdBy` / `surveyorId`).
+- **Automatic Retrospective & Future Access:** When an admin assigns a village (e.g. Samodi) to a surveyor:
+  - The surveyor automatically gains immediate access to **ALL existing historical records** belonging to that village, regardless of which surveyor or administrator created, entered, or uploaded them.
+  - The surveyor automatically receives all **future records** added to that village in real-time.
+  - Zero record duplication: All authorized users read the exact same underlying Firestore documents.
+- **Immediate Revocation:** If an admin removes a village from a surveyor's assignment, access to that village is severed immediately without altering or deleting the underlying survey records.
+- **Unassigned Surveyor Isolation:** A newly registered surveyor has 0 village permissions and cannot view, create, or modify any survey records until an administrator assigns at least one village.
+- **View-Only Mode Support:** Surveyors flagged as `isReadOnly: true` or `accessLevel: 'view_only'` can browse, search, and print all village records, but add, edit, and delete operations are strictly prohibited across both UI and Firestore rules.
+
+### 8.2 Canonical Village Helper Utilities (`src/utils/villageUtils.js`)
+- `resolveVillageId(villageInput)`: Maps diverse Hindi/English names, aliases, and objects (e.g. 'समोड़ी (Samodi)', 'Samodi', 'samodi') to normalized canonical village IDs (`'samodi'`, `'kotdi'`, etc.).
+- `isFamilyInVillageRecord(family, targetVillage)`: Robust membership check comparing both `villageId` and normalized village name variants.
+- `isRecordVillageUncertain(family)`: Flags legacy or corrupted records lacking clear village association. Per security specifications, uncertain records are never guessed; they are flagged for authorized Admin review.
+- `deriveAssignedVillageIds(user)`: Canonical extractor that parses `assignedVillageIds`, `assignedVillages`, and `assignedVillageId` into a deduplicated array of clean village IDs.
+
+### 8.3 Firestore Security Rules (`firestore.rules`)
+- **Server-Verified Read Checks:**
+  ```javascript
+  allow read: if isUserActive() && (
+    isAdmin() || (
+      isAssignedSurveyor() && (
+        (getUserRecord().assignedVillageIds is list && resource.data.villageId in getUserRecord().assignedVillageIds) ||
+        (getUserRecord().assignedVillageId != null && resource.data.villageId == getUserRecord().assignedVillageId) ||
+        (getUserRecord().assignedVillages is list && resource.data.village in getUserRecord().assignedVillages) ||
+        isSurveyorForVillage(resource.data.village, resource.data.villageId)
+      )
+    )
+  );
+  ```
+- **Write Checks & View-Only Protection:**
+  ```javascript
+  function canSurveyorWrite() {
+    let user = getUserRecord();
+    return !('isReadOnly' in user && user.isReadOnly == true) &&
+           !('accessLevel' in user && user.accessLevel == 'view_only') &&
+           !('role' in user && user.role == 'viewer');
+  }
+  ```
+- **Storage Rules (`storage.rules`):**
+  - Village attachments stored under `villages/{villageId}/**` are protected by `isAuthorizedForVillage(villageId)`.
+
+### 8.4 Legacy Record Migration & Admin Review
+- **Automatic Migration (`migrateMissingVillageIds`):** Admin command center scans records lacking `villageId` and applies `resolveVillageId()`. Unambiguous records are updated in Firestore automatically.
+- **Admin Review Modal:** Records with ambiguous or empty village tags are surfaced in a high-visibility alert banner in `AdminPanel.jsx`. Admins can review each record and assign the verified village with a single click.
+
+---
+
+## 9. Complete Commit Log & Milestones
+
+1. `HEAD` — **fix: dual-query resilience for legacy & canonical village survey data, Unicode variant reconciliation, profile auto-healing, and clear village data accessibility in UserManagement** (Latest milestone)
+2. `ef7b304` — feat: implement village-wise shared data access, automated surveyor permissions, read-only enforcement, and legacy villageId migration
 2. `a8b2c6d` — feat: add on-demand dummy data toggle feature for demo preview
 3. `30fa1a1` — fix: import Clock icon from lucide-react in AdminPanel
 4. `8f6d17b` — feat: eliminate mock data auto-seeding and add clearAllSurveyData for database purge
@@ -236,9 +287,14 @@ Global configuration document storing dynamic arrays:
 
 ---
 
-## 9. Crucial Directives for Future AI Agents
+## 10. Crucial Directives for Future AI Agents
 
-- **No Mock or Dummy Data:** Do not add fake data loops, dummy generators, or mock toggle buttons. The application operates solely on real production Firestore data.
+- **Village Scoping Invariance:** Always preserve village-level data scoping (`villageId`). Surveyors must access all records in their assigned village(s) regardless of who created them.
+- **Audit Field Preservation:** Never remove `createdBy`, `createdAt`, `updatedBy`, or `surveyorId` from family records; preserve them for audit history.
+- **Uncertain Data Rule:** Never automatically guess the village for records with ambiguous association. Always flag them for Admin review via `isRecordVillageUncertain`.
+- **View-Only Enforcement:** Preserve the read-only guard across all creation and modification views (`NewSurvey`, `Families`, `FamilyProfile`, `DeletedRecords`, and `firestore.rules`).
+- **No Mock or Dummy Data:** Do not add fake data loops or mock toggle buttons. The application operates solely on real production Firestore data.
 - **Desktop Layout Invariance:** Keep the desktop layout stable. Do not disrupt desktop responsiveness when making mobile adjustments.
 - **Bilingual Field Integrity:** Always preserve both English and Hindi fields (`nameEnglish`, `nameHindi`, `familyHeadNameEnglish`, `familyHeadNameHindi`).
 - **Portal Print Pattern:** Never render `<PrintDocument>` directly within nested application cards. Always portal it directly to `document.body` with class `.print-portal-area` and apply `.is-printing-report` to body during print.
+

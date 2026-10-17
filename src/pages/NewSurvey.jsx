@@ -92,7 +92,7 @@ export function NewSurvey() {
   const navigate = useNavigate();
   const { families, villages, mohallas, castes, addFamily, updateFamily, getFamilyById, t, darkMode, language, selectedVillage } = useData();
   const { addToast } = useToast();
-  const { currentUser, userProfile, isAdmin, assignedVillages = [] } = useAuth();
+  const { currentUser, userProfile, isAdmin, assignedVillages = [], isReadOnly } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
 
   // Check if current user is an unassigned surveyor
@@ -166,6 +166,15 @@ export function NewSurvey() {
   };
 
   const handleSubmit = () => {
+    if (isReadOnly) {
+      addToast(
+        language === 'hi' 
+          ? 'केवल अवलोकन अधिकार: आप डेटा सबमिट या संशोधित नहीं कर सकते।' 
+          : 'View-only access: you cannot submit or edit records.', 
+        'error'
+      );
+      return;
+    }
     const enrichedFamily = {
       ...family,
       village: family.village || (selectedVillage !== 'all' ? selectedVillage : (villages[0] || 'समोड़ी (Samodi)')),
@@ -546,6 +555,46 @@ export function NewSurvey() {
         return null;
     }
   };
+
+  if (isReadOnly) {
+    return (
+      <div className="max-w-2xl mx-auto py-8">
+        <div className={`p-8 rounded-3xl border text-center space-y-5 shadow-3d-card ${
+          darkMode 
+            ? 'bg-gradient-to-b from-gray-900 to-indigo-950/20 border-indigo-900/40 text-white' 
+            : 'bg-gradient-to-b from-white to-indigo-50/60 border-indigo-200/80 text-gray-900'
+        }`}>
+          <div className="w-16 h-16 mx-auto rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+            <Lock className="w-8 h-8" />
+          </div>
+
+          <div className="space-y-2">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30">
+              <AlertCircle className="w-3.5 h-3.5" />
+              <span>{language === 'hi' ? 'केवल अवलोकन अधिकार' : 'View-Only Permissions'}</span>
+            </span>
+            <h2 className="text-xl sm:text-2xl font-bold">
+              {language === 'hi' ? 'सर्वेक्षण संशोधन प्रतिबंधित' : 'Survey Modification Restricted'}
+            </h2>
+            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 max-w-md mx-auto leading-relaxed">
+              {language === 'hi'
+                ? 'आपके खाते को केवल अवलोकन (Read-Only) अधिकार प्राप्त हैं। आप अपने आवंटित गाँव के सभी सर्वे रिकॉर्ड्स देख और प्रिंट कर सकते हैं, परंतु नया सर्वे जोड़ने या संपादित करने की अनुमति नहीं है।'
+                : 'Your account has view-only permissions for your assigned village. You can view, search, and print all village survey records, but creating or editing surveys is restricted.'}
+            </p>
+          </div>
+
+          <div className="pt-2 flex items-center justify-center gap-3">
+            <button
+              onClick={() => navigate('/families')}
+              className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md transition-all active:scale-95"
+            >
+              {language === 'hi' ? 'गाँव के परिवार देखें' : 'View Village Families'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (isUnassigned) {
     return (

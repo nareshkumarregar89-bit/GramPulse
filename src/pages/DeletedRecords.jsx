@@ -47,7 +47,7 @@ export function DeletedRecords() {
     darkMode, 
     language 
   } = useData();
-  const { currentUser } = useAuth();
+  const { currentUser, isReadOnly } = useAuth();
   const { addToast } = useToast();
 
   // Search & filter states
@@ -277,7 +277,7 @@ export function DeletedRecords() {
           </div>
 
           {/* Top Quick Batch Actions */}
-          {totalDeletedCount > 0 && (
+          {!isReadOnly && totalDeletedCount > 0 && (
             <div className="flex items-center gap-2 shrink-0 flex-wrap">
               <button
                 onClick={() => setIsConfirmingRestoreAll(true)}
@@ -673,25 +673,27 @@ export function DeletedRecords() {
                   </div>
 
                   {/* Mobile & Desktop Action Buttons (Large, Touch-Friendly, Buttery Smooth) */}
-                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2.5 pt-3 border-t border-gray-100 dark:border-gray-800/80">
-                    <button
-                      type="button"
-                      onClick={() => handleRestore(family)}
-                      className="w-full sm:w-auto min-h-[44px] flex items-center justify-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl text-xs sm:text-sm font-bold shadow-md shadow-emerald-500/15 transition-all duration-200 active:scale-95"
-                    >
-                      <RotateCcw className="w-4 h-4 shrink-0" />
-                      <span>{language === 'hi' ? 'रिकॉर्ड वापस लाएं' : 'Restore Record'}</span>
-                    </button>
+                  {!isReadOnly && (
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2.5 pt-3 border-t border-gray-100 dark:border-gray-800/80">
+                      <button
+                        type="button"
+                        onClick={() => handleRestore(family)}
+                        className="w-full sm:w-auto min-h-[44px] flex items-center justify-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl text-xs sm:text-sm font-bold shadow-md shadow-emerald-500/15 transition-all duration-200 active:scale-95"
+                      >
+                        <RotateCcw className="w-4 h-4 shrink-0" />
+                        <span>{language === 'hi' ? 'रिकॉर्ड वापस लाएं' : 'Restore Record'}</span>
+                      </button>
 
-                    <button
-                      type="button"
-                      onClick={() => setFamilyToPermanentlyDelete(family)}
-                      className="w-full sm:w-auto min-h-[44px] flex items-center justify-center gap-2 px-5 py-2.5 bg-red-50 hover:bg-red-100 dark:bg-red-950/40 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800/60 rounded-xl text-xs sm:text-sm font-bold transition-all duration-200 active:scale-95"
-                    >
-                      <Trash2 className="w-4 h-4 shrink-0" />
-                      <span>{language === 'hi' ? 'स्थायी रूप से हटाएं' : 'Permanently Delete'}</span>
-                    </button>
-                  </div>
+                      <button
+                        type="button"
+                        onClick={() => setFamilyToPermanentlyDelete(family)}
+                        className="w-full sm:w-auto min-h-[44px] flex items-center justify-center gap-2 px-5 py-2.5 bg-red-50 hover:bg-red-100 dark:bg-red-950/40 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800/60 rounded-xl text-xs sm:text-sm font-bold transition-all duration-200 active:scale-95"
+                      >
+                        <Trash2 className="w-4 h-4 shrink-0" />
+                        <span>{language === 'hi' ? 'स्थायी रूप से हटाएं' : 'Permanently Delete'}</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             );

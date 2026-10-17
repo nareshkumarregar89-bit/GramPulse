@@ -1,0 +1,73 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Check if caller is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Fixed Super Administrator UID
+    function isSuperAdmin() {
+      return isAuthenticated() && request.auth.uid == 'sJwiZZ6cf8Ze8YAmMMK8T1FwF232';
+    }
+
+    // Retrieve user record from Firestore
+    function getUserRecord() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data;
+    }
+
+    // Check if user is Admin
+    function isAdmin() {
+      return isSuperAdmin() || (
+        isAuthenticated() &&
+        firestore.exists(/databases/(default)/documents/users/$(request.auth.uid)) &&
+        getUserRecord().role == 'admin' &&
+        getUserRecord().status != 'inactive' &&
+        getUserRecord().status != 'deleted'
+      );
+    }
+
+    // Check if user is active
+    function isUserActive() {
+      return isAuthenticated() && (
+        isSuperAdmin() || (
+          firestore.exists(/databases/(default)/documents/users/$(request.auth.uid)) &&
+          getUserRecord().status != 'inactive' &&
+          getUserRecord().status != 'deleted' &&
+          getUserRecord().isDeleted != true
+        )
+      );
+    }
+
+    // Check if user is assigned to villageId
+    function isAuthorizedForVillage(villageId) {
+      let user = getUserRecord();
+      return isAdmin() || (
+        isUserActive() &&
+        user.assignmentStatus == 'Assigned' && (
+          (user.assignedVillageIds is list && villageId in user.assignedVillageIds) ||
+          (user.assignedVillageId != null && user.assignedVillageId == villageId)
+        )
+      );
+    }
+
+    // Village survey photos & document attachments
+    match /villages/{villageId}/{allPaths=**} {
+      allow read: if isUserActive() && isAuthorizedForVillage(villageId);
+      allow write: if isUserActive() && isAuthorizedForVillage(villageId);
+    }
+
+    // General user profile photos
+    match /users/{userId}/{allPaths=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+    }
+
+    // Default fallback
+    match /{allPaths=**} {
+      allow read, write: if isAdmin();
+    }
+  }
+}

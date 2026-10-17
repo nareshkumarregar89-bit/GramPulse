@@ -9,7 +9,7 @@ export function Search() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { families, villages, mohallas, castes, deleteFamily, darkMode } = useData();
-  const { isAdmin, assignedVillages } = useAuth();
+  const { isAdmin, assignedVillages, isReadOnly } = useAuth();
   const { addToast } = useToast();
   const [query, setQuery] = useState('');
   const [filters, setFilters] = useState({
@@ -216,20 +216,24 @@ export function Search() {
                 >
                   <Eye className="w-4 h-4" />
                 </button>
-                <button
-                  onClick={() => navigate(`/survey/${family.id}`)}
-                  className={`p-2 rounded-lg transition-colors ${darkMode ? 'hover:bg-gray-800 text-gray-300' : 'hover:bg-gray-100 text-gray-600'}`}
-                  title="Edit"
-                >
-                  <Edit className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => handleDelete(family.id)}
-                  className="p-2 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                  title="Delete"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                {!isReadOnly && (
+                  <>
+                    <button
+                      onClick={() => navigate(`/survey/${family.id}`)}
+                      className={`p-2 rounded-lg transition-colors ${darkMode ? 'hover:bg-gray-800 text-gray-300' : 'hover:bg-gray-100 text-gray-600'}`}
+                      title="Edit"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(family.id)}
+                      className="p-2 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                      title="Delete"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           </div>
