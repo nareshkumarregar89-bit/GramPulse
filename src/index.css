@@ -35,6 +35,33 @@ body {
   scrollbar-width: none;
 }
 
+/* Touch-friendly horizontal preview scroll */
+.preview-scroll-container {
+  overflow-x: auto;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x pan-y;
+}
+
+.preview-scroll-container::-webkit-scrollbar {
+  height: 6px;
+  width: 6px;
+}
+
+.preview-scroll-container::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 9999px;
+}
+
+.preview-scroll-container::-webkit-scrollbar-thumb {
+  background: rgba(99, 102, 241, 0.4);
+  border-radius: 9999px;
+}
+
+.preview-scroll-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(99, 102, 241, 0.7);
+}
+
 /* Screen Mode: Hide print-only components */
 @media screen {
   .print-only,
