@@ -15,6 +15,7 @@ import {
 import { useData } from '../contexts/DataContext';
 import { useAuth } from '../contexts/AuthContext';
 import { PrintDataModal } from '../components/PrintDataModal';
+import { PrintDocument } from '../components/PrintDocument';
 
 export function FamilyProfile() {
   const { id } = useParams();
