@@ -36,6 +36,7 @@ import { ExcelImportModal } from '../components/ExcelImportModal';
 import { TiltCard } from '../components/TiltCard';
 import { AnimatedCounter } from '../components/AnimatedCounter';
 import { EmptyState3D } from '../components/EmptyState3D';
+import { getUniqueAssignedVillageNames } from '../utils/villageUtils';
 
 export function AdminPanel() {
   const navigate = useNavigate();
@@ -947,22 +948,25 @@ export function AdminPanel() {
                         <span className="text-gray-500 italic text-[10px]">
                           {language === 'hi' ? 'सभी गाँव (Global Access)' : 'All Villages'}
                         </span>
-                      ) : (user.assignedVillages && user.assignedVillages.length > 0) ? (
-                        <div className="flex flex-wrap gap-1">
-                          {user.assignedVillages.map(v => (
-                            <span 
-                              key={v}
-                              className="text-[9px] px-1.5 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-semibold"
-                            >
-                              {v}
-                            </span>
-                          ))}
-                        </div>
-                      ) : (
-                        <span className="text-amber-500 italic text-[10px]">
-                          {language === 'hi' ? 'कोई गाँव नहीं' : 'None'}
-                        </span>
-                      )}
+                      ) : (() => {
+                        const uniqueVillages = getUniqueAssignedVillageNames(user, activeVillageRecords, language);
+                        return uniqueVillages.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {uniqueVillages.map(v => (
+                              <span 
+                                key={v}
+                                className="text-[9px] px-1.5 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-semibold"
+                              >
+                                {v}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-amber-500 italic text-[10px]">
+                            {language === 'hi' ? 'कोई गाँव नहीं' : 'None'}
+                          </span>
+                        );
+                      })()}
                     </div>
                   </div>
 

@@ -20,7 +20,7 @@ import {
 } from 'firebase/firestore';
 import { initializeApp, getApps } from 'firebase/app';
 import { auth, db } from '../firebase';
-import { resolveVillageId, deriveAssignedVillageIds, getVillageDisplayName } from '../utils/villageUtils';
+import { resolveVillageId, deriveAssignedVillageIds, getVillageDisplayName, getUniqueAssignedVillageNames } from '../utils/villageUtils';
 
 const AuthContext = createContext();
 
@@ -554,9 +554,13 @@ export function AuthProvider({ children }) {
     };
   };
 
-  const assignedVillages = (userProfile?.assignedVillages && userProfile.assignedVillages.length > 0)
+  const rawAssignedVillages = (userProfile?.assignedVillages && userProfile.assignedVillages.length > 0)
     ? userProfile.assignedVillages
     : (userProfile?.assignedVillage ? [userProfile.assignedVillage] : []);
+
+  const assignedVillages = (userProfile?.role !== 'admin' && rawAssignedVillages.length > 0)
+    ? getUniqueAssignedVillageNames(userProfile, [], 'en')
+    : [];
 
   const assignedVillageIds = (userProfile?.assignedVillageIds && userProfile.assignedVillageIds.length > 0)
     ? userProfile.assignedVillageIds
@@ -572,6 +576,7 @@ export function AuthProvider({ children }) {
     isAdmin: userRole === 'admin',
     isSurveyor: userRole === 'surveyor',
     assignedVillages,
+    assignedVillageVariants: rawAssignedVillages,
     assignedVillageIds,
     isReadOnly,
     login,

@@ -1,15 +1,16 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Search as SearchIcon, Eye, Edit, Trash2, Users, Building2 } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
+import { getUniqueAssignedVillageNames, isFamilyInVillageRecord } from '../utils/villageUtils';
 
 export function Search() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { families, villages, mohallas, castes, deleteFamily, darkMode } = useData();
-  const { isAdmin, assignedVillages, isReadOnly } = useAuth();
+  const { families, villages, mohallas, castes, deleteFamily, darkMode, activeVillageRecords = [], language } = useData();
+  const { isAdmin, assignedVillages, userProfile, isReadOnly } = useAuth();
   const { addToast } = useToast();
   const [query, setQuery] = useState('');
   const [filters, setFilters] = useState({
@@ -18,6 +19,12 @@ export function Search() {
     caste: searchParams.get('caste') || '',
     category: ''
   });
+
+  const availableVillages = useMemo(() => {
+    if (isAdmin) return villages;
+    const uniqueAssigned = getUniqueAssignedVillageNames(userProfile || assignedVillages, activeVillageRecords, language);
+    return uniqueAssigned.length > 0 ? uniqueAssigned : villages;
+  }, [isAdmin, userProfile, assignedVillages, activeVillageRecords, language, villages]);
 
   const filteredFamilies = families.filter(family => {
     const matchesQuery = query === '' || (
@@ -39,7 +46,7 @@ export function Search() {
       )
     );
 
-    const matchesVillage = filters.village === '' || family.village === filters.village;
+    const matchesVillage = filters.village === '' || isFamilyInVillageRecord(family, filters.village, activeVillageRecords);
     const matchesMohalla = filters.mohalla === '' || family.mohalla === filters.mohalla;
     const matchesCaste = filters.caste === '' || family.caste === filters.caste;
     const matchesCategory = filters.category === '' || family.category === filters.category;
@@ -95,8 +102,8 @@ export function Search() {
                 }
               `}
             >
-              <option value="">All Villages</option>
-              {(isAdmin ? villages : (assignedVillages?.length > 0 ? assignedVillages : villages)).map(v => (
+              <option value="">{language === 'hi' ? 'सभी गाँव' : 'All Villages'}</option>
+              {availableVillages.map(v => (
                 <option key={v} value={v}>{v}</option>
               ))}
             </select>

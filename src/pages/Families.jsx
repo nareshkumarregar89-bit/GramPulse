@@ -21,6 +21,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { ExcelImportModal } from '../components/ExcelImportModal';
 import { PrintDataModal } from '../components/PrintDataModal';
 import { PrintDocument } from '../components/PrintDocument';
+import { getUniqueAssignedVillageNames } from '../utils/villageUtils';
 
 export function Families() {
   const navigate = useNavigate();
@@ -42,6 +43,11 @@ export function Families() {
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [activePrintTarget, setActivePrintTarget] = useState(null); // null = all / selected
   const [selectedIds, setSelectedIds] = useState(new Set());
+
+  const displayVillageNames = useMemo(() => {
+    const list = getUniqueAssignedVillageNames(userProfile || assignedVillages, villages, language);
+    return list.join(', ');
+  }, [userProfile, assignedVillages, villages, language]);
 
   const filteredFamilies = families.filter(family =>
     (family.familyHeadNameEnglish && family.familyHeadNameEnglish.toLowerCase().includes(searchQuery.toLowerCase())) ||
@@ -138,7 +144,7 @@ export function Families() {
               <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
                 <Building2 className="w-4 h-4 text-indigo-500 shrink-0" />
                 <span className="text-xs md:text-sm font-semibold">
-                  {assignedVillages?.join(', ') || (language === 'hi' ? 'समोड़ी' : 'Samodi')}
+                  {displayVillageNames || (language === 'hi' ? 'समोड़ी' : 'Samodi')}
                 </span>
               </div>
             )}

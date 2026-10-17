@@ -28,6 +28,7 @@ import { useData } from '../contexts/DataContext';
 import { useAuth } from '../contexts/AuthContext';
 import { ExcelImportModal } from '../components/ExcelImportModal';
 import { PrintDataModal } from '../components/PrintDataModal';
+import { getUniqueAssignedVillageNames } from '../utils/villageUtils';
 import { TiltCard } from '../components/TiltCard';
 import { AnimatedCounter } from '../components/AnimatedCounter';
 import { IsometricVillageHero } from '../components/IsometricVillageHero';
@@ -54,6 +55,12 @@ export function Dashboard() {
   const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [copiedUid, setCopiedUid] = useState(false);
+
+  // Deduplicated assigned village display
+  const displayVillageNames = useMemo(() => {
+    const list = getUniqueAssignedVillageNames(userProfile || assignedVillages, activeVillageRecords, language);
+    return list.join(', ');
+  }, [userProfile, assignedVillages, activeVillageRecords, language]);
 
   // Check if current user is an unassigned surveyor
   const isUnassigned = !isAdmin && (!assignedVillages || assignedVillages.length === 0);
@@ -225,8 +232,8 @@ export function Dashboard() {
           <Activity className="w-4 h-4 text-emerald-500 animate-pulse" />
           <span className="text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300">
             {language === 'hi' 
-              ? (!isAdmin ? `सर्वेयर डैशबोर्ड • आवंटित गाँव का साझा डेटा (${assignedVillages?.join(', ') || 'समोड़ी'})` : `व्यवस्थापक डेटा अवलोकन • समोड़ी एवं कोटड़ी`)
-              : (!isAdmin ? `Surveyor Dashboard • Village-Wide Shared Access (${assignedVillages?.join(', ') || 'Samodi'})` : `Administrative Overview • Live Village Records`)}
+              ? (!isAdmin ? `सर्वेयर डैशबोर्ड • आवंटित गाँव का साझा डेटा (${displayVillageNames || 'समोड़ी'})` : `व्यवस्थापक डेटा अवलोकन • समोड़ी एवं कोटड़ी`)
+              : (!isAdmin ? `Surveyor Dashboard • Village-Wide Shared Access (${displayVillageNames || 'Samodi'})` : `Administrative Overview • Live Village Records`)}
           </span>
         </div>
 
@@ -254,9 +261,7 @@ export function Dashboard() {
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
               <Building2 className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
               <span className="text-xs font-semibold">
-                {assignedVillages && assignedVillages.length > 0
-                  ? assignedVillages.join(', ')
-                  : (language === 'hi' ? 'प्रतीक्षारत' : 'Unassigned')}
+                {displayVillageNames || (language === 'hi' ? 'प्रतीक्षारत' : 'Unassigned')}
               </span>
             </div>
           )}

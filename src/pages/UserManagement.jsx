@@ -18,13 +18,15 @@ import {
   CheckCircle2,
   Clock
 } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth, enrichVillageVariants } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
 import { useToast } from '../contexts/ToastContext';
 import { 
+  resolveVillageId,
   deriveAssignedVillageIds, 
   isFamilyInVillageRecord, 
-  getVillageDisplayName 
+  getVillageDisplayName,
+  getUniqueAssignedVillageNames
 } from '../utils/villageUtils';
 
 export function UserManagement() {
@@ -129,10 +131,18 @@ export function UserManagement() {
 
     try {
       setIsSubmitting(true);
+      const vIds = deriveAssignedVillageIds(editingUser, activeVillageRecords);
+      const cleanAssignedVillages = enrichVillageVariants(
+        getUniqueAssignedVillageNames(editingUser, activeVillageRecords, 'hi'),
+        vIds
+      );
       await updateUserByAdmin(editingUser.uid, {
         name: editingUser.name,
         role: editingUser.role,
-        assignedVillages: editingUser.assignedVillages || [],
+        assignedVillages: cleanAssignedVillages,
+        assignedVillageIds: vIds,
+        assignedVillageId: vIds[0] || null,
+        assignmentStatus: (vIds.length > 0 || editingUser.role === 'admin') ? 'Assigned' : 'Unassigned',
         status: editingUser.status || 'active',
         isReadOnly: Boolean(editingUser.isReadOnly)
       });
@@ -1043,7 +1053,9 @@ export function UserManagement() {
                     darkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'
                   }`}>
                     {villages.map(village => {
-                      const isChecked = (editingUser.assignedVillages || []).includes(village);
+                      const targetVid = resolveVillageId(village, activeVillageRecords);
+                      const editingUserVids = deriveAssignedVillageIds(editingUser, activeVillageRecords);
+                      const isChecked = editingUserVids.includes(targetVid);
                       return (
                         <label key={village} className="flex items-center gap-2 cursor-pointer select-none">
                           <input
@@ -1051,9 +1063,15 @@ export function UserManagement() {
                             checked={isChecked}
                             onChange={(e) => {
                               if (e.target.checked) {
-                                setEditingUser(p => ({ ...p, assignedVillages: [...(p.assignedVillages || []), village] }));
+                                setEditingUser(p => ({
+                                  ...p,
+                                  assignedVillages: [...(p.assignedVillages || []).filter(v => resolveVillageId(v, activeVillageRecords) !== targetVid), village]
+                                }));
                               } else {
-                                setEditingUser(p => ({ ...p, assignedVillages: (p.assignedVillages || []).filter(v => v !== village) }));
+                                setEditingUser(p => ({
+                                  ...p,
+                                  assignedVillages: (p.assignedVillages || []).filter(v => resolveVillageId(v, activeVillageRecords) !== targetVid)
+                                }));
                               }
                             }}
                             className="rounded text-green-600 focus:ring-green-500"

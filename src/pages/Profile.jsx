@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   User,
@@ -20,10 +20,11 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
 import { useToast } from '../contexts/ToastContext';
+import { getUniqueAssignedVillageNames } from '../utils/villageUtils';
 
 export function Profile() {
   const { currentUser, userProfile, isAdmin, logout } = useAuth();
-  const { darkMode, setDarkMode, language, setLanguage, allFamilies, families } = useData();
+  const { darkMode, setDarkMode, language, setLanguage, allFamilies, families, activeVillageRecords = [] } = useData();
   const { addToast } = useToast();
   const navigate = useNavigate();
 
@@ -62,7 +63,9 @@ export function Profile() {
   const roleLabel = role === 'admin' 
     ? (language === 'hi' ? 'सुपर एडमिन (Super Admin)' : 'Super Admin')
     : (language === 'hi' ? 'गाँव सर्वेयर (Village Surveyor)' : 'Village Surveyor');
-  const assignedVillages = userProfile?.assignedVillages || (userProfile?.assignedVillage ? [userProfile?.assignedVillage] : []);
+  const uniqueAssignedVillages = useMemo(() => {
+    return getUniqueAssignedVillageNames(userProfile, activeVillageRecords, language);
+  }, [userProfile, activeVillageRecords, language]);
   const initial = name.charAt(0).toUpperCase();
 
   // Statistics (Village-wide shared access & personal submissions)
@@ -262,9 +265,9 @@ export function Profile() {
                       : '🌐 Full global access across all villages, Excel import & Surveyor management.'}
                   </p>
                 </div>
-              ) : assignedVillages.length > 0 ? (
+              ) : uniqueAssignedVillages.length > 0 ? (
                 <div className="flex flex-wrap gap-2">
-                  {assignedVillages.map((village) => (
+                  {uniqueAssignedVillages.map((village) => (
                     <span 
                       key={village}
                       className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60"

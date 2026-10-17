@@ -208,3 +208,42 @@ export const deriveAssignedVillageIds = (userProfile, villageRecords = []) => {
 
   return Array.from(ids);
 };
+
+/**
+ * Deduplicates and formats assigned villages into a clean list of unique display names.
+ * Ensures a surveyor assigned to Samodi only sees "समोड़ी (Samodi)" or "Samodi" once,
+ * never repeating multiple internal variants or aliases.
+ *
+ * @param {object|Array} userProfileOrVillages - user profile object or raw array of village strings
+ * @param {Array} villageRecords - active village records from DataContext
+ * @param {string} language - 'en' | 'hi'
+ * @returns {string[]} Array of clean, unique display names
+ */
+export const getUniqueAssignedVillageNames = (userProfileOrVillages, villageRecords = [], language = 'en') => {
+  if (!userProfileOrVillages) return [];
+
+  let vIds = [];
+  if (typeof userProfileOrVillages === 'object' && !Array.isArray(userProfileOrVillages)) {
+    if (userProfileOrVillages.role === 'admin') {
+      return [language === 'hi' ? 'सभी गाँव (ग्लोबल एक्सेस)' : 'All Villages (Global Access)'];
+    }
+    vIds = deriveAssignedVillageIds(userProfileOrVillages, villageRecords);
+  } else if (Array.isArray(userProfileOrVillages)) {
+    const setIds = new Set();
+    userProfileOrVillages.forEach(item => {
+      const id = resolveVillageId(item, villageRecords);
+      if (id) setIds.add(id);
+    });
+    vIds = Array.from(setIds);
+  }
+
+  if (vIds.length === 0) return [];
+
+  const uniqueNames = new Set();
+  vIds.forEach(id => {
+    const displayName = getVillageDisplayName(id, villageRecords, language);
+    if (displayName) uniqueNames.add(displayName);
+  });
+
+  return Array.from(uniqueNames);
+};
