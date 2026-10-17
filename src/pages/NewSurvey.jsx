@@ -166,11 +166,11 @@ export function NewSurvey() {
   };
 
   const handleSubmit = () => {
-    if (isReadOnly) {
+    if (isReadOnly && !id) {
       addToast(
         language === 'hi' 
-          ? 'केवल अवलोकन अधिकार: आप डेटा सबमिट या संशोधित नहीं कर सकते।' 
-          : 'View-only access: you cannot submit or edit records.', 
+          ? 'आपके खाते को नया सर्वे जोड़ने की अनुमति नहीं है। आप केवल मौजूदा रिकॉर्ड संपादित कर सकते हैं।' 
+          : 'Your account cannot create new surveys. You can only edit existing records.', 
         'error'
       );
       return;
@@ -556,7 +556,7 @@ export function NewSurvey() {
     }
   };
 
-  if (isReadOnly) {
+  if (isReadOnly && !id) {
     return (
       <div className="max-w-2xl mx-auto py-8">
         <div className={`p-8 rounded-3xl border text-center space-y-5 shadow-3d-card ${
@@ -571,15 +571,15 @@ export function NewSurvey() {
           <div className="space-y-2">
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30">
               <AlertCircle className="w-3.5 h-3.5" />
-              <span>{language === 'hi' ? 'केवल अवलोकन अधिकार' : 'View-Only Permissions'}</span>
+              <span>{language === 'hi' ? 'केवल संपादन अधिकार (नया सर्वे वर्जित)' : 'Edit-Only Permissions (Creation Restricted)'}</span>
             </span>
             <h2 className="text-xl sm:text-2xl font-bold">
-              {language === 'hi' ? 'सर्वेक्षण संशोधन प्रतिबंधित' : 'Survey Modification Restricted'}
+              {language === 'hi' ? 'नया सर्वेक्षण जोड़ना प्रतिबंधित' : 'New Survey Creation Restricted'}
             </h2>
             <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 max-w-md mx-auto leading-relaxed">
               {language === 'hi'
-                ? 'आपके खाते को केवल अवलोकन (Read-Only) अधिकार प्राप्त हैं। आप अपने आवंटित गाँव के सभी सर्वे रिकॉर्ड्स देख और प्रिंट कर सकते हैं, परंतु नया सर्वे जोड़ने या संपादित करने की अनुमति नहीं है।'
-                : 'Your account has view-only permissions for your assigned village. You can view, search, and print all village survey records, but creating or editing surveys is restricted.'}
+                ? 'आपके खाते को नया सर्वे जोड़ने की अनुमति नहीं है। आप आवंटित गाँव के रिकॉर्ड्स देख व संपादित कर सकते हैं।'
+                : 'Your account cannot create new surveys. You can view and edit existing survey records for your assigned village.'}
             </p>
           </div>
 

@@ -743,14 +743,8 @@ export function DataProvider({ children }) {
     return prepared;
   };
 
-  // Update a family
+  // Update a family (Allowed for assigned surveyors & admins, even in safe view/edit mode)
   const updateFamily = async (id, updatedFamily) => {
-    if (isReadOnly) {
-      throw new Error(language === 'hi' 
-        ? 'आपके खाते को केवल देखने (View-Only) की अनुमति है।'
-        : 'Your account has view-only permissions. You cannot edit records.');
-    }
-
     if (!isAdmin) {
       const vIds = (assignedVillageIds && assignedVillageIds.length > 0)
         ? assignedVillageIds
@@ -790,12 +784,12 @@ export function DataProvider({ children }) {
     }
   };
 
-  // Delete a family (move to deletedFamilies)
+  // Delete a family (move to deletedFamilies - restricted for view-only / safe mode)
   const deleteFamily = async (id) => {
     if (isReadOnly) {
       throw new Error(language === 'hi' 
-        ? 'आपके खाते को केवल देखने (View-Only) की अनुमति है।'
-        : 'Your account has view-only permissions. You cannot delete records.');
+        ? 'आपके खाते को रिकॉर्ड हटाने (Delete) की अनुमति नहीं है। केवल व्यवस्थापक ही रिकॉर्ड हटा सकते हैं।'
+        : 'Your account does not have permission to delete records. Only administrators can delete records.');
     }
 
     if (!isAdmin) {

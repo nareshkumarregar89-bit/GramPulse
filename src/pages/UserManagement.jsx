@@ -484,8 +484,8 @@ export function UserManagement() {
                         <span>{user.role === 'admin' ? (language === 'hi' ? 'एडमिन' : 'Admin') : (language === 'hi' ? 'सर्वेयर' : 'Surveyor')}</span>
                       </span>
                       {user.isReadOnly && (
-                        <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-gray-500/10 text-gray-600 dark:text-gray-400 border border-gray-500/20">
-                          {language === 'hi' ? 'केवल दृश्य' : 'View-Only'}
+                        <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
+                          {language === 'hi' ? 'संपादन अनुमत (नो डिलीट)' : 'Edit/No Delete'}
                         </span>
                       )}
                     </td>
@@ -683,8 +683,8 @@ export function UserManagement() {
                       <Shield className="w-3 h-3" />
                       <span>{user.role === 'admin' ? (language === 'hi' ? 'एडमिन' : 'Admin') : (language === 'hi' ? 'सर्वेयर' : 'Surveyor')}</span>
                       {user.isReadOnly && (
-                        <span className="text-[9px] px-1 py-0.2 rounded bg-gray-500/20 text-gray-700 dark:text-gray-300">
-                          {language === 'hi' ? 'दृश्य' : 'View'}
+                        <span className="text-[9px] px-1 py-0.2 rounded bg-amber-500/20 text-amber-700 dark:text-amber-300">
+                          {language === 'hi' ? 'नो डिलीट' : 'No Delete'}
                         </span>
                       )}
                     </span>
@@ -938,12 +938,12 @@ export function UserManagement() {
                   />
                   <div>
                     <span className="text-xs font-bold text-gray-900 dark:text-white block">
-                      {language === 'hi' ? 'केवल देखने की अनुमति (View-Only / Read-Only)' : 'View-Only Permissions (Read-Only)'}
+                      {language === 'hi' ? 'सुरक्षित मोड: संपादन अनुमत, डिलीट वर्जित (Can Edit, Cannot Delete)' : 'Safe Mode: Can Edit, Cannot Delete'}
                     </span>
                     <span className="text-[11px] text-gray-500 dark:text-gray-400 block mt-0.5">
                       {language === 'hi' 
-                        ? 'सर्वेयर आवंटित गाँव के सभी रिकॉर्ड्स देख सकेगा, किंतु रिकॉर्ड जोड़ना, संपादन या विलोपन वर्जित रहेगा।'
-                        : 'Surveyor can view all records for assigned villages but cannot add, edit, or delete records.'}
+                        ? 'सर्वेयर आवंटित गाँव के सभी रिकॉर्ड्स देख व संपादित कर सकेगा, किंतु रिकॉर्ड डिलीट करना पूर्णतः प्रतिबंधित रहेगा।'
+                        : 'Surveyor can view and edit records for assigned villages, but deleting records is strictly prohibited.'}
                     </span>
                   </div>
                 </label>
@@ -1076,12 +1076,12 @@ export function UserManagement() {
                   />
                   <div>
                     <span className="text-xs font-bold text-gray-900 dark:text-white block">
-                      {language === 'hi' ? 'केवल देखने की अनुमति (View-Only / Read-Only)' : 'View-Only Permissions (Read-Only)'}
+                      {language === 'hi' ? 'सुरक्षित मोड: संपादन अनुमत, डिलीट वर्जित (Can Edit, Cannot Delete)' : 'Safe Mode: Can Edit, Cannot Delete'}
                     </span>
                     <span className="text-[11px] text-gray-500 dark:text-gray-400 block mt-0.5">
                       {language === 'hi' 
-                        ? 'सर्वेयर आवंटित गाँव के सभी रिकॉर्ड्स देख सकेगा, किंतु रिकॉर्ड जोड़ना, संपादन या विलोपन वर्जित रहेगा।'
-                        : 'Surveyor can view all records for assigned villages but cannot add, edit, or delete records.'}
+                        ? 'सर्वेयर आवंटित गाँव के सभी रिकॉर्ड्स देख व संपादित कर सकेगा, किंतु रिकॉर्ड डिलीट करना पूर्णतः प्रतिबंधित रहेगा।'
+                        : 'Surveyor can view and edit records for assigned villages, but deleting records is strictly prohibited.'}
                     </span>
                   </div>
                 </label>

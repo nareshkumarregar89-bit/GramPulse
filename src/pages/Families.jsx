@@ -353,23 +353,21 @@ export function Families() {
                         >
                           <Printer className="w-4 h-4" />
                         </button>
+                        <button
+                          onClick={() => navigate(`/survey/${family.id}`)}
+                          className={`p-2 rounded-lg transition-colors ${darkMode ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-100 text-gray-600'}`}
+                          title={language === 'hi' ? 'संपादित करें' : 'Edit'}
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
                         {!isReadOnly && (
-                          <>
-                            <button
-                              onClick={() => navigate(`/survey/${family.id}`)}
-                              className={`p-2 rounded-lg transition-colors ${darkMode ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-100 text-gray-600'}`}
-                              title={language === 'hi' ? 'संपादित करें' : 'Edit'}
-                            >
-                              <Edit className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => handleDelete(family.id)}
-                              className="p-2 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                              title={language === 'hi' ? 'हटाएं' : 'Delete'}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </>
+                          <button
+                            onClick={() => handleDelete(family.id)}
+                            className="p-2 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                            title={language === 'hi' ? 'हटाएं' : 'Delete'}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         )}
                       </div>
                     </td>
@@ -450,14 +448,12 @@ export function Families() {
                   >
                     {language === 'hi' ? 'देखें' : 'View'}
                   </button>
-                  {!isReadOnly && (
-                    <button
-                      onClick={() => navigate(`/survey/${family.id}`)}
-                      className={`flex-1 py-2 rounded-xl text-xs font-semibold border ${darkMode ? 'border-gray-700 text-white' : 'border-gray-200 text-gray-900'}`}
-                    >
-                      {language === 'hi' ? 'संपादित करें' : 'Edit'}
-                    </button>
-                  )}
+                  <button
+                    onClick={() => navigate(`/survey/${family.id}`)}
+                    className={`flex-1 py-2 rounded-xl text-xs font-semibold border ${darkMode ? 'border-gray-700 text-white' : 'border-gray-200 text-gray-900'}`}
+                  >
+                    {language === 'hi' ? 'संपादित करें' : 'Edit'}
+                  </button>
                   {/* Direct Print Button Mobile */}
                   <button
                     onClick={() => handleOpenPrintModal(family)}

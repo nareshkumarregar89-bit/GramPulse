@@ -177,18 +177,17 @@ service cloud.firestore {
       );
 
       // Update access:
-      // - Admins or assigned surveyors for that village (unless view-only)
+      // - Admins or assigned surveyors for that village (surveyors can edit family records in safe view/edit mode)
       allow update: if isUserActive() && (
         isAdmin() || (
           isAssignedSurveyor() && 
-          canSurveyorWrite() &&
           isSurveyorForVillage(resource.data.village, resource.data.villageId) &&
           isSurveyorForVillage(request.resource.data.village, request.resource.data.villageId)
         )
       );
 
       // Delete access:
-      // - Soft-delete or permanent deletion allowed only by Admin or assigned surveyor (unless view-only)
+      // - Soft-delete or permanent deletion allowed only by Admin or assigned surveyor with full write permissions (view-only / safe-mode surveyors CANNOT delete)
       allow delete: if isAdmin() || (
         isAssignedSurveyor() && 
         canSurveyorWrite() &&

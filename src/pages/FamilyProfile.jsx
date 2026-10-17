@@ -67,15 +67,13 @@ export function FamilyProfile() {
           >
             <Printer className="w-5 h-5" />
           </button>
-          {!isReadOnly && (
-            <button
-              onClick={() => navigate(`/survey/${family.id}`)}
-              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-500 to-indigo-600 text-white rounded-xl font-medium"
-            >
-              <Edit className="w-4 h-4" />
-              Edit
-            </button>
-          )}
+          <button
+            onClick={() => navigate(`/survey/${family.id}`)}
+            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-500 to-indigo-600 text-white rounded-xl font-medium"
+          >
+            <Edit className="w-4 h-4" />
+            {language === 'hi' ? 'संपादित करें' : 'Edit'}
+          </button>
         </div>
       </div>
 
