@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Eye,
   Edit,
@@ -27,6 +27,7 @@ import { getUniqueAssignedVillageNames } from '../utils/villageUtils';
 
 export function Families() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { 
     families, 
     deleteFamily, 
@@ -35,6 +36,8 @@ export function Families() {
     t, 
     language, 
     villages, 
+    mohallas,
+    castes,
     selectedVillage, 
     setSelectedVillage 
   } = useData();
@@ -42,25 +45,54 @@ export function Families() {
   const { addToast } = useToast();
   
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedMohalla, setSelectedMohalla] = useState(searchParams.get('mohalla') || 'all');
+  const [selectedCaste, setSelectedCaste] = useState(searchParams.get('caste') || 'all');
   const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [activePrintTarget, setActivePrintTarget] = useState(null); // null = all / selected
   const [selectedIds, setSelectedIds] = useState(new Set());
 
+  useEffect(() => {
+    const m = searchParams.get('mohalla');
+    const c = searchParams.get('caste');
+    const q = searchParams.get('q');
+    if (m) setSelectedMohalla(m);
+    if (c) setSelectedCaste(c);
+    if (q) setSearchQuery(q);
+  }, [searchParams]);
+
   const displayVillageNames = getUniqueAssignedVillageNames(userProfile || assignedVillages, villages, language).join(', ');
 
   const filteredFamilies = families.filter(family => {
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase().trim();
-    return (
-      (family.familyHeadName && family.familyHeadName.toLowerCase().includes(q)) ||
-      (family.familyHeadNameEnglish && family.familyHeadNameEnglish.toLowerCase().includes(q)) ||
-      (family.familyHeadNameHindi && family.familyHeadNameHindi.includes(searchQuery)) ||
-      (family.mobile && family.mobile.includes(searchQuery)) ||
-      (family.mohalla && family.mohalla.toLowerCase().includes(q)) ||
-      (family.caste && family.caste.toLowerCase().includes(q)) ||
-      (family.village && family.village.toLowerCase().includes(q))
-    );
+    // 1. Text Search Filter (Name, Mobile, Mohalla, Caste, Village)
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      const matchesSearch = 
+        (family.familyHeadName && family.familyHeadName.toLowerCase().includes(q)) ||
+        (family.familyHeadNameEnglish && family.familyHeadNameEnglish.toLowerCase().includes(q)) ||
+        (family.familyHeadNameHindi && family.familyHeadNameHindi.includes(searchQuery.trim())) ||
+        (family.mobile && family.mobile.includes(searchQuery.trim())) ||
+        (family.mohalla && family.mohalla.toLowerCase().includes(q)) ||
+        (family.caste && family.caste.toLowerCase().includes(q)) ||
+        (family.village && family.village.toLowerCase().includes(q));
+      if (!matchesSearch) return false;
+    }
+
+    // 2. Mohalla Filter
+    if (selectedMohalla && selectedMohalla !== 'all') {
+      if (!family.mohalla || family.mohalla.trim().toLowerCase() !== selectedMohalla.trim().toLowerCase()) {
+        return false;
+      }
+    }
+
+    // 3. Caste Filter
+    if (selectedCaste && selectedCaste !== 'all') {
+      if (!family.caste || family.caste.trim().toLowerCase() !== selectedCaste.trim().toLowerCase()) {
+        return false;
+      }
+    }
+
+    return true;
   });
 
   const handleDelete = (id) => {
@@ -177,6 +209,54 @@ export function Families() {
                   {displayVillageNames || (language === 'hi' ? 'समोड़ी' : 'Samodi')}
                 </span>
               </div>
+            )}
+
+            {/* Mohalla Filter */}
+            <select
+              value={selectedMohalla}
+              onChange={(e) => setSelectedMohalla(e.target.value)}
+              className={`text-xs md:text-sm px-3 py-2 rounded-xl border outline-none font-medium transition-colors ${
+                darkMode
+                  ? 'bg-gray-800 border-gray-700 text-white'
+                  : 'bg-white border-gray-200 text-gray-900'
+              }`}
+            >
+              <option value="all">{language === 'hi' ? 'सभी मोहल्ले' : 'All Mohallas'}</option>
+              {mohallas.map(m => (
+                <option key={m} value={m}>{m}</option>
+              ))}
+            </select>
+
+            {/* Caste Filter */}
+            <select
+              value={selectedCaste}
+              onChange={(e) => setSelectedCaste(e.target.value)}
+              className={`text-xs md:text-sm px-3 py-2 rounded-xl border outline-none font-medium transition-colors ${
+                darkMode
+                  ? 'bg-gray-800 border-gray-700 text-white'
+                  : 'bg-white border-gray-200 text-gray-900'
+              }`}
+            >
+              <option value="all">{language === 'hi' ? 'सभी जातियां' : 'All Castes'}</option>
+              {castes.map(c => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+
+            {/* Clear Filters Button */}
+            {(selectedMohalla !== 'all' || selectedCaste !== 'all' || searchQuery.trim()) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedMohalla('all');
+                  setSelectedCaste('all');
+                  setSearchQuery('');
+                }}
+                className="text-xs px-2.5 py-1.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 font-bold transition-all border border-red-500/20"
+                title={language === 'hi' ? 'फ़िल्टर हटाएं' : 'Clear Filters'}
+              >
+                ✕ {language === 'hi' ? 'हटाएं' : 'Clear'}
+              </button>
             )}
 
             {/* Search box */}

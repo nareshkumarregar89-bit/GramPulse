@@ -23,30 +23,49 @@ export function Search() {
   const uniqueAssigned = getUniqueAssignedVillageNames(userProfile || assignedVillages, activeVillageRecords, language);
   const availableVillages = isAdmin ? villages : (uniqueAssigned.length > 0 ? uniqueAssigned : villages);
 
+  useEffect(() => {
+    const v = searchParams.get('village');
+    const m = searchParams.get('mohalla');
+    const c = searchParams.get('caste');
+    const q = searchParams.get('q');
+    if (v !== null || m !== null || c !== null) {
+      setFilters(prev => ({
+        ...prev,
+        village: v !== null ? v : prev.village,
+        mohalla: m !== null ? m : prev.mohalla,
+        caste: c !== null ? c : prev.caste
+      }));
+    }
+    if (q !== null) setQuery(q);
+  }, [searchParams]);
+
   const filteredFamilies = families.filter(family => {
-    const matchesQuery = query === '' || (
-      (family.familyHeadName && family.familyHeadName.toLowerCase().includes(query.toLowerCase())) ||
-      (family.familyHeadNameEnglish && family.familyHeadNameEnglish.toLowerCase().includes(query.toLowerCase())) ||
-      (family.familyHeadNameHindi && family.familyHeadNameHindi.includes(query)) ||
-      (family.mobile && family.mobile.includes(query)) ||
-      family.aadhaarNumber?.includes(query) ||
-      family.janAadhaarNumber?.includes(query) ||
-      family.rationCardNumber?.includes(query) ||
-      family.bankName?.toLowerCase().includes(query.toLowerCase()) ||
-      family.accountNumber?.includes(query) ||
-      (family.village && family.village.toLowerCase().includes(query.toLowerCase())) ||
-      (family.id && family.id.toLowerCase().includes(query.toLowerCase())) ||
-      family.members.some(m => 
-        (m.name && m.name.toLowerCase().includes(query.toLowerCase())) ||
-        (m.nameEnglish && m.nameEnglish.toLowerCase().includes(query.toLowerCase())) ||
-        (m.nameHindi && m.nameHindi.includes(query))
+    const q = query.trim().toLowerCase();
+    const matchesQuery = !q || (
+      (family.familyHeadName && family.familyHeadName.toLowerCase().includes(q)) ||
+      (family.familyHeadNameEnglish && family.familyHeadNameEnglish.toLowerCase().includes(q)) ||
+      (family.familyHeadNameHindi && family.familyHeadNameHindi.includes(query.trim())) ||
+      (family.mobile && family.mobile.includes(query.trim())) ||
+      (family.mohalla && family.mohalla.toLowerCase().includes(q)) ||
+      (family.caste && family.caste.toLowerCase().includes(q)) ||
+      family.aadhaarNumber?.includes(query.trim()) ||
+      family.janAadhaarNumber?.includes(query.trim()) ||
+      family.rationCardNumber?.includes(query.trim()) ||
+      family.bankName?.toLowerCase().includes(q) ||
+      family.accountNumber?.includes(query.trim()) ||
+      (family.village && family.village.toLowerCase().includes(q)) ||
+      (family.id && family.id.toLowerCase().includes(q)) ||
+      family.members?.some(m => 
+        (m.name && m.name.toLowerCase().includes(q)) ||
+        (m.nameEnglish && m.nameEnglish.toLowerCase().includes(q)) ||
+        (m.nameHindi && m.nameHindi.includes(query.trim()))
       )
     );
 
-    const matchesVillage = filters.village === '' || isFamilyInVillageRecord(family, filters.village, activeVillageRecords);
-    const matchesMohalla = filters.mohalla === '' || family.mohalla === filters.mohalla;
-    const matchesCaste = filters.caste === '' || family.caste === filters.caste;
-    const matchesCategory = filters.category === '' || family.category === filters.category;
+    const matchesVillage = !filters.village || filters.village === 'all' || isFamilyInVillageRecord(family, filters.village, activeVillageRecords);
+    const matchesMohalla = !filters.mohalla || filters.mohalla === 'all' || (family.mohalla && family.mohalla.trim().toLowerCase() === filters.mohalla.trim().toLowerCase());
+    const matchesCaste = !filters.caste || filters.caste === 'all' || (family.caste && family.caste.trim().toLowerCase() === filters.caste.trim().toLowerCase());
+    const matchesCategory = !filters.category || filters.category === 'all' || (family.category && family.category.trim().toLowerCase() === filters.category.trim().toLowerCase());
 
     return matchesQuery && matchesVillage && matchesMohalla && matchesCaste && matchesCategory;
   });

@@ -22,6 +22,7 @@ export const resolveVillageId = (villageIdentifier, villageRecords = []) => {
   const str = String(villageIdentifier).trim();
   if (!str) return null;
   const lower = str.toLowerCase();
+  if (lower === 'all' || str === 'सभी गाँव' || lower === 'all villages') return 'all';
 
   // 1. Direct match with standard production villages
   // Samodi checks
@@ -105,8 +106,8 @@ export const getVillageDisplayName = (villageIdentifier, villageRecords = [], la
  * @returns {boolean}
  */
 export const isFamilyInVillageRecord = (family, villageIdentifier, villageRecords = []) => {
-  if (!family || !villageIdentifier) return false;
-  if (villageIdentifier === 'all') return true;
+  if (!family) return false;
+  if (!villageIdentifier || villageIdentifier === 'all' || villageIdentifier === 'All Villages' || villageIdentifier === 'सभी गाँव') return true;
 
   const targetId = resolveVillageId(villageIdentifier, villageRecords);
   const familyVillageId = family.villageId

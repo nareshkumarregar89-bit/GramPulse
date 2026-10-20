@@ -1,9 +1,6 @@
 export const mohallas = [
   "Regar Mohalla",
-  "Ahir Mohalla",
-  "Bheel Mohalla",
-  "Gurjar Mohalla",
+  "Bhil Basti",
   "Sansi Basti",
-  "Balai Mohalla",
-  "Bhil Basti"
+  "Balai Mohalla"
 ];

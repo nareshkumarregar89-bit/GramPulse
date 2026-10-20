@@ -11,8 +11,8 @@ export function Mohallas() {
   const [newMohalla, setNewMohalla] = useState('');
 
   const mohallaStats = mohallas.map(mohalla => {
-    const mohallaFamilies = families.filter(f => f.mohalla === mohalla);
-    const population = mohallaFamilies.reduce((sum, f) => sum + f.members.length, 0);
+    const mohallaFamilies = families.filter(f => f.mohalla && f.mohalla.trim().toLowerCase() === mohalla.trim().toLowerCase());
+    const population = mohallaFamilies.reduce((sum, f) => sum + (f.members?.length || 0), 0);
     return {
       name: mohalla,
       families: mohallaFamilies.length,

@@ -11,8 +11,8 @@ export function Castes() {
   const [newCaste, setNewCaste] = useState('');
 
   const casteStats = castes.map(caste => {
-    const casteFamilies = families.filter(f => f.caste === caste);
-    const population = casteFamilies.reduce((sum, f) => sum + f.members.length, 0);
+    const casteFamilies = families.filter(f => f.caste && f.caste.trim().toLowerCase() === caste.trim().toLowerCase());
+    const population = casteFamilies.reduce((sum, f) => sum + (f.members?.length || 0), 0);
     return {
       name: caste,
       families: casteFamilies.length,

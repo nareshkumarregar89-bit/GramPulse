@@ -102,14 +102,19 @@ export function DataProvider({ children }) {
     }
   }, [darkMode]);
 
-  // Cleanup stale default mohallas from localStorage cache
+  // Cleanup stale default/unnecessary mohallas and castes from localStorage cache
   useEffect(() => {
-    if (Array.isArray(mohallas) && mohallas.some(m => 
-      m === 'Shastri Nagar' || m === 'Gandhi Colony' || m === 'Nehru Basti' || m === 'Indira Nagar'
-    )) {
-      setMohallas(initialMohallas);
+    const staleMohallasList = ['Shastri Nagar', 'Gandhi Colony', 'Nehru Basti', 'Indira Nagar', 'Ahir Mohalla', 'Bheel Mohalla', 'Gurjar Mohalla'];
+    if (Array.isArray(mohallas) && mohallas.some(m => staleMohallasList.includes(m))) {
+      const cleaned = mohallas.filter(m => !staleMohallasList.includes(m));
+      setMohallas(cleaned.length > 0 ? Array.from(new Set([...initialMohallas, ...cleaned])) : initialMohallas);
     }
-  }, [mohallas, setMohallas]);
+    const staleCastesList = ['Brahmin', 'Rajput', 'Jat', 'Gurjar', 'Meena', 'Bishnoi', 'Jain', 'Scheduled Caste', 'Scheduled Tribe', 'Other Backward Classes', 'General'];
+    if (Array.isArray(castes) && castes.some(c => staleCastesList.includes(c))) {
+      const cleaned = castes.filter(c => !staleCastesList.includes(c));
+      setCastes(cleaned.length > 0 ? Array.from(new Set([...initialCastes, ...cleaned])) : initialCastes);
+    }
+  }, [mohallas, castes, setMohallas, setCastes]);
 
   // Purge stale cached family records when assignment changes or user logs out
   const activeVillageIdsKey = useMemo(() => {
@@ -520,23 +525,38 @@ export function DataProvider({ children }) {
     try {
       const configDocRef = doc(db, 'settings', 'villageConfig');
       const unsubscribe = onSnapshot(configDocRef, async (docSnap) => {
+        const staleMohallasList = ['Shastri Nagar', 'Gandhi Colony', 'Nehru Basti', 'Indira Nagar', 'Ahir Mohalla', 'Bheel Mohalla', 'Gurjar Mohalla'];
+        const staleCastesList = ['Brahmin', 'Rajput', 'Jat', 'Gurjar', 'Meena', 'Bishnoi', 'Jain', 'Scheduled Caste', 'Scheduled Tribe', 'Other Backward Classes', 'General'];
+
         if (docSnap.exists()) {
           const data = docSnap.data();
-          const hasOldDefaults = Array.isArray(data.mohallas) && data.mohallas.some(m => 
-            m === 'Shastri Nagar' || m === 'Gandhi Colony' || m === 'Nehru Basti' || m === 'Indira Nagar'
-          );
-          if (hasOldDefaults && isAdmin) {
+          const hasStaleM = Array.isArray(data.mohallas) && data.mohallas.some(m => staleMohallasList.includes(m));
+          const hasStaleC = Array.isArray(data.castes) && data.castes.some(c => staleCastesList.includes(c));
+
+          if ((hasStaleM || hasStaleC) && isAdmin) {
             try {
-              await setDoc(configDocRef, { mohallas: initialMohallas }, { merge: true });
-              setMohallas(initialMohallas);
+              const cleanM = (data.mohallas || initialMohallas).filter(m => !staleMohallasList.includes(m));
+              const cleanC = (data.castes || initialCastes).filter(c => !staleCastesList.includes(c));
+              const finalM = Array.from(new Set([...initialMohallas, ...cleanM]));
+              const finalC = Array.from(new Set([...initialCastes, ...cleanC]));
+              await setDoc(configDocRef, { mohallas: finalM, castes: finalC }, { merge: true });
+              setMohallas(finalM);
+              setCastes(finalC);
             } catch (e) {
-              console.warn('Updating default mohallas in Firestore failed:', e);
+              console.warn('Updating default mohallas/castes in Firestore failed:', e);
               setMohallas(initialMohallas);
+              setCastes(initialCastes);
             }
-          } else if (data.mohallas && Array.isArray(data.mohallas)) {
-            setMohallas(data.mohallas);
+          } else {
+            if (data.mohallas && Array.isArray(data.mohallas)) {
+              const cleanM = data.mohallas.filter(m => !staleMohallasList.includes(m));
+              setMohallas(cleanM.length > 0 ? cleanM : initialMohallas);
+            }
+            if (data.castes && Array.isArray(data.castes)) {
+              const cleanC = data.castes.filter(c => !staleCastesList.includes(c));
+              setCastes(cleanC.length > 0 ? cleanC : initialCastes);
+            }
           }
-          if (data.castes && Array.isArray(data.castes)) setCastes(data.castes);
         } else if (isAdmin) {
           try {
             await setDoc(configDocRef, {
@@ -544,6 +564,7 @@ export function DataProvider({ children }) {
               castes: initialCastes
             }, { merge: true });
             setMohallas(initialMohallas);
+            setCastes(initialCastes);
           } catch (e) {
             console.warn('Seeding settings failed:', e);
           }
@@ -592,6 +613,44 @@ export function DataProvider({ children }) {
   const normalizedDeletedFamilies = useMemo(() => {
     return (deletedFamilies || []).map(f => normalizeFamily(f, villageRecords));
   }, [deletedFamilies, villageRecords]);
+
+  // Dynamic extraction: Always ensure all mohallas & castes present in uploaded family records are included,
+  // while strictly excluding any old demo placeholders
+  const activeMohallas = useMemo(() => {
+    const staleList = ['Shastri Nagar', 'Gandhi Colony', 'Nehru Basti', 'Indira Nagar', 'Ahir Mohalla', 'Bheel Mohalla', 'Gurjar Mohalla'];
+    const set = new Set(initialMohallas);
+    (allFamilies || []).forEach(f => {
+      if (f.mohalla && typeof f.mohalla === 'string') {
+        const clean = f.mohalla.trim();
+        if (clean && !staleList.includes(clean)) set.add(clean);
+      }
+    });
+    (mohallas || []).forEach(m => {
+      if (m && typeof m === 'string') {
+        const clean = m.trim();
+        if (clean && !staleList.includes(clean)) set.add(clean);
+      }
+    });
+    return Array.from(set);
+  }, [allFamilies, mohallas]);
+
+  const activeCastes = useMemo(() => {
+    const staleList = ['Brahmin', 'Rajput', 'Jat', 'Gurjar', 'Meena', 'Bishnoi', 'Jain', 'Scheduled Caste', 'Scheduled Tribe', 'Other Backward Classes', 'General'];
+    const set = new Set(initialCastes);
+    (allFamilies || []).forEach(f => {
+      if (f.caste && typeof f.caste === 'string') {
+        const clean = f.caste.trim();
+        if (clean && !staleList.includes(clean)) set.add(clean);
+      }
+    });
+    (castes || []).forEach(c => {
+      if (c && typeof c === 'string') {
+        const clean = c.trim();
+        if (clean && !staleList.includes(clean)) set.add(clean);
+      }
+    });
+    return Array.from(set);
+  }, [allFamilies, castes]);
 
   // Helper function to match whether a family belongs to a village identifier (name, Hindi, English, or ID)
   const isFamilyInVillage = useCallback((family, villageIdentifier) => {
@@ -1395,9 +1454,11 @@ export function DataProvider({ children }) {
       deleteVillageRecord,
       addVillage,
       deleteVillage,
-      // Mohallas & Castes
-      mohallas,
-      castes,
+      // Mohallas & Castes (Cleaned & extracted from survey data)
+      mohallas: activeMohallas,
+      castes: activeCastes,
+      activeMohallas,
+      activeCastes,
       darkMode,
       setDarkMode,
       language,
