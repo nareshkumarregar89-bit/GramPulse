@@ -879,11 +879,12 @@ export function DataProvider({ children }) {
     return prepared;
   };
 
-  // 1-Click Load or Restore the canonical 227-family Samodi survey dataset
-  const loadStandard227Families = async () => {
+  // 1-Click Load or Restore the canonical 287-family Samodi survey dataset
+  const loadStandard287Families = async () => {
     return await bulkAddFamilies(surveyData142, { replaceAll: true });
   };
-  const loadStandard142Families = loadStandard227Families;
+  const loadStandard227Families = loadStandard287Families;
+  const loadStandard142Families = loadStandard287Families;
 
   // Update a family (Allowed for assigned surveyors & admins, even in safe view/edit mode)
   const updateFamily = async (id, updatedFamily) => {
@@ -1489,6 +1490,7 @@ export function DataProvider({ children }) {
       bulkAddFamilies,
       loadStandard142Families,
       loadStandard227Families,
+      loadStandard287Families,
       updateFamily,
       deleteFamily,
       restoreFamily,
