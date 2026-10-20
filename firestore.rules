@@ -35,26 +35,27 @@ service cloud.firestore {
 
     // Check if user account is active and not soft-deleted
     function isUserActive() {
+      let user = getUserRecord();
       return isAuthenticated() && (
         isSuperAdmin() || (
           exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-          getUserRecord().status != 'inactive' &&
-          getUserRecord().status != 'deleted' &&
-          getUserRecord().isDeleted != true
+          (!('status' in user) || (user.status != 'inactive' && user.status != 'deleted')) &&
+          (!('isDeleted' in user) || user.isDeleted != true)
         )
       );
     }
 
     // Check if surveyor has been explicitly assigned to at least one village
     function isAssignedSurveyor() {
+      let user = getUserRecord();
       return isUserActive() && (
         isAdmin() || (
           exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
           (
-            (getUserRecord().assignedVillages is list && getUserRecord().assignedVillages.size() > 0) ||
-            (getUserRecord().assignedVillageIds is list && getUserRecord().assignedVillageIds.size() > 0) ||
-            (getUserRecord().assignedVillageId != null && getUserRecord().assignedVillageId != '') ||
-            getUserRecord().assignmentStatus == 'Assigned'
+            ('assignedVillages' in user && user.assignedVillages is list && user.assignedVillages.size() > 0) ||
+            ('assignedVillageIds' in user && user.assignedVillageIds is list && user.assignedVillageIds.size() > 0) ||
+            ('assignedVillageId' in user && user.assignedVillageId != null && user.assignedVillageId != '') ||
+            ('assignmentStatus' in user && user.assignmentStatus == 'Assigned')
           )
         )
       );
@@ -73,12 +74,17 @@ service cloud.firestore {
       let user = getUserRecord();
       return isAdmin() || (
         isAssignedSurveyor() && (
-          (user.assignedVillageIds is list && villageIdVal != null && villageIdVal in user.assignedVillageIds) ||
-          (user.assignedVillageId != null && villageIdVal != null && user.assignedVillageId == villageIdVal) ||
-          (user.assignedVillages is list && villageVal != null && villageVal in user.assignedVillages) ||
-          (user.assignedVillageId != null && villageVal != null && (
+          (('assignedVillageIds' in user) && user.assignedVillageIds is list && villageIdVal != null && villageIdVal in user.assignedVillageIds) ||
+          (('assignedVillageId' in user) && user.assignedVillageId != null && villageIdVal != null && user.assignedVillageId == villageIdVal) ||
+          (('assignedVillages' in user) && user.assignedVillages is list && villageVal != null && villageVal in user.assignedVillages) ||
+          (('assignedVillageId' in user) && user.assignedVillageId != null && villageVal != null && (
             (user.assignedVillageId == 'kotdi' && (villageVal == 'कोटड़ी' || villageVal == 'कोटड़ी' || villageVal == 'Kotdi' || villageVal == 'कोटड़ी (Kotdi)' || villageVal == 'कोटड़ी (Kotdi)')) ||
-            (user.assignedVillageId == 'samodi' && (villageVal == 'समोड़ी' || villageVal == 'समोड़ी' || villageVal == 'Samodi' || villageVal == 'समोड़ी (Samodi)' || villageVal == 'समोड़ी (Samodi)'))
+            (user.assignedVillageId == 'samodi' && (
+              villageVal == 'समौड़ी' || villageVal == 'समौड़ी (Samodi)' ||
+              villageVal == 'समौड़ी' || villageVal == 'समौड़ी (Samodi)' ||
+              villageVal == 'समोड़ी' || villageVal == 'समोड़ी' || villageVal == 'Samodi' || 
+              villageVal == 'समोड़ी (Samodi)' || villageVal == 'समोड़ी (Samodi)'
+            ))
           ))
         )
       );

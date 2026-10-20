@@ -28,12 +28,36 @@ const AuthContext = createContext();
 export const enrichVillageVariants = (villageList = [], vIds = []) => {
   const set = new Set();
   (villageList || []).forEach(v => {
-    if (v && typeof v === 'string') set.add(v.trim());
+    if (v && typeof v === 'string') {
+      const cleanV = v.trim();
+      set.add(cleanV);
+      if (cleanV.includes('Samodi') || cleanV.includes('समो') || cleanV.includes('समौ')) {
+        set.add('समौड़ी (Samodi)');
+        set.add('समौड़ी (Samodi)');
+        set.add('समौड़ी');
+        set.add('समौड़ी');
+        set.add('समोड़ी (Samodi)');
+        set.add('समोड़ी (Samodi)');
+        set.add('Samodi');
+        set.add('समोड़ी');
+        set.add('समोड़ी');
+      } else if (cleanV.includes('Kotdi') || cleanV.includes('कोट')) {
+        set.add('कोटड़ी (Kotdi)');
+        set.add('कोटड़ी (Kotdi)');
+        set.add('Kotdi');
+        set.add('कोटड़ी');
+        set.add('कोटड़ी');
+      }
+    }
   });
   (vIds || []).forEach(id => {
     if (id && typeof id === 'string') {
       const clean = id.trim().toLowerCase();
       if (clean === 'samodi') {
+        set.add('समौड़ी (Samodi)');
+        set.add('समौड़ी (Samodi)');
+        set.add('समौड़ी');
+        set.add('समौड़ी');
         set.add('समोड़ी (Samodi)');
         set.add('समोड़ी (Samodi)');
         set.add('Samodi');

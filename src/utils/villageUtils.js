@@ -158,6 +158,7 @@ export const isRecordVillageUncertain = (family, villageRecords = []) => {
 
   // If village text clearly matches Samodi or Kotdi or known records
   if (
+    famV.includes('समौड़ी') || famV.includes('समौड़ी') ||
     famV.includes('समोड़ी') || famV.includes('समोड़ी') || famV.toLowerCase().includes('samodi') ||
     famV.includes('कोटड़ी') || famV.includes('कोटड़ी') || famV.toLowerCase().includes('kotdi')
   ) {

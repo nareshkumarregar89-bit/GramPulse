@@ -49,14 +49,19 @@ export function Families() {
 
   const displayVillageNames = getUniqueAssignedVillageNames(userProfile || assignedVillages, villages, language).join(', ');
 
-  const filteredFamilies = families.filter(family =>
-    (family.familyHeadNameEnglish && family.familyHeadNameEnglish.toLowerCase().includes(searchQuery.toLowerCase())) ||
-    (family.familyHeadNameHindi && family.familyHeadNameHindi.includes(searchQuery)) ||
-    (family.mobile && family.mobile.includes(searchQuery)) ||
-    (family.mohalla && family.mohalla.toLowerCase().includes(searchQuery.toLowerCase())) ||
-    (family.caste && family.caste.toLowerCase().includes(searchQuery.toLowerCase())) ||
-    (family.village && family.village.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+  const filteredFamilies = families.filter(family => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase().trim();
+    return (
+      (family.familyHeadName && family.familyHeadName.toLowerCase().includes(q)) ||
+      (family.familyHeadNameEnglish && family.familyHeadNameEnglish.toLowerCase().includes(q)) ||
+      (family.familyHeadNameHindi && family.familyHeadNameHindi.includes(searchQuery)) ||
+      (family.mobile && family.mobile.includes(searchQuery)) ||
+      (family.mohalla && family.mohalla.toLowerCase().includes(q)) ||
+      (family.caste && family.caste.toLowerCase().includes(q)) ||
+      (family.village && family.village.toLowerCase().includes(q))
+    );
+  });
 
   const handleDelete = (id) => {
     if (confirm(language === 'hi' ? 'क्या आप निश्चित रूप से इस परिवार को हटाना चाहते हैं?' : 'Are you sure you want to delete this family?')) {
