@@ -29,7 +29,9 @@ export const resolveVillageId = (villageIdentifier, villageRecords = []) => {
     lower === 'samodi' ||
     lower.includes('samodi') ||
     str.includes('समोड़ी') ||
-    str.includes('समोड़ी')
+    str.includes('समोड़ी') ||
+    str.includes('समौड़ी') ||
+    str.includes('समौड़ी')
   ) {
     return 'samodi';
   }

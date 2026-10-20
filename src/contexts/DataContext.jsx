@@ -16,6 +16,7 @@ import { initialFamilies } from '../data/villageData';
 import { mohallas as initialMohallas } from '../data/mohallas';
 import { castes as initialCastes } from '../data/castes';
 import { initialVillages, villages as fallbackVillages } from '../data/villages';
+import surveyData142 from '../data/surveyData142.json';
 import { translations } from '../utils/translations';
 import { useAuth } from './AuthContext';
 import { 
@@ -662,8 +663,10 @@ export function DataProvider({ children }) {
     return newFamily;
   };
 
-  // Bulk add families (for Excel import)
-  const bulkAddFamilies = async (importedFamilies) => {
+  // Bulk add families (for Excel import or standard dataset reload)
+  const bulkAddFamilies = async (importedFamilies, options = {}) => {
+    const { replaceAll = false } = options;
+
     if (isReadOnly) {
       throw new Error(language === 'hi' 
         ? 'आपके खाते को केवल देखने (View-Only) की अनुमति है। आप रिकॉर्ड आयात नहीं कर सकते।'
@@ -680,7 +683,15 @@ export function DataProvider({ children }) {
         : 'You cannot import surveys because no village has been assigned to your account.');
     }
 
-    let currentMax = (rawFamilies || []).reduce((max, f) => {
+    if (replaceAll) {
+      try {
+        await clearAllSurveyData();
+      } catch (wipeErr) {
+        console.warn('Wipe prior to replaceAll encountered warning (proceeding with clean overwrite):', wipeErr);
+      }
+    }
+
+    let currentMax = replaceAll ? 0 : (rawFamilies || []).reduce((max, f) => {
       const match = f.id && String(f.id).match(/FAM-(\d+)/);
       return match ? Math.max(max, parseInt(match[1], 10)) : max;
     }, 0);
@@ -688,8 +699,11 @@ export function DataProvider({ children }) {
     const defaultVillage = activeVillages[0] || 'समोड़ी (Samodi)';
 
     const prepared = importedFamilies.map((fam) => {
-      currentMax += 1;
-      const famId = fam.id || `FAM-${String(currentMax).padStart(4, '0')}`;
+      let famId = fam.id;
+      if (!famId) {
+        currentMax += 1;
+        famId = `FAM-${String(currentMax).padStart(4, '0')}`;
+      }
       let targetVillage = fam.village;
       if (!isAdmin) {
         if (vIds && vIds.length > 0) {
@@ -720,6 +734,7 @@ export function DataProvider({ children }) {
     });
 
     setRawFamilies(prev => {
+      if (replaceAll) return prepared;
       const existingIds = new Set(prepared.map(p => p.id));
       return [...prev.filter(f => !existingIds.has(f.id)), ...prepared];
     });
@@ -741,6 +756,11 @@ export function DataProvider({ children }) {
     }
 
     return prepared;
+  };
+
+  // 1-Click Load or Restore the canonical 142-family Samodi survey dataset
+  const loadStandard142Families = async () => {
+    return await bulkAddFamilies(surveyData142, { replaceAll: true });
   };
 
   // Update a family (Allowed for assigned surveyors & admins, even in safe view/edit mode)
@@ -1343,6 +1363,7 @@ export function DataProvider({ children }) {
       isFirebaseConnected,
       addFamily,
       bulkAddFamilies,
+      loadStandard142Families,
       updateFamily,
       deleteFamily,
       restoreFamily,

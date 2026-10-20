@@ -11,18 +11,24 @@ import {
   FileCheck,
   RefreshCw,
   Eye,
-  Filter
+  Filter,
+  FileCode,
+  ClipboardPaste,
+  FileText
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useData } from '../contexts/DataContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
+import { resolveVillageId, getVillageDisplayName } from '../utils/villageUtils';
 
 export function ExcelImportModal({ isOpen, onClose }) {
-  const { darkMode, language, villages, allFamilies, bulkAddFamilies } = useData();
-  const { currentUser, userProfile, isAdmin, assignedVillages } = useAuth();
+  const { darkMode, language, villages, allFamilies, bulkAddFamilies, villageRecords } = useData();
+  const { currentUser, userProfile, isAdmin, assignedVillages, assignedVillageIds } = useAuth();
   const { addToast } = useToast();
 
+  const [importMode, setImportMode] = useState('file'); // 'file' or 'paste'
+  const [jsonPasteText, setJsonPasteText] = useState('');
   const [file, setFile] = useState(null);
   const [parsedRows, setParsedRows] = useState([]);
   const [validRows, setValidRows] = useState([]);
@@ -32,6 +38,8 @@ export function ExcelImportModal({ isOpen, onClose }) {
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [replaceAllExisting, setReplaceAllExisting] = useState(false);
+  const [rawLoadedRows, setRawLoadedRows] = useState(null);
   const [fileError, setFileError] = useState('');
   const [importSummary, setImportSummary] = useState(null);
   const fileInputRef = useRef(null);
@@ -119,7 +127,86 @@ export function ExcelImportModal({ isOpen, onClose }) {
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Sample_Families');
     XLSX.writeFile(workbook, 'VillagePulse_Village_Survey_Sample_Template.xlsx');
-    addToast(language === 'hi' ? 'सैंपल टेम्पलेट डाउनलोड हो गया!' : 'Sample template downloaded!', 'success');
+    addToast(language === 'hi' ? 'सैंपल एक्सेल टेम्पलेट डाउनलोड हो गया!' : 'Sample Excel template downloaded!', 'success');
+  };
+
+  // Generate & Download sample JSON template
+  const handleDownloadJsonTemplate = () => {
+    const sampleVillage = allowedVillages[0] || 'समोड़ी (Samodi)';
+    const sampleData = {
+      village: sampleVillage,
+      surveyDate: new Date().toISOString().split('T')[0],
+      families: [
+        {
+          id: 'FAM-0001',
+          village: sampleVillage,
+          familyHeadName: 'रामलाल शर्मा',
+          fatherName: 'कन्हैयालाल शर्मा',
+          mobile: '9876543210',
+          alternateMobile: '9876543211',
+          mohalla: 'Regar Mohalla',
+          caste: 'Brahmin',
+          category: 'APL',
+          houseNumber: 'H-101',
+          address: 'वार्ड नं. 4, मुख्य बाजार के पास',
+          pinCode: '302001',
+          aadhaarNumber: '123456789012',
+          janAadhaarNumber: '9876543210',
+          rationCardNumber: 'RC-100234',
+          bankName: 'SBI',
+          accountNumber: '1029384756',
+          ifsc: 'SBIN0001234',
+          houseType: 'Pucca',
+          electricityConnection: true,
+          waterTapConnection: true,
+          toiletAvailable: true,
+          gasConnection: true,
+          members: [
+            {
+              id: 1,
+              name: 'रामलाल शर्मा',
+              age: 45,
+              gender: 'Male',
+              relation: 'Head',
+              occupation: 'Agriculture',
+              education: 'Secondary',
+              maritalStatus: 'Married'
+            },
+            {
+              id: 2,
+              name: 'सुनीता देवी',
+              age: 40,
+              gender: 'Female',
+              relation: 'Wife',
+              occupation: 'Homemaker',
+              education: 'Primary',
+              maritalStatus: 'Married'
+            },
+            {
+              id: 3,
+              name: 'रोहित शर्मा',
+              age: 18,
+              gender: 'Male',
+              relation: 'Son',
+              occupation: 'Student',
+              education: 'Senior Secondary',
+              maritalStatus: 'Single'
+            }
+          ]
+        }
+      ]
+    };
+
+    const blob = new Blob([JSON.stringify(sampleData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'VillagePulse_Survey_Sample_Template.json';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    addToast(language === 'hi' ? 'सैंपल JSON टेम्पलेट डाउनलोड हो गया!' : 'Sample JSON template downloaded!', 'success');
   };
 
   // Helper to extract value flexibly from multiple possible column names
@@ -132,250 +219,292 @@ export function ExcelImportModal({ isOpen, onClose }) {
     return '';
   };
 
-  // Handle Excel upload, row-by-row validation, and duplicate detection
-  const handleFileChange = (e) => {
-    const selected = e.target.files?.[0];
-    if (!selected) return;
+  // Helper to extract boolean flexibly from string/boolean representations
+  const getBool = (row, keys) => {
+    for (const key of keys) {
+      if (row[key] !== undefined && row[key] !== null) {
+        if (typeof row[key] === 'boolean') return row[key];
+        const s = String(row[key]).trim().toLowerCase();
+        if (['true', 'yes', 'y', '1', 'हाँ', 'हां'].includes(s)) return true;
+        if (['false', 'no', 'n', '0', 'नहीं'].includes(s)) return false;
+      }
+    }
+    return false;
+  };
 
-    // File validation: Size <= 10MB
-    if (selected.size > 10 * 1024 * 1024) {
-      setFileError(language === 'hi' ? 'फाइल का आकार 10MB से कम होना चाहिए।' : 'File size exceeds 10MB limit.');
+  // Shared row processing, validation and duplicate detection
+  const processRows = (rawJson, isReplace = replaceAllExisting) => {
+    setRawLoadedRows(rawJson);
+    if (!rawJson || rawJson.length === 0) {
+      setFileError(language === 'hi' ? 'फाइल में कोई रिकॉर्ड नहीं मिला।' : 'File contains no records.');
+      setIsProcessing(false);
       return;
     }
 
-    const ext = selected.name.split('.').pop()?.toLowerCase();
-    if (!['xlsx', 'xls', 'csv'].includes(ext)) {
-      setFileError(language === 'hi' ? 'केवल .xlsx, .xls या .csv फाइल समर्थित है।' : 'Only .xlsx, .xls, or .csv files are supported.');
-      return;
-    }
+    const valid = [];
+    const duplicates = [];
+    const errors = [];
+    const allParsed = [];
 
-    setFile(selected);
-    setIsProcessing(true);
-    setFileError('');
-    setImportSummary(null);
+    // In-file duplicate tracking sets
+    const seenMobilesInFile = new Set();
+    const seenAadhaarsInFile = new Set();
 
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      try {
-        const data = new Uint8Array(evt.target?.result);
-        const workbook = XLSX.read(data, { type: 'array' });
-        const sheetName = workbook.SheetNames[0];
-        const sheet = workbook.Sheets[sheetName];
-        const rawJson = XLSX.utils.sheet_to_json(sheet);
+    // Database lookup sets for duplicate detection
+    const existingMobilesMap = new Map();
+    const existingAadhaarsMap = new Map();
+    (allFamilies || []).forEach(f => {
+      if (f.mobile) existingMobilesMap.set(String(f.mobile).trim(), f);
+      if (f.aadhaarNumber) existingAadhaarsMap.set(String(f.aadhaarNumber).trim(), f);
+    });
 
-        if (!rawJson || rawJson.length === 0) {
-          setFileError(language === 'hi' ? 'एक्सेल शीट खाली है या डेटा नहीं मिला।' : 'Excel sheet is empty or contains no records.');
-          setIsProcessing(false);
-          return;
+    rawJson.forEach((row, idx) => {
+      const rowNumber = row.rowNumber || idx + 1;
+      const rowErrors = [];
+
+      const headName = getValue(row, [
+        'Family Head Name', 'Head Name', 'Family Head', 'Name', 
+        'मुखिया का नाम', 'परिवार मुखिया का नाम', 'नाम', 
+        'familyHeadName', 'familyHeadNameHindi', 'familyHeadNameEnglish', 'headName', 'head_name'
+      ]);
+      const fatherName = getValue(row, [
+        'Father or Husband Name', 'Father Name', 'Husband Name', 
+        'पिता/पति का नाम', 'पिता का नाम', 
+        'fatherName', 'fatherNameHindi', 'fatherNameEnglish', 'father_name', 'fatherOrHusbandName'
+      ]);
+      let mobile = getValue(row, [
+        'Mobile Number', 'Mobile', 'Phone', 
+        'मोबाइल', 'मोबाइल नंबर', 
+        'mobile', 'mobileNumber', 'phone'
+      ]);
+      const altMobile = getValue(row, [
+        'Alternate Mobile', 'Alt Mobile', 
+        'वैकल्पिक मोबाइल', 
+        'alternateMobile', 'altMobile'
+      ]);
+      let village = getValue(row, [
+        'Village Name', 'Village', 
+        'गाँव का नाम', 'गाँव', 
+        'village', 'villageName'
+      ]);
+      const mohalla = getValue(row, ['Mohalla', 'मोहल्ला', 'Colony', 'mohalla']) || 'Shastri Nagar';
+      const caste = getValue(row, ['Caste', 'जाति', 'caste']) || 'General';
+      const category = getValue(row, ['Category', 'वर्ग', 'BPL/APL', 'category']) || 'APL';
+      const houseNumber = getValue(row, ['House Number', 'मकान नंबर', 'House No', 'houseNumber', 'houseNo']);
+      const address = getValue(row, ['Address', 'पता', 'address']);
+      const pinCode = getValue(row, ['PIN Code', 'Pin Code', 'पिन कोड', 'Pincode', 'pinCode', 'pincode']) || '302001';
+      const aadhaarNumber = getValue(row, ['Aadhaar Number', 'Aadhaar', 'आधार नंबर', 'आधार', 'aadhaarNumber', 'aadhaar']);
+      const janAadhaarNumber = getValue(row, ['Jan Aadhaar Number', 'Jan Aadhaar', 'जन आधार', 'janAadhaarNumber', 'janAadhaar']);
+      const rationCardNumber = getValue(row, ['Ration Card Number', 'Ration Card', 'राशन कार्ड', 'rationCardNumber', 'rationCard']);
+      const voterId = getValue(row, ['Voter ID', 'Voter Id', 'वोटर आईडी', 'voterId', 'voterID']);
+      const bankName = getValue(row, ['Bank Name', 'बैंक नाम', 'Bank', 'bankName']);
+      const branch = getValue(row, ['Branch', 'ब्रांच', 'शाखा', 'branch']);
+      const accountHolder = getValue(row, ['Account Holder', 'खाताधारक', 'accountHolder']) || headName;
+      const accountNumber = getValue(row, ['Account Number', 'खाता संख्या', 'accountNumber']);
+      const ifsc = getValue(row, ['IFSC Code', 'IFSC', 'आईएफएससी', 'ifsc']);
+      const houseType = getValue(row, ['House Type', 'मकान प्रकार', 'houseType']) || 'Pucca';
+      const electricity = getBool(row, ['Electricity Connection', 'Electricity', 'बिजली', 'electricityConnection', 'electricity']);
+      const water = getBool(row, ['Water Tap Connection', 'Water', 'पानी', 'waterTapConnection', 'water']);
+      const toilet = getBool(row, ['Toilet Available', 'Toilet', 'शौचालय', 'toiletAvailable', 'toilet']);
+      const gas = getBool(row, ['Gas Connection', 'Gas', 'गैस', 'gasConnection', 'gas']);
+
+      // Clean up mobile
+      mobile = String(mobile).replace(/[^0-9]/g, '');
+      if (mobile.startsWith('91') && mobile.length === 12) mobile = mobile.slice(2);
+      if (mobile.startsWith('0') && mobile.length === 11) mobile = mobile.slice(1);
+      if (mobile.length > 10 && (mobile.startsWith('7') || mobile.startsWith('8') || mobile.startsWith('9'))) {
+        mobile = mobile.slice(0, 10);
+      }
+
+      // 1. Validation: Family Head Name
+      if (!headName || headName.trim().length < 2) {
+        rowErrors.push(language === 'hi' ? 'मुखिया का नाम अनिवार्य है' : 'Family Head Name is required');
+      }
+
+      // 2. Validation: Mobile Number (Optional for government survey records, but if present must be digits)
+      if (mobile && mobile.length > 0 && mobile.length < 10) {
+        rowErrors.push(language === 'hi' ? `अमान्य मोबाइल नंबर (${mobile}): कम से कम 10 अंक होने चाहिए` : `Invalid mobile (${mobile}): must be 10 digits`);
+      }
+
+      // 3. Validation: Village-wise permissions & existence
+      if (!village) {
+        if (!isAdmin && assignedVillages.length > 0) {
+          village = assignedVillages[0];
+        } else if (allowedVillages.length > 0) {
+          village = allowedVillages[0];
+        } else {
+          rowErrors.push(language === 'hi' ? 'गाँव का नाम खाली है' : 'Village Name is missing');
         }
+      }
 
-        const valid = [];
-        const duplicates = [];
-        const errors = [];
-        const allParsed = [];
+      if (village) {
+        const resolvedVId = resolveVillageId(village, villageRecords);
+        if (!isAdmin) {
+          // Regular user MUST only import into their assigned villages!
+          const userVIds = (assignedVillageIds && assignedVillageIds.length > 0)
+            ? assignedVillageIds
+            : assignedVillages.map(v => resolveVillageId(v, villageRecords)).filter(Boolean);
+          const isAssigned = (resolvedVId && userVIds.includes(resolvedVId)) || assignedVillages.some(v => v.toLowerCase() === village.toLowerCase());
+          if (!isAssigned) {
+            rowErrors.push(
+              language === 'hi'
+                ? `गाँव "${village}" आपके आवंटित गाँवों (${assignedVillages.join(', ')}) में शामिल नहीं है`
+                : `Village "${village}" is not in your assigned villages (${assignedVillages.join(', ')})`
+            );
+          }
+        } else {
+          // Admin must provide an existing system village
+          const exists = resolvedVId || villages.some(v => v.toLowerCase() === village.toLowerCase());
+          if (!exists) {
+            rowErrors.push(
+              language === 'hi'
+                ? `गाँव "${village}" पंजीकृत गाँवों में नहीं मिला`
+                : `Village "${village}" is not a registered village`
+            );
+          }
+        }
+      }
 
-        // In-file duplicate tracking sets
-        const seenMobilesInFile = new Set();
-        const seenAadhaarsInFile = new Set();
-
-        // Database lookup sets for duplicate detection
-        const existingMobilesMap = new Map();
-        const existingAadhaarsMap = new Map();
-        (allFamilies || []).forEach(f => {
-          if (f.mobile) existingMobilesMap.set(String(f.mobile).trim(), f);
-          if (f.aadhaarNumber) existingAadhaarsMap.set(String(f.aadhaarNumber).trim(), f);
+      // Parse nested members array or flat columns (Member 1 ... Member 10)
+      let members = [];
+      if (Array.isArray(row.members) && row.members.length > 0) {
+        members = row.members.map((m, mIdx) => {
+          const mName = m.name || m.nameEnglish || m.nameHindi || m['Member Name'] || m['सदस्य नाम'] || (mIdx === 0 ? headName : `सदस्य ${mIdx + 1}`);
+          const mAge = parseInt(m.age || m['Age'] || m['आयु'] || '30', 10);
+          const mGender = String(m.gender || m['Gender'] || m['लिंग'] || 'Male');
+          const mRelation = m.relation || m['Relation'] || m['संबंध'] || (mIdx === 0 ? 'Head' : 'Member');
+          return {
+            id: m.id || mIdx + 1,
+            name: mName,
+            nameEnglish: m.nameEnglish || mName,
+            nameHindi: m.nameHindi || mName,
+            age: isNaN(mAge) ? 30 : mAge,
+            gender: mGender.toLowerCase().startsWith('f') || mGender.includes('महिला') || mGender.includes('स्त्री') ? 'Female' : 'Male',
+            relation: mRelation,
+            aadhaarNumber: m.aadhaarNumber || m.aadhaar || '',
+            occupation: m.occupation || '',
+            education: m.education || '',
+            maritalStatus: m.maritalStatus || 'Married'
+          };
         });
-
-        rawJson.forEach((row, idx) => {
-          const rowNumber = idx + 2; // Excel row numbering starts at 2 (row 1 is header)
-          const rowErrors = [];
-
-          const headName = getValue(row, ['Family Head Name', 'Head Name', 'Family Head', 'Name', 'मुखिया का नाम', 'परिवार मुखिया का नाम', 'नाम']);
-          const fatherName = getValue(row, ['Father or Husband Name', 'Father Name', 'Husband Name', 'पिता/पति का नाम', 'पिता का नाम']);
-          let mobile = getValue(row, ['Mobile Number', 'Mobile', 'Phone', 'मोबाइल', 'मोबाइल नंबर']);
-          const altMobile = getValue(row, ['Alternate Mobile', 'Alt Mobile', 'वैकल्पिक मोबाइल']);
-          let village = getValue(row, ['Village Name', 'Village', 'गाँव का नाम', 'गाँव']);
-          const mohalla = getValue(row, ['Mohalla', 'मोहल्ला', 'Colony']) || 'Shastri Nagar';
-          const caste = getValue(row, ['Caste', 'जाति']) || 'General';
-          const category = getValue(row, ['Category', 'वर्ग', 'BPL/APL']) || 'APL';
-          const houseNumber = getValue(row, ['House Number', 'मकान नंबर', 'House No']);
-          const address = getValue(row, ['Address', 'पता']);
-          const pinCode = getValue(row, ['PIN Code', 'Pin Code', 'पिन कोड', 'Pincode']) || '302001';
-          const aadhaarNumber = getValue(row, ['Aadhaar Number', 'Aadhaar', 'आधार नंबर', 'आधार']);
-          const janAadhaarNumber = getValue(row, ['Jan Aadhaar Number', 'Jan Aadhaar', 'जन आधार']);
-          const rationCardNumber = getValue(row, ['Ration Card Number', 'Ration Card', 'राशन कार्ड']);
-          const voterId = getValue(row, ['Voter ID', 'Voter Id', 'वोटर आईडी']);
-          const bankName = getValue(row, ['Bank Name', 'बैंक नाम', 'Bank']);
-          const branch = getValue(row, ['Branch', 'ब्रांच', 'शाखा']);
-          const accountHolder = getValue(row, ['Account Holder', 'खाताधारक']) || headName;
-          const accountNumber = getValue(row, ['Account Number', 'खाता संख्या']);
-          const ifsc = getValue(row, ['IFSC Code', 'IFSC', 'आईएफएससी']);
-          const houseType = getValue(row, ['House Type', 'मकान प्रकार']) || 'Pucca';
-          const electricity = String(getValue(row, ['Electricity Connection', 'Electricity', 'बिजली'])).toLowerCase().includes('y');
-          const water = String(getValue(row, ['Water Tap Connection', 'Water', 'पानी'])).toLowerCase().includes('y');
-          const toilet = String(getValue(row, ['Toilet Available', 'Toilet', 'शौचालय'])).toLowerCase().includes('y');
-          const gas = String(getValue(row, ['Gas Connection', 'Gas', 'गैस'])).toLowerCase().includes('y');
-
-          // Clean up mobile
-          mobile = mobile.replace(/[^0-9]/g, '');
-
-          // 1. Validation: Family Head Name
-          if (!headName || headName.trim().length < 2) {
-            rowErrors.push(language === 'hi' ? 'मुखिया का नाम अनिवार्य है' : 'Family Head Name is required');
-          }
-
-          // 2. Validation: Mobile Number (10 digits)
-          if (!mobile || mobile.length !== 10) {
-            rowErrors.push(language === 'hi' ? `अमान्य मोबाइल नंबर (${mobile || 'खाली'}): 10 अंक होने चाहिए` : `Invalid mobile (${mobile || 'empty'}): must be 10 digits`);
-          }
-
-          // 3. Validation: Village-wise permissions & existence
-          if (!village) {
-            if (!isAdmin && assignedVillages.length > 0) {
-              village = assignedVillages[0];
-            } else if (allowedVillages.length > 0) {
-              village = allowedVillages[0];
-            } else {
-              rowErrors.push(language === 'hi' ? 'गाँव का नाम खाली है' : 'Village Name is missing');
-            }
-          }
-
-          if (village) {
-            if (!isAdmin) {
-              // Regular user MUST only import into their assigned villages!
-              const isAssigned = assignedVillages.some(v => v.toLowerCase() === village.toLowerCase());
-              if (!isAssigned) {
-                rowErrors.push(
-                  language === 'hi'
-                    ? `गाँव "${village}" आपके आवंटित गाँवों (${assignedVillages.join(', ')}) में शामिल नहीं है`
-                    : `Village "${village}" is not in your assigned villages (${assignedVillages.join(', ')})`
-                );
-              }
-            } else {
-              // Admin must provide an existing system village
-              const exists = villages.some(v => v.toLowerCase() === village.toLowerCase());
-              if (!exists) {
-                rowErrors.push(
-                  language === 'hi'
-                    ? `गाँव "${village}" पंजीकृत गाँवों में नहीं मिला`
-                    : `Village "${village}" is not a registered village`
-                );
-              }
-            }
-          }
-
-          // Parse members
-          const members = [];
-          for (let m = 1; m <= 10; m++) {
-            const mName = getValue(row, [`Member ${m} Name`, `Member${m}Name`, `सदस्य ${m} नाम`]);
-            if (mName) {
-              const mAge = parseInt(getValue(row, [`Member ${m} Age`, `Member${m}Age`, `सदस्य ${m} आयु`]) || '30', 10);
-              const mGender = getValue(row, [`Member ${m} Gender`, `Member${m}Gender`, `सदस्य ${m} लिंग`]) || 'Male';
-              const mRelation = getValue(row, [`Member ${m} Relation`, `Member${m}Relation`, `सदस्य ${m} संबंध`]) || (m === 1 ? 'Head' : 'Member');
-              members.push({
-                id: m,
-                name: mName,
-                nameEnglish: mName,
-                nameHindi: mName,
-                age: isNaN(mAge) ? 30 : mAge,
-                gender: mGender.toLowerCase().startsWith('f') ? 'Female' : 'Male',
-                relation: mRelation,
-                aadhaarNumber: '',
-                occupation: '',
-                education: '',
-                maritalStatus: 'Married'
-              });
-            }
-          }
-
-          if (members.length === 0 && headName) {
+      } else {
+        // Flat columns Member 1 Name ... Member 10 Name
+        for (let m = 1; m <= 10; m++) {
+          const mName = getValue(row, [`Member ${m} Name`, `Member${m}Name`, `member_${m}_name`, `सदस्य ${m} नाम`]);
+          if (mName) {
+            const mAge = parseInt(getValue(row, [`Member ${m} Age`, `Member${m}Age`, `member_${m}_age`, `सदस्य ${m} आयु`]) || '30', 10);
+            const mGender = getValue(row, [`Member ${m} Gender`, `Member${m}Gender`, `member_${m}_gender`, `सदस्य ${m} लिंग`]) || 'Male';
+            const mRelation = getValue(row, [`Member ${m} Relation`, `Member${m}Relation`, `member_${m}_relation`, `सदस्य ${m} संबंध`]) || (m === 1 ? 'Head' : 'Member');
             members.push({
-              id: 1,
-              name: headName,
-              nameEnglish: headName,
-              nameHindi: headName,
-              age: 40,
-              gender: 'Male',
-              relation: 'Head',
-              aadhaarNumber: aadhaarNumber || '',
-              occupation: 'Agriculture',
-              education: 'Secondary',
+              id: m,
+              name: mName,
+              nameEnglish: mName,
+              nameHindi: mName,
+              age: isNaN(mAge) ? 30 : mAge,
+              gender: mGender.toLowerCase().startsWith('f') || mGender.includes('महिला') ? 'Female' : 'Male',
+              relation: mRelation,
+              aadhaarNumber: '',
+              occupation: '',
+              education: '',
               maritalStatus: 'Married'
             });
           }
+        }
+      }
 
-          const parsedItem = {
-            rowNumber,
-            familyHeadName: headName,
-            familyHeadNameEnglish: headName,
-            familyHeadNameHindi: headName,
-            fatherName,
-            fatherNameEnglish: fatherName,
-            fatherNameHindi: fatherName,
-            mobile,
-            alternateMobile: altMobile,
-            village,
-            mohalla,
-            caste,
-            category,
-            houseNumber,
-            address,
-            pinCode,
-            aadhaarNumber,
-            janAadhaarNumber,
-            rationCardNumber,
-            voterId,
-            bankName,
-            branch,
-            accountHolder,
-            accountNumber,
-            ifsc,
-            houseType,
-            electricityConnection: electricity,
-            waterTapConnection: water,
-            toiletAvailable: toilet,
-            gasConnection: gas,
-            members,
-            surveyorId: currentUser?.uid || '',
-            surveyorName: userProfile?.name || currentUser?.email?.split('@')[0] || 'User',
-            surveyorEmail: currentUser?.email || '',
-            originalRow: row
-          };
+      if (members.length === 0 && headName) {
+        members.push({
+          id: 1,
+          name: headName,
+          nameEnglish: headName,
+          nameHindi: headName,
+          age: 40,
+          gender: 'Male',
+          relation: 'Head',
+          aadhaarNumber: aadhaarNumber || '',
+          occupation: 'Agriculture',
+          education: 'Secondary',
+          maritalStatus: 'Married'
+        });
+      }
 
-          allParsed.push(parsedItem);
+      const parsedItem = {
+        id: row.id ? String(row.id).trim() : undefined,
+        rowNumber,
+        familyHeadName: headName,
+        familyHeadNameEnglish: headName,
+        familyHeadNameHindi: headName,
+        fatherName,
+        fatherNameEnglish: fatherName,
+        fatherNameHindi: fatherName,
+        mobile,
+        alternateMobile: altMobile,
+        village,
+        mohalla,
+        caste,
+        category,
+        houseNumber,
+        address,
+        pinCode,
+        aadhaarNumber,
+        janAadhaarNumber,
+        rationCardNumber,
+        voterId,
+        bankName,
+        branch,
+        accountHolder,
+        accountNumber,
+        ifsc,
+        houseType,
+        electricityConnection: electricity,
+        waterTapConnection: water,
+        toiletAvailable: toilet,
+        gasConnection: gas,
+        members,
+        surveyorId: row.surveyorId || currentUser?.uid || '',
+        surveyorName: row.surveyorName || userProfile?.name || currentUser?.email?.split('@')[0] || 'User',
+        surveyorEmail: row.surveyorEmail || currentUser?.email || '',
+        originalRow: row
+      };
 
-          // If row has validation errors:
-          if (rowErrors.length > 0) {
-            errors.push({
-              ...parsedItem,
-              status: 'error',
-              errorReason: rowErrors.join('; ')
-            });
-            return;
-          }
+      allParsed.push(parsedItem);
 
-          // 4. Duplicate Check: In-file duplicate
-          if (seenMobilesInFile.has(mobile)) {
-            duplicates.push({
-              ...parsedItem,
-              status: 'duplicate',
-              errorReason: language === 'hi' ? `शीट में मोबाइल ${mobile} पहले भी आ चुका है` : `Duplicate mobile ${mobile} inside Excel file`
-            });
-            return;
-          }
-          seenMobilesInFile.add(mobile);
+      // If row has validation errors:
+      if (rowErrors.length > 0) {
+        errors.push({
+          ...parsedItem,
+          status: 'error',
+          errorReason: rowErrors.join('; ')
+        });
+        return;
+      }
 
-          if (aadhaarNumber && seenAadhaarsInFile.has(aadhaarNumber)) {
-            duplicates.push({
-              ...parsedItem,
-              status: 'duplicate',
-              errorReason: language === 'hi' ? `शीट में आधार ${aadhaarNumber} पहले भी आ चुका है` : `Duplicate Aadhaar ${aadhaarNumber} inside Excel file`
-            });
-            return;
-          }
-          if (aadhaarNumber) seenAadhaarsInFile.add(aadhaarNumber);
+      // 4. Duplicate Check: In-file duplicate
+      if (mobile && mobile.length >= 10) {
+        if (seenMobilesInFile.has(mobile)) {
+          duplicates.push({
+            ...parsedItem,
+            status: 'duplicate',
+            errorReason: language === 'hi' ? `फाइल में मोबाइल ${mobile} पहले भी आ चुका है` : `Duplicate mobile ${mobile} inside file`
+          });
+          return;
+        }
+        seenMobilesInFile.add(mobile);
+      }
 
-          // 5. Duplicate Check: Database existing family
+      if (aadhaarNumber && seenAadhaarsInFile.has(aadhaarNumber)) {
+        duplicates.push({
+          ...parsedItem,
+          status: 'duplicate',
+          errorReason: language === 'hi' ? `फाइल में आधार ${aadhaarNumber} पहले भी आ चुका है` : `Duplicate Aadhaar ${aadhaarNumber} inside file`
+        });
+        return;
+      }
+      if (aadhaarNumber) seenAadhaarsInFile.add(aadhaarNumber);
+
+      // 5. Duplicate Check: Database existing family (Skip if in Clean Replace mode)
+      if (!isReplace) {
+        if (mobile && mobile.length >= 10) {
           const existingByMobile = existingMobilesMap.get(mobile);
           if (existingByMobile) {
             duplicates.push({
@@ -387,39 +516,179 @@ export function ExcelImportModal({ isOpen, onClose }) {
             });
             return;
           }
+        }
 
-          if (aadhaarNumber && existingAadhaarsMap.has(aadhaarNumber)) {
-            const existingByAadhaar = existingAadhaarsMap.get(aadhaarNumber);
-            duplicates.push({
-              ...parsedItem,
-              status: 'duplicate',
-              errorReason: language === 'hi'
-                ? `आधार नंबर डेटाबेस में पहले से मौजूद: ID ${existingByAadhaar.id}`
-                : `Aadhaar already in database: ID ${existingByAadhaar.id}`
-            });
-            return;
+        if (aadhaarNumber && existingAadhaarsMap.has(aadhaarNumber)) {
+          const existingByAadhaar = existingAadhaarsMap.get(aadhaarNumber);
+          duplicates.push({
+            ...parsedItem,
+            status: 'duplicate',
+            errorReason: language === 'hi'
+              ? `आधार नंबर डेटाबेस में पहले से मौजूद: ID ${existingByAadhaar.id}`
+              : `Aadhaar already in database: ID ${existingByAadhaar.id}`
+          });
+          return;
+        }
+      }
+
+      // Row is valid!
+      valid.push({
+        ...parsedItem,
+        status: 'valid'
+      });
+    });
+
+    setParsedRows(allParsed);
+    setValidRows(valid);
+    setDuplicateRows(duplicates);
+    setErrorRows(errors);
+  };
+
+  // Handle Excel or JSON file upload
+  const handleFileChange = (e) => {
+    const selected = e.target.files?.[0];
+    if (!selected) return;
+
+    // File validation: Size <= 15MB
+    if (selected.size > 15 * 1024 * 1024) {
+      setFileError(language === 'hi' ? 'फाइल का आकार 15MB से कम होना चाहिए।' : 'File size exceeds 15MB limit.');
+      return;
+    }
+
+    const ext = selected.name.split('.').pop()?.toLowerCase();
+    if (!['xlsx', 'xls', 'csv', 'json'].includes(ext)) {
+      setFileError(language === 'hi' ? 'केवल .xlsx, .xls, .csv या .json फाइल समर्थित है।' : 'Only .xlsx, .xls, .csv, or .json files are supported.');
+      return;
+    }
+
+    setFile(selected);
+    setIsProcessing(true);
+    setFileError('');
+    setImportSummary(null);
+
+    if (ext === 'json') {
+      const textReader = new FileReader();
+      textReader.onload = (evt) => {
+        try {
+          const content = evt.target?.result;
+          const parsed = JSON.parse(content);
+          let rawList = [];
+          if (Array.isArray(parsed)) {
+            rawList = parsed;
+          } else if (parsed && Array.isArray(parsed.families)) {
+            rawList = parsed.families;
+          } else if (parsed && Array.isArray(parsed.surveyData)) {
+            rawList = parsed.surveyData;
+          } else if (parsed && Array.isArray(parsed.data)) {
+            rawList = parsed.data;
+          } else if (parsed && typeof parsed === 'object') {
+            rawList = [parsed];
           }
 
-          // Row is valid!
-          valid.push({
-            ...parsedItem,
-            status: 'valid'
-          });
-        });
-
-        setParsedRows(allParsed);
-        setValidRows(valid);
-        setDuplicateRows(duplicates);
-        setErrorRows(errors);
-      } catch (err) {
-        console.error('Failed to parse excel:', err);
-        setFileError(language === 'hi' ? 'एक्सेल फाइल पढ़ने में त्रुटि हुई। कृपया सैंपल फॉर्मेट का उपयोग करें।' : 'Failed to parse Excel file. Please ensure it matches template.');
-      } finally {
+          processRows(rawList);
+        } catch (err) {
+          console.error('Failed to parse JSON file:', err);
+          setFileError(language === 'hi' ? 'JSON फाइल पढ़ने में त्रुटि हुई। कृपया सही JSON फॉर्मेट जांचें।' : 'Failed to parse JSON file. Please ensure valid JSON format.');
+        } finally {
+          setIsProcessing(false);
+        }
+      };
+      textReader.onerror = () => {
+        setFileError(language === 'hi' ? 'फाइल पढ़ने में त्रुटि हुई।' : 'Error reading file.');
         setIsProcessing(false);
-      }
-    };
+      };
+      textReader.readAsText(selected, 'UTF-8');
+    } else {
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        try {
+          const data = new Uint8Array(evt.target?.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const sheetName = workbook.SheetNames[0];
+          const sheet = workbook.Sheets[sheetName];
+          const rawJson = XLSX.utils.sheet_to_json(sheet);
+          processRows(rawJson);
+        } catch (err) {
+          console.error('Failed to parse excel:', err);
+          setFileError(language === 'hi' ? 'एक्सेल फाइल पढ़ने में त्रुटि हुई। कृपया सैंपल फॉर्मेट का उपयोग करें।' : 'Failed to parse Excel file. Please ensure it matches template.');
+        } finally {
+          setIsProcessing(false);
+        }
+      };
+      reader.onerror = () => {
+        setFileError(language === 'hi' ? 'फाइल पढ़ने में त्रुटि हुई।' : 'Error reading file.');
+        setIsProcessing(false);
+      };
+      reader.readAsArrayBuffer(selected);
+    }
+  };
 
-    reader.readAsArrayBuffer(selected);
+  // Handle pasted JSON text parse
+  const handleParsePastedJson = () => {
+    if (!jsonPasteText.trim()) {
+      setFileError(language === 'hi' ? 'कृपया JSON डेटा पेस्ट करें।' : 'Please paste JSON text first.');
+      return;
+    }
+    setIsProcessing(true);
+    setFileError('');
+    setImportSummary(null);
+    setFile({ name: 'pasted_survey_data.json', size: new Blob([jsonPasteText]).size });
+
+    try {
+      let cleaned = jsonPasteText.trim();
+      if (cleaned.startsWith('```')) {
+        cleaned = cleaned.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+      }
+      const parsed = JSON.parse(cleaned);
+      let rawList = [];
+      if (Array.isArray(parsed)) {
+        rawList = parsed;
+      } else if (parsed && Array.isArray(parsed.families)) {
+        rawList = parsed.families;
+      } else if (parsed && Array.isArray(parsed.surveyData)) {
+        rawList = parsed.surveyData;
+      } else if (parsed && Array.isArray(parsed.data)) {
+        rawList = parsed.data;
+      } else if (parsed && typeof parsed === 'object') {
+        rawList = [parsed];
+      }
+
+      if (!rawList || rawList.length === 0) {
+        setFileError(language === 'hi' ? 'पेस्ट किए गए JSON में परिवारों की कोई सूची नहीं मिली।' : 'No families array found in pasted JSON.');
+        setIsProcessing(false);
+        return;
+      }
+
+      processRows(rawList);
+    } catch (err) {
+      console.error('Failed to parse pasted JSON:', err);
+      setFileError(language === 'hi' ? 'JSON फॉर्मेट अमान्य है। कृपया पूरा और सही JSON पेस्ट करें।' : 'Invalid JSON format. Please verify and paste complete JSON.');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // Toggle Clean Replace mode and immediately re-evaluate rows
+  const handleToggleReplaceAll = (checked) => {
+    setReplaceAllExisting(checked);
+    if (rawLoadedRows && rawLoadedRows.length > 0) {
+      processRows(rawLoadedRows, checked);
+    }
+  };
+
+  // Reset file/text state
+  const handleReset = () => {
+    setFile(null);
+    setRawLoadedRows(null);
+    setReplaceAllExisting(false);
+    setParsedRows([]);
+    setValidRows([]);
+    setDuplicateRows([]);
+    setErrorRows([]);
+    setFileError('');
+    setImportSummary(null);
+    setJsonPasteText('');
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   // Download Error & Duplicate report so user can fix rows
@@ -452,7 +721,7 @@ export function ExcelImportModal({ isOpen, onClose }) {
     if (validRows.length === 0) return;
     setIsImporting(true);
     try {
-      await bulkAddFamilies(validRows);
+      await bulkAddFamilies(validRows, { replaceAll: replaceAllExisting });
       setImportSummary({
         successCount: validRows.length,
         duplicateCount: duplicateRows.length,
@@ -494,11 +763,11 @@ export function ExcelImportModal({ isOpen, onClose }) {
             </div>
             <div>
               <h2 className="text-xl font-bold">
-                {language === 'hi' ? 'एक्सेल शीट से बल्क डेटा इम्पोर्ट' : 'Bulk Village Family Excel Import'}
+                {language === 'hi' ? 'बल्क डेटा इम्पोर्ट (Excel / CSV / JSON)' : 'Bulk Family Data Import (Excel / CSV / JSON)'}
               </h2>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                 {isAdmin
-                  ? (language === 'hi' ? 'एडमिन: सभी गाँवों का डेटा एक या एकाधिक फाइलों में इम्पोर्ट करें' : 'Admin: Import records for any registered village')
+                  ? (language === 'hi' ? 'एडमिन: सभी गाँवों का डेटा Excel या JSON से इम्पोर्ट करें' : 'Admin: Import records for any registered village from Excel or JSON')
                   : (language === 'hi' ? `सर्वेयर: केवल आपके आवंटित गाँव (${allowedVillages.join(', ')}) का डेटा` : `Surveyor: Scoped to assigned village (${allowedVillages.join(', ')})`)}
               </p>
             </div>
@@ -513,81 +782,143 @@ export function ExcelImportModal({ isOpen, onClose }) {
 
         {/* Content body */}
         <div className="p-6 space-y-6 overflow-y-auto flex-1">
-          {/* Step 1: Download Sample Template */}
+          {/* Step 1: Download Sample Templates */}
           <div className="p-5 rounded-2xl border bg-gradient-to-r from-blue-50/70 to-indigo-50/70 dark:from-blue-950/20 dark:to-indigo-950/20 border-blue-200/60 dark:border-blue-900/40">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <h3 className="font-semibold text-sm text-blue-950 dark:text-blue-200 flex items-center gap-2">
                   <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center font-bold">1</span>
-                  {language === 'hi' ? 'मानक एक्सेल टेम्पलेट डाउनलोड करें' : 'Download Standard Excel Template'}
+                  {language === 'hi' ? 'मानक टेम्पलेट डाउनलोड करें (वैकल्पिक)' : 'Download Standard Sample Template'}
                 </h3>
                 <p className="text-xs text-blue-800/80 dark:text-blue-300/80 mt-1">
                   {language === 'hi'
-                    ? 'गाँव, मुखिया का नाम, पिता का नाम, मोबाइल (10 अंक), मोहल्ला, जाति, और सदस्यों के कॉलम पहले से व्यवस्थित हैं।'
-                    : 'Pre-formatted columns with village, head, father, 10-digit mobile, mohalla, caste, and member fields.'}
+                    ? 'गाँव, मुखिया, मोबाइल (10 अंक), जाति, श्रेणी और परिवार के सदस्यों का फॉर्मेट देखने के लिए टेम्पलेट डाउनलोड करें।'
+                    : 'Pre-formatted columns or nested structure with village, head, mobile, caste, category, and members.'}
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={handleDownloadTemplate}
-                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl shadow-md transition-all shrink-0"
-              >
-                <Download className="w-4 h-4" />
-                <span>{language === 'hi' ? 'सैंपल टेम्पलेट (.xlsx)' : 'Sample Template (.xlsx)'}</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Step 2: Upload Area */}
-          <div>
-            <h3 className="font-semibold text-sm mb-3 flex items-center gap-2">
-              <span className="w-5 h-5 rounded-full bg-green-600 text-white text-xs flex items-center justify-center font-bold">2</span>
-              {language === 'hi' ? 'भरी हुई एक्सेल फाइल अपलोड करें' : 'Upload Filled Excel / CSV File'}
-            </h3>
-
-            <div 
-              onClick={() => fileInputRef.current?.click()}
-              className={`p-6 md:p-8 border-2 border-dashed rounded-3xl cursor-pointer text-center transition-all ${
-                file 
-                  ? 'border-green-500 bg-green-50/20 dark:bg-green-950/20' 
-                  : 'border-gray-300 dark:border-gray-700 hover:border-green-500 hover:bg-gray-50 dark:hover:bg-gray-800/50'
-              }`}
-            >
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".xlsx, .xls, .csv"
-                onChange={handleFileChange}
-                className="hidden"
-              />
-              <div className="flex flex-col items-center gap-2">
-                <div className={`p-4 rounded-2xl ${file ? 'bg-green-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'}`}>
-                  {file ? <FileCheck className="w-8 h-8" /> : <Upload className="w-8 h-8" />}
-                </div>
-                {file ? (
-                  <div>
-                    <p className="font-semibold text-sm text-green-600 dark:text-green-400">{file.name}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                      {(file.size / 1024).toFixed(1)} KB • {language === 'hi' ? 'क्लिक करके दूसरी फाइल चुनें' : 'Click to select different file'}
-                    </p>
-                  </div>
-                ) : (
-                  <div>
-                    <p className="font-semibold text-sm text-gray-800 dark:text-gray-200">
-                      {language === 'hi' ? 'एक्सेल फाइल यहाँ ड्रॉप करें या ब्राउज करें' : 'Drop Excel file here or click to browse'}
-                    </p>
-                    <p className="text-xs text-gray-400 mt-1">.xlsx, .xls or .csv (Max 10MB)</p>
-                  </div>
-                )}
+              <div className="flex items-center gap-2 flex-wrap shrink-0">
+                <button
+                  type="button"
+                  onClick={handleDownloadTemplate}
+                  className="flex items-center justify-center gap-2 px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl shadow-md transition-all"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>{language === 'hi' ? 'एक्सेल (.xlsx)' : 'Excel (.xlsx)'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDownloadJsonTemplate}
+                  className="flex items-center justify-center gap-2 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl shadow-md transition-all"
+                >
+                  <FileCode className="w-3.5 h-3.5" />
+                  <span>{language === 'hi' ? 'JSON (.json)' : 'JSON (.json)'}</span>
+                </button>
               </div>
             </div>
           </div>
+
+          {/* Mode Switcher Tabs */}
+          {!importSummary && parsedRows.length === 0 && (
+            <div className="flex border-b border-gray-200 dark:border-gray-800 gap-6">
+              <button
+                type="button"
+                onClick={() => setImportMode('file')}
+                className={`pb-3 text-sm font-semibold flex items-center gap-2 border-b-2 transition-all ${
+                  importMode === 'file'
+                    ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400'
+                    : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'
+                }`}
+              >
+                <FileSpreadsheet className="w-4 h-4" />
+                <span>{language === 'hi' ? 'फाइल अपलोड (.xlsx / .csv / .json)' : 'Upload File (.xlsx / .csv / .json)'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setImportMode('paste')}
+                className={`pb-3 text-sm font-semibold flex items-center gap-2 border-b-2 transition-all ${
+                  importMode === 'paste'
+                    ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400'
+                    : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'
+                }`}
+              >
+                <ClipboardPaste className="w-4 h-4" />
+                <span>{language === 'hi' ? 'सीधे JSON टेक्स्ट पेस्ट करें' : 'Paste Raw JSON'}</span>
+              </button>
+            </div>
+          )}
+
+          {/* Step 2: Upload Area or JSON Paste Area */}
+          {!importSummary && parsedRows.length === 0 && (
+            <div>
+              {importMode === 'file' ? (
+                <div>
+                  <h3 className="font-semibold text-sm mb-3 flex items-center gap-2">
+                    <span className="w-5 h-5 rounded-full bg-green-600 text-white text-xs flex items-center justify-center font-bold">2</span>
+                    {language === 'hi' ? 'एक्सेल या JSON फाइल अपलोड करें' : 'Upload Excel or JSON File'}
+                  </h3>
+
+                  <div 
+                    onClick={() => fileInputRef.current?.click()}
+                    className="p-6 md:p-8 border-2 border-dashed rounded-3xl cursor-pointer text-center transition-all border-gray-300 dark:border-gray-700 hover:border-green-500 hover:bg-gray-50 dark:hover:bg-gray-800/50"
+                  >
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".xlsx, .xls, .csv, .json"
+                      onChange={handleFileChange}
+                      className="hidden"
+                    />
+                    <div className="flex flex-col items-center gap-2">
+                      <div className="p-4 rounded-2xl bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400">
+                        <Upload className="w-8 h-8" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-sm text-gray-800 dark:text-gray-200">
+                          {language === 'hi' ? 'फाइल यहाँ ड्रॉप करें या ब्राउज करें' : 'Drop Excel or JSON file here or browse'}
+                        </p>
+                        <p className="text-xs text-gray-400 mt-1">.xlsx, .xls, .csv or .json (Max 15MB)</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <h3 className="font-semibold text-sm flex items-center gap-2">
+                    <span className="w-5 h-5 rounded-full bg-indigo-600 text-white text-xs flex items-center justify-center font-bold">2</span>
+                    {language === 'hi' ? 'Gemini / AI से प्राप्त JSON टेक्स्ट यहाँ पेस्ट करें' : 'Paste Raw JSON from Gemini / AI'}
+                  </h3>
+                  <textarea
+                    rows={8}
+                    value={jsonPasteText}
+                    onChange={(e) => setJsonPasteText(e.target.value)}
+                    placeholder={language === 'hi' 
+                      ? 'यहाँ 142 परिवारों का पूरा JSON डेटा पेस्ट करें (उदा. [ { "familyHeadName": "...", "mobile": "...", "members": [...] } ])' 
+                      : 'Paste complete JSON array or object here...'}
+                    className={`w-full p-4 rounded-2xl font-mono text-xs border outline-none transition-all ${
+                      darkMode ? 'bg-gray-950 border-gray-800 text-gray-200 focus:border-indigo-500' : 'bg-gray-50 border-gray-200 text-gray-800 focus:border-indigo-500'
+                    }`}
+                  />
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={handleParsePastedJson}
+                      disabled={!jsonPasteText.trim() || isProcessing}
+                      className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl text-xs font-semibold shadow-md transition-all"
+                    >
+                      <Eye className="w-4 h-4" />
+                      <span>{language === 'hi' ? 'डेटा पार्स और प्रीव्यू करें' : 'Parse & Preview Data'}</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Processing Spinner */}
           {isProcessing && (
             <div className="flex items-center justify-center gap-3 p-6 text-sm text-gray-500">
               <div className="w-5 h-5 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
-              <span>{language === 'hi' ? 'एक्सेल डेटा और वैधता की जाँच हो रही है...' : 'Validating Excel rows and checking duplicates...'}</span>
+              <span>{language === 'hi' ? 'डेटा और वैधता की जाँच हो रही है...' : 'Validating survey records and checking duplicates...'}</span>
             </div>
           )}
 
@@ -601,24 +932,34 @@ export function ExcelImportModal({ isOpen, onClose }) {
 
           {/* Import Final Summary Screen (if imported) */}
           {importSummary && (
-            <div className="p-5 rounded-2xl border border-green-500/30 bg-green-50/50 dark:bg-green-950/20 space-y-3">
+            <div className="p-5 rounded-2xl border border-green-500/30 bg-green-50/50 dark:bg-green-950/20 space-y-4">
               <div className="flex items-center gap-2 text-green-700 dark:text-green-300 font-bold text-sm">
                 <CheckCircle2 className="w-5 h-5" />
                 <span>{language === 'hi' ? 'इम्पोर्ट प्रक्रिया पूर्ण हुई!' : 'Import Completed Successfully!'}</span>
               </div>
               <div className="grid grid-cols-3 gap-3 text-center text-xs">
                 <div className="p-3 bg-white dark:bg-gray-800 rounded-xl shadow-sm">
-                  <p className="text-lg font-bold text-green-600">{importSummary.successCount}</p>
+                  <p className="text-xl font-bold text-green-600">{importSummary.successCount}</p>
                   <p className="text-gray-500">{language === 'hi' ? 'सफलतापूर्वक जोड़े गए' : 'Imported'}</p>
                 </div>
                 <div className="p-3 bg-white dark:bg-gray-800 rounded-xl shadow-sm">
-                  <p className="text-lg font-bold text-amber-500">{importSummary.duplicateCount}</p>
+                  <p className="text-xl font-bold text-amber-500">{importSummary.duplicateCount}</p>
                   <p className="text-gray-500">{language === 'hi' ? 'डुप्लीकेट छोड़े गए' : 'Duplicates Skipped'}</p>
                 </div>
                 <div className="p-3 bg-white dark:bg-gray-800 rounded-xl shadow-sm">
-                  <p className="text-lg font-bold text-red-500">{importSummary.errorCount}</p>
+                  <p className="text-xl font-bold text-red-500">{importSummary.errorCount}</p>
                   <p className="text-gray-500">{language === 'hi' ? 'अमान्य पंक्तियाँ' : 'Invalid Rows'}</p>
                 </div>
+              </div>
+              <div className="flex justify-center pt-2">
+                <button
+                  type="button"
+                  onClick={handleReset}
+                  className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-xs font-semibold rounded-xl transition-all"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>{language === 'hi' ? 'और डेटा इम्पोर्ट करें' : 'Import More Data'}</span>
+                </button>
               </div>
             </div>
           )}
@@ -626,6 +967,27 @@ export function ExcelImportModal({ isOpen, onClose }) {
           {/* Preview Stats & Tabs */}
           {parsedRows.length > 0 && !importSummary && (
             <div className="space-y-4">
+              {/* Header with Selected File and Reset Button */}
+              <div className="flex items-center justify-between p-3.5 rounded-2xl bg-gray-50 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700 text-xs">
+                <div className="flex items-center gap-2.5">
+                  <FileCheck className="w-4 h-4 text-green-600 dark:text-green-400" />
+                  <span className="font-semibold text-gray-800 dark:text-gray-200">
+                    {file?.name || 'Survey_Data.json'}
+                  </span>
+                  <span className="text-gray-400">
+                    ({parsedRows.length} {language === 'hi' ? 'परिवार पढ़े गए' : 'families parsed'})
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleReset}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-gray-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all font-semibold"
+                >
+                  <RefreshCw className="w-3 h-3" />
+                  <span>{language === 'hi' ? 'बदलें / रीसेट' : 'Change / Reset'}</span>
+                </button>
+              </div>
+
               {/* Stat Badges */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
                 <button
@@ -679,6 +1041,29 @@ export function ExcelImportModal({ isOpen, onClose }) {
                   <p className="text-red-600 dark:text-red-400">{language === 'hi' ? 'त्रुटियाँ' : 'Errors'}</p>
                   <p className="text-base font-bold text-red-700 dark:text-red-300 mt-0.5">{errorRows.length}</p>
                 </button>
+              </div>
+
+              {/* Clean Replace Toggle */}
+              <div className="flex items-start gap-3 p-3.5 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800 text-xs">
+                <input
+                  type="checkbox"
+                  id="replace-all-checkbox"
+                  checked={replaceAllExisting}
+                  onChange={(e) => handleToggleReplaceAll(e.target.checked)}
+                  className="w-4 h-4 mt-0.5 text-indigo-600 rounded cursor-pointer shrink-0"
+                />
+                <label htmlFor="replace-all-checkbox" className="cursor-pointer text-gray-800 dark:text-gray-200 flex-1">
+                  <span className="font-bold text-indigo-900 dark:text-indigo-300">
+                    {language === 'hi'
+                      ? 'पुराना डुप्लीकेट डेटा साफ़ करके केवल यह डेटा लोड करें (Clean Replace)'
+                      : 'Wipe old duplicate records and load only this dataset (Clean Replace)'}
+                  </span>
+                  <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
+                    {language === 'hi'
+                      ? 'यदि पहले 192 या टेस्ट रिकॉर्ड दिख रहे हैं, तो इसे चुनें ताकि पुराने डुप्लीकेट हट जाएं और केवल यह स्वच्छ सूची रहे।'
+                      : 'Enable this if previous duplicate or test families exist, to establish an exact clean count.'}
+                  </p>
+                </label>
               </div>
 
               {/* Action bar for error report */}

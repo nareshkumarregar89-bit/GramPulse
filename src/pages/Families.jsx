@@ -13,7 +13,9 @@ import {
   CheckCircle2,
   CheckSquare,
   Square,
-  X
+  X,
+  AlertTriangle,
+  Sparkles
 } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
 import { useToast } from '../contexts/ToastContext';
@@ -28,6 +30,7 @@ export function Families() {
   const { 
     families, 
     deleteFamily, 
+    loadStandard142Families,
     darkMode, 
     t, 
     language, 
@@ -101,6 +104,31 @@ export function Families() {
     : (selectedIds.size > 0 ? selectedFamiliesList : filteredFamilies);
 
   const printedBy = userProfile?.name || currentUser?.displayName || (currentUser?.email ? currentUser.email.split('@')[0] : 'VillagePulse Officer');
+
+  const [isCleaning, setIsCleaning] = useState(false);
+
+  const handleCleanTo142 = async () => {
+    const confirmMsg = language === 'hi'
+      ? 'क्या आप पहले के पुराने/डुप्लीकेट रिकॉर्ड हटाकर ठीक 142 प्रामाणिक सर्वे परिवारों (FAM-0001 से FAM-0142) का डेटा रखना चाहते हैं?'
+      : 'Do you want to wipe earlier duplicates and restore the exact 142 authentic survey families (FAM-0001 to FAM-0142)?';
+    if (!window.confirm(confirmMsg)) return;
+
+    try {
+      setIsCleaning(true);
+      await loadStandard142Families();
+      addToast(
+        language === 'hi'
+          ? 'सफलतापूर्वक डुप्लीकेट हटा दिए गए! अब केवल 142 प्रामाणिक परिवार सेट हैं।'
+          : 'Successfully cleaned duplicates! Exactly 142 authentic families are now set.',
+        'success'
+      );
+    } catch (err) {
+      console.error('Failed to clean duplicates:', err);
+      addToast(err.message || 'Failed to clean duplicates', 'error');
+    } finally {
+      setIsCleaning(false);
+    }
+  };
 
   return (
     <>
@@ -210,6 +238,36 @@ export function Families() {
             )}
           </div>
         </div>
+
+        {/* DUPLICATE WARNING & 1-CLICK CLEAN BANNER */}
+        {filteredFamilies.length > 142 && (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-xs shadow-sm">
+            <div className="flex items-center gap-3 text-amber-800 dark:text-amber-300">
+              <AlertTriangle className="w-5 h-5 shrink-0 text-amber-600 dark:text-amber-400" />
+              <div>
+                <p className="font-bold text-sm">
+                  {language === 'hi'
+                    ? `अतिरिक्त रिकॉर्ड्स डिटेक्ट हुए: कुल ${filteredFamilies.length} परिवार दिख रहे हैं (वास्तविक सर्वे में 142 परिवार हैं)`
+                    : `Extra duplicate records detected: ${filteredFamilies.length} families showing (Standard survey has 142 families)`}
+                </p>
+                <p className="text-xs text-amber-700/80 dark:text-amber-300/80 mt-0.5">
+                  {language === 'hi'
+                    ? 'पुराने 50 डुप्लीकेट हटाकर ठीक 142 प्रामाणिक परिवार (FAM-0001 से FAM-0142) सेट करने के लिए 1-क्लिक करें:'
+                    : 'Wipe the 50 earlier duplicates and set the exact 142 authentic survey families with 1-click:'}
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handleCleanTo142}
+              disabled={isCleaning}
+              className="flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-amber-600 to-indigo-600 hover:from-amber-700 hover:to-indigo-700 active:scale-95 text-white font-bold rounded-xl shadow-md transition-all shrink-0 disabled:opacity-50"
+            >
+              <Sparkles className={`w-4 h-4 ${isCleaning ? 'animate-spin' : ''}`} />
+              <span>{isCleaning ? (language === 'hi' ? 'सफाई हो रही है...' : 'Cleaning...') : (language === 'hi' ? '142 प्रामाणिक परिवार सेट करें' : 'Restore Clean 142 Families')}</span>
+            </button>
+          </div>
+        )}
 
         {/* Floating / Sticky Multi-Selection Action Bar */}
         {selectedIds.size > 0 && (
