@@ -12,7 +12,8 @@ import {
   UserCheck,
   User,
   ShieldCheck,
-  Building2
+  Building2,
+  Printer
 } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -24,6 +25,7 @@ const generalNavItems = [
   { path: '/mohallas', icon: MapPin, labelKey: 'mohallas' },
   { path: '/castes', icon: UsersRound, labelKey: 'castes' },
   { path: '/reports', icon: BarChart3, labelKey: 'reports' },
+  { path: '/print', icon: Printer, labelKey: 'data_print' },
   { path: '/search', icon: Search, labelKey: 'search' },
   { path: '/profile', icon: User, labelKey: 'profile' },
 ];

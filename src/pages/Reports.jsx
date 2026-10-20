@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useData } from '../contexts/DataContext';
 import {
   BarChart,
@@ -31,6 +32,7 @@ import * as XLSX from 'xlsx';
 const COLORS = ['#22c55e', '#6366f1', '#f59e0b', '#ef4444', '#8b5cf6', '#14b8a6'];
 
 export function Reports() {
+  const navigate = useNavigate();
   const { families, mohallas, castes, darkMode, language, selectedVillage } = useData();
   const { currentUser, userProfile, isAdmin, assignedVillages = [] } = useAuth();
   const isUnassigned = !isAdmin && (!assignedVillages || assignedVillages.length === 0);
@@ -423,7 +425,7 @@ export function Reports() {
 
           {/* Visible Print Data Button */}
           <button
-            onClick={() => setIsPrintModalOpen(true)}
+            onClick={() => navigate('/print')}
             className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 rounded-xl font-medium shadow-2xs hover:shadow-xs transition-all active:scale-95"
             title="Print Data"
           >

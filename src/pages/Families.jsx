@@ -280,7 +280,13 @@ export function Families() {
             {/* PRINT DATA BUTTON */}
             <button
               type="button"
-              onClick={() => handleOpenPrintModal(null)}
+              onClick={() => {
+                if (selectedIds.size > 0) {
+                  handleOpenPrintModal(null);
+                } else {
+                  navigate('/print');
+                }
+              }}
               className="flex items-center gap-2 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs md:text-sm font-semibold shadow-md transition-all shrink-0 active:scale-95"
               title={language === 'hi' ? 'डेटा प्रिंट करें' : 'Print Data'}
             >
