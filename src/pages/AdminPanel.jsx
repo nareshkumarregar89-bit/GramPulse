@@ -140,8 +140,8 @@ export function AdminPanel() {
 
   const handleRestore142 = async () => {
     const confirmMsg = language === 'hi'
-      ? 'क्या आप पुराना डेटा साफ़ करके ठीक 142 प्रामाणिक परिवारों (FAM-0001 से FAM-0142) का स्वच्छ डेटाबेस लोड करना चाहते हैं?'
-      : 'Do you want to clean old/duplicate records and load the exact 142 survey families (FAM-0001 to FAM-0142)?';
+      ? 'क्या आप पुराना डेटा साफ़ करके ठीक 227 प्रामाणिक परिवारों (FAM-0001 से FAM-0227) का स्वच्छ डेटाबेस लोड करना चाहते हैं?'
+      : 'Do you want to clean old/duplicate records and load the exact 227 survey families (FAM-0001 to FAM-0227)?';
     if (!window.confirm(confirmMsg)) return;
 
     try {
@@ -149,13 +149,13 @@ export function AdminPanel() {
       await loadStandard142Families();
       addToast(
         language === 'hi'
-          ? 'सफलतापूर्वक 142 प्रामाणिक परिवार लोड हो गए!'
-          : 'Successfully restored 142 survey families!',
+          ? 'सफलतापूर्वक 227 प्रामाणिक परिवार लोड हो गए!'
+          : 'Successfully restored 227 survey families!',
         'success'
       );
     } catch (err) {
-      console.error('Failed to restore 142 families:', err);
-      addToast(err.message || 'Failed to restore 142 families', 'error');
+      console.error('Failed to restore 227 families:', err);
+      addToast(err.message || 'Failed to restore 227 families', 'error');
     } finally {
       setIsRestoring142(false);
     }
@@ -336,12 +336,12 @@ export function AdminPanel() {
               onClick={handleRestore142}
               disabled={isRestoring142}
               className="flex items-center gap-2 px-3.5 py-2.5 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-900/50 rounded-xl text-xs sm:text-sm font-semibold shadow-2xs transition-all active:scale-95 disabled:opacity-50"
-              title={language === 'hi' ? '142 प्रामाणिक सर्वे परिवार लोड करें' : 'Load clean 142 survey families'}
+              title={language === 'hi' ? '227 प्रामाणिक सर्वे परिवार लोड करें' : 'Load clean 227 survey families'}
             >
               <Sparkles className={`w-4 h-4 ${isRestoring142 ? 'animate-spin' : ''}`} />
               <span>{isRestoring142
                 ? (language === 'hi' ? 'लोड हो रहे हैं...' : 'Loading...')
-                : (language === 'hi' ? '142 परिवार रीस्टोर' : 'Restore 142 Families')}
+                : (language === 'hi' ? '227 परिवार रीस्टोर' : 'Restore 227 Families')}
               </span>
             </button>
 

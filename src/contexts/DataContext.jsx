@@ -104,17 +104,35 @@ export function DataProvider({ children }) {
 
   // Cleanup stale default/unnecessary mohallas and castes from localStorage cache
   useEffect(() => {
-    const staleMohallasList = ['Shastri Nagar', 'Gandhi Colony', 'Nehru Basti', 'Indira Nagar', 'Ahir Mohalla', 'Bheel Mohalla', 'Gurjar Mohalla'];
-    if (Array.isArray(mohallas) && mohallas.some(m => staleMohallasList.includes(m))) {
+    const staleMohallasList = ['Shastri Nagar', 'Gandhi Colony', 'Nehru Basti', 'Indira Nagar', 'Bheel Mohalla'];
+    if (Array.isArray(mohallas)) {
       const cleaned = mohallas.filter(m => !staleMohallasList.includes(m));
-      setMohallas(cleaned.length > 0 ? Array.from(new Set([...initialMohallas, ...cleaned])) : initialMohallas);
+      const combined = Array.from(new Set([...initialMohallas, ...cleaned]));
+      if (combined.length !== mohallas.length || mohallas.some(m => staleMohallasList.includes(m))) {
+        setMohallas(combined);
+      }
     }
-    const staleCastesList = ['Brahmin', 'Rajput', 'Jat', 'Gurjar', 'Meena', 'Bishnoi', 'Jain', 'Scheduled Caste', 'Scheduled Tribe', 'Other Backward Classes', 'General'];
-    if (Array.isArray(castes) && castes.some(c => staleCastesList.includes(c))) {
+    const staleCastesList = ['Brahmin', 'Jat', 'Meena', 'Bishnoi', 'Jain', 'Scheduled Caste', 'Scheduled Tribe', 'Other Backward Classes', 'General'];
+    if (Array.isArray(castes)) {
       const cleaned = castes.filter(c => !staleCastesList.includes(c));
-      setCastes(cleaned.length > 0 ? Array.from(new Set([...initialCastes, ...cleaned])) : initialCastes);
+      const combined = Array.from(new Set([...initialCastes, ...cleaned]));
+      if (combined.length !== castes.length || castes.some(c => staleCastesList.includes(c))) {
+        setCastes(combined);
+      }
     }
   }, [mohallas, castes, setMohallas, setCastes]);
+
+  // Auto-upgrade local storage when standard survey dataset expands (e.g. from 142 to 227)
+  useEffect(() => {
+    if (Array.isArray(rawFamilies) && rawFamilies.length > 0 && rawFamilies.length < (surveyData142 || []).length) {
+      const existingIds = new Set(rawFamilies.map(f => f.id));
+      const missing = (surveyData142 || []).filter(f => !existingIds.has(f.id));
+      if (missing.length > 0) {
+        console.log(`Auto-upgrading local survey data with ${missing.length} newly added families...`);
+        setRawFamilies(prev => [...prev, ...missing]);
+      }
+    }
+  }, [rawFamilies, setRawFamilies]);
 
   // Purge stale cached family records when assignment changes or user logs out
   const activeVillageIdsKey = useMemo(() => {
@@ -617,7 +635,7 @@ export function DataProvider({ children }) {
   // Dynamic extraction: Always ensure all mohallas & castes present in uploaded family records are included,
   // while strictly excluding any old demo placeholders
   const activeMohallas = useMemo(() => {
-    const staleList = ['Shastri Nagar', 'Gandhi Colony', 'Nehru Basti', 'Indira Nagar', 'Ahir Mohalla', 'Bheel Mohalla', 'Gurjar Mohalla'];
+    const staleList = ['Shastri Nagar', 'Gandhi Colony', 'Nehru Basti', 'Indira Nagar', 'Bheel Mohalla'];
     const set = new Set(initialMohallas);
     (allFamilies || []).forEach(f => {
       if (f.mohalla && typeof f.mohalla === 'string') {
@@ -635,7 +653,7 @@ export function DataProvider({ children }) {
   }, [allFamilies, mohallas]);
 
   const activeCastes = useMemo(() => {
-    const staleList = ['Brahmin', 'Rajput', 'Jat', 'Gurjar', 'Meena', 'Bishnoi', 'Jain', 'Scheduled Caste', 'Scheduled Tribe', 'Other Backward Classes', 'General'];
+    const staleList = ['Brahmin', 'Jat', 'Meena', 'Bishnoi', 'Jain', 'Scheduled Caste', 'Scheduled Tribe', 'Other Backward Classes', 'General'];
     const set = new Set(initialCastes);
     (allFamilies || []).forEach(f => {
       if (f.caste && typeof f.caste === 'string') {
@@ -861,10 +879,11 @@ export function DataProvider({ children }) {
     return prepared;
   };
 
-  // 1-Click Load or Restore the canonical 142-family Samodi survey dataset
-  const loadStandard142Families = async () => {
+  // 1-Click Load or Restore the canonical 227-family Samodi survey dataset
+  const loadStandard227Families = async () => {
     return await bulkAddFamilies(surveyData142, { replaceAll: true });
   };
+  const loadStandard142Families = loadStandard227Families;
 
   // Update a family (Allowed for assigned surveyors & admins, even in safe view/edit mode)
   const updateFamily = async (id, updatedFamily) => {
@@ -1469,6 +1488,7 @@ export function DataProvider({ children }) {
       addFamily,
       bulkAddFamilies,
       loadStandard142Families,
+      loadStandard227Families,
       updateFamily,
       deleteFamily,
       restoreFamily,

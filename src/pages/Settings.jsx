@@ -306,8 +306,8 @@ export function Settings() {
 
   const handleRestore142 = async () => {
     const confirmMsg = language === 'hi'
-      ? 'क्या आप पुराना व डुप्लीकेट डेटा साफ़ करके ठीक 142 प्रामाणिक परिवारों (FAM-0001 से FAM-0142) का स्वच्छ डेटाबेस लोड करना चाहते हैं?'
-      : 'Do you want to clean old/duplicate records and load the exact 142 survey families (FAM-0001 to FAM-0142)?';
+      ? 'क्या आप पुराना व डुप्लीकेट डेटा साफ़ करके ठीक 227 प्रामाणिक परिवारों (FAM-0001 से FAM-0227) का स्वच्छ डेटाबेस लोड करना चाहते हैं?'
+      : 'Do you want to clean old/duplicate records and load the exact 227 survey families (FAM-0001 to FAM-0227)?';
     if (!window.confirm(confirmMsg)) return;
 
     try {
@@ -315,13 +315,13 @@ export function Settings() {
       await loadStandard142Families();
       addToast(
         language === 'hi'
-          ? 'सफलतापूर्वक 142 प्रामाणिक परिवार लोड हो गए!'
-          : 'Successfully restored 142 survey families!',
+          ? 'सफलतापूर्वक 227 प्रामाणिक परिवार लोड हो गए!'
+          : 'Successfully restored 227 survey families!',
         'success'
       );
     } catch (err) {
-      console.error('Failed to restore 142 families:', err);
-      addToast(err.message || 'Failed to restore 142 families', 'error');
+      console.error('Failed to restore 227 families:', err);
+      addToast(err.message || 'Failed to restore 227 families', 'error');
     } finally {
       setIsRestoring142(false);
     }
@@ -557,13 +557,13 @@ export function Settings() {
             <div className="text-left flex-1">
               <p className="font-semibold text-indigo-700 dark:text-indigo-300">
                 {isRestoring142
-                  ? (language === 'hi' ? '142 परिवार लोड हो रहे हैं...' : 'Restoring 142 families...')
-                  : (language === 'hi' ? '142 प्रामाणिक सर्वे परिवार लोड करें' : 'Restore Clean 142 Survey Families')}
+                  ? (language === 'hi' ? '227 परिवार लोड हो रहे हैं...' : 'Restoring 227 families...')
+                  : (language === 'hi' ? '227 प्रामाणिक सर्वे परिवार लोड करें' : 'Restore Clean 227 Survey Families')}
               </p>
               <p className="text-xs text-indigo-600/80 dark:text-indigo-400/80">
                 {language === 'hi'
-                  ? 'पुराने/डुप्लीकेट रिकॉर्ड साफ़ करके ठीक 142 प्रामाणिक परिवार (FAM-0001 से FAM-0142) सेट करें'
-                  : 'Wipes duplicate/test records and loads the clean 142 families (FAM-0001 to FAM-0142)'}
+                  ? 'पुराने/डुप्लीकेट रिकॉर्ड साफ़ करके ठीक 227 प्रामाणिक परिवार (FAM-0001 से FAM-0227) सेट करें'
+                  : 'Wipes duplicate/test records and loads the clean 227 families (FAM-0001 to FAM-0227)'}
               </p>
             </div>
           </button>
