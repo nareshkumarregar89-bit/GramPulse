@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "dev.workers.nareshkumarregar89.villagepulse.twa",
+        "sha256_cert_fingerprints": ["9E:E7:75:BD:A4:8A:7E:F8:91:9D:4E:16:85:BE:AB:C5:9C:DE:4E:F2:92:15:EB:DD:AB:15:83:A5:1C:86:6E:D5"]
+      }
+    }]
