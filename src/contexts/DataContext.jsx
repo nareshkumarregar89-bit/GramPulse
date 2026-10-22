@@ -26,17 +26,49 @@ import {
   isRecordVillageUncertain, 
   deriveAssignedVillageIds 
 } from '../utils/villageUtils';
+import { transliterateToHindi, isHindiText, containsEnglish } from '../utils/transliteration';
 
 const DataContext = createContext();
 
 const normalizeFamily = (f, villageRecords = []) => {
   if (!f) return f;
-  const headNameEn = f.familyHeadNameEnglish || f.familyHeadName || '';
-  const headNameHi = f.familyHeadNameHindi || f.familyHeadName || '';
-  const headName = f.familyHeadName || headNameEn || headNameHi || 'Unknown';
-  const fatherNameEn = f.fatherNameEnglish || f.fatherName || '';
-  const fatherNameHi = f.fatherNameHindi || f.fatherName || '';
-  const fatherName = f.fatherName || fatherNameEn || fatherNameHi || '';
+  let headNameEn = f.familyHeadNameEnglish || '';
+  let headNameHi = f.familyHeadNameHindi || '';
+  if (!headNameEn && !headNameHi && f.familyHeadName) {
+    if (isHindiText(f.familyHeadName) && !containsEnglish(f.familyHeadName)) {
+      headNameHi = f.familyHeadName;
+      headNameEn = f.familyHeadName;
+    } else {
+      headNameEn = f.familyHeadName;
+      headNameHi = transliterateToHindi(f.familyHeadName);
+    }
+  } else {
+    if (headNameEn && !headNameHi) {
+      headNameHi = isHindiText(headNameEn) ? headNameEn : transliterateToHindi(headNameEn);
+    } else if (headNameHi && !headNameEn) {
+      headNameEn = headNameHi;
+    }
+  }
+  const headName = headNameHi || headNameEn || f.familyHeadName || 'Unknown';
+
+  let fatherNameEn = f.fatherNameEnglish || '';
+  let fatherNameHi = f.fatherNameHindi || '';
+  if (!fatherNameEn && !fatherNameHi && f.fatherName) {
+    if (isHindiText(f.fatherName) && !containsEnglish(f.fatherName)) {
+      fatherNameHi = f.fatherName;
+      fatherNameEn = f.fatherName;
+    } else {
+      fatherNameEn = f.fatherName;
+      fatherNameHi = transliterateToHindi(f.fatherName);
+    }
+  } else {
+    if (fatherNameEn && !fatherNameHi) {
+      fatherNameHi = isHindiText(fatherNameEn) ? fatherNameEn : transliterateToHindi(fatherNameEn);
+    } else if (fatherNameHi && !fatherNameEn) {
+      fatherNameEn = fatherNameHi;
+    }
+  }
+  const fatherName = fatherNameHi || fatherNameEn || f.fatherName || '';
 
   const villageStr = f.village || (initialVillages[0]?.name || 'समोड़ी (Samodi)');
   const resolvedId = f.villageId || resolveVillageId(villageStr, villageRecords);
@@ -60,13 +92,28 @@ const normalizeFamily = (f, villageRecords = []) => {
     createdBy: f.createdBy || f.surveyorId || '',
     createdByName: f.createdByName || f.surveyorName || 'Surveyor',
     members: (f.members || []).map((m, idx) => {
-      const nameEn = m.nameEnglish || m.name || `Member ${idx + 1}`;
-      const nameHi = m.nameHindi || m.name || `सदस्य ${idx + 1}`;
+      let nameEn = m.nameEnglish || '';
+      let nameHi = m.nameHindi || '';
+      if (!nameEn && !nameHi && m.name) {
+        if (isHindiText(m.name) && !containsEnglish(m.name)) {
+          nameHi = m.name;
+          nameEn = m.name;
+        } else {
+          nameEn = m.name;
+          nameHi = transliterateToHindi(m.name);
+        }
+      } else {
+        if (nameEn && !nameHi) {
+          nameHi = isHindiText(nameEn) ? nameEn : transliterateToHindi(nameEn);
+        } else if (nameHi && !nameEn) {
+          nameEn = nameHi;
+        }
+      }
       return {
         ...m,
-        name: m.name || nameEn || nameHi,
-        nameEnglish: nameEn,
-        nameHindi: nameHi
+        name: nameHi || nameEn || m.name || `सदस्य ${idx + 1}`,
+        nameEnglish: nameEn || m.name || `Member ${idx + 1}`,
+        nameHindi: nameHi || m.name || `सदस्य ${idx + 1}`
       };
     })
   };

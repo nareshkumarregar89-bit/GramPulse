@@ -21,6 +21,7 @@ import { useData } from '../contexts/DataContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { resolveVillageId, getVillageDisplayName } from '../utils/villageUtils';
+import { transliterateToHindi, isHindiText, containsEnglish } from '../utils/transliteration';
 
 export function ExcelImportModal({ isOpen, onClose }) {
   const { darkMode, language, villages, allFamilies, bulkAddFamilies, villageRecords } = useData();
@@ -118,6 +119,38 @@ export function ExcelImportModal({ isOpen, onClose }) {
         'Member 1 Relation': 'Head',
         'Member 2 Name': 'कमला देवी',
         'Member 2 Age': 46,
+        'Member 2 Gender': 'Female',
+        'Member 2 Relation': 'Wife'
+      },
+      {
+        'Village Name': sampleVillage,
+        'Family Head Name': 'Naresh Kumar Regar',
+        'Father or Husband Name': 'Shyam Singh',
+        'Mobile Number': '9829034567',
+        'Alternate Mobile': '',
+        'Mohalla': 'Regar Mohalla',
+        'Caste': 'Regar',
+        'Category': 'BPL',
+        'House Number': '24',
+        'Address': 'समोड़ी मुख्य बस्ती',
+        'PIN Code': '302001',
+        'Aadhaar Number': '987654321098',
+        'Jan Aadhaar Number': '1234567890',
+        'Ration Card Number': 'RC-300789',
+        'Bank Name': 'PNB',
+        'Account Number': '3456123456',
+        'IFSC Code': 'PUNB0JAIPUR',
+        'House Type': 'Pucca',
+        'Electricity Connection': 'Yes',
+        'Water Tap Connection': 'Yes',
+        'Toilet Available': 'Yes',
+        'Gas Connection': 'Yes',
+        'Member 1 Name': 'Naresh Kumar Regar',
+        'Member 1 Age': 38,
+        'Member 1 Gender': 'Male',
+        'Member 1 Relation': 'Head',
+        'Member 2 Name': 'Pooja Regar',
+        'Member 2 Age': 34,
         'Member 2 Gender': 'Female',
         'Member 2 Relation': 'Wife'
       }
@@ -262,16 +295,83 @@ export function ExcelImportModal({ isOpen, onClose }) {
       const rowNumber = row.rowNumber || idx + 1;
       const rowErrors = [];
 
-      const headName = getValue(row, [
+      // Extract specific English / Hindi columns if present, otherwise extract generic column
+      const rawHeadEn = getValue(row, [
+        'Family Head Name (English)', 'Head Name (English)', 'Family Head English', 'Head Name English',
+        'familyHeadNameEnglish', 'Head English', 'Name (English)'
+      ]);
+      const rawHeadHi = getValue(row, [
+        'Family Head Name (Hindi)', 'Head Name (Hindi)', 'Family Head Hindi', 'Head Name Hindi',
+        'familyHeadNameHindi', 'Head Hindi', 'परिवार मुखिया का नाम (हिंदी)', 'मुखिया का नाम (हिंदी)', 'नाम (हिंदी)'
+      ]);
+      const genericHead = getValue(row, [
         'Family Head Name', 'Head Name', 'Family Head', 'Name', 
         'मुखिया का नाम', 'परिवार मुखिया का नाम', 'नाम', 
-        'familyHeadName', 'familyHeadNameHindi', 'familyHeadNameEnglish', 'headName', 'head_name'
+        'familyHeadName', 'headName', 'head_name'
       ]);
-      const fatherName = getValue(row, [
+
+      let headNameEn = rawHeadEn || '';
+      let headNameHi = rawHeadHi || '';
+
+      if (!headNameEn && !headNameHi && genericHead) {
+        const bracketMatch = genericHead.match(/^([^(]+)\s*\(([^)]+)\)$/);
+        if (bracketMatch && containsEnglish(bracketMatch[1]) && isHindiText(bracketMatch[2])) {
+          headNameEn = bracketMatch[1].trim();
+          headNameHi = bracketMatch[2].trim();
+        } else if (isHindiText(genericHead) && !containsEnglish(genericHead)) {
+          headNameHi = genericHead;
+          headNameEn = genericHead;
+        } else {
+          headNameEn = genericHead;
+          headNameHi = transliterateToHindi(genericHead);
+        }
+      } else if (headNameEn && !headNameHi) {
+        headNameHi = isHindiText(headNameEn) && !containsEnglish(headNameEn)
+          ? headNameEn
+          : transliterateToHindi(headNameEn);
+      } else if (headNameHi && !headNameEn) {
+        headNameEn = headNameHi;
+      }
+      const headName = headNameEn || headNameHi || genericHead || '';
+
+      // Extract father / husband name
+      const rawFatherEn = getValue(row, [
+        'Father or Husband Name (English)', 'Father Name (English)', 'Father Name English',
+        'fatherNameEnglish', 'Father English'
+      ]);
+      const rawFatherHi = getValue(row, [
+        'Father or Husband Name (Hindi)', 'Father Name (Hindi)', 'Father Name Hindi',
+        'fatherNameHindi', 'Father Hindi', 'पिता/पति का नाम (हिंदी)', 'पिता का नाम (हिंदी)'
+      ]);
+      const genericFather = getValue(row, [
         'Father or Husband Name', 'Father Name', 'Husband Name', 
         'पिता/पति का नाम', 'पिता का नाम', 
-        'fatherName', 'fatherNameHindi', 'fatherNameEnglish', 'father_name', 'fatherOrHusbandName'
+        'fatherName', 'father_name', 'fatherOrHusbandName'
       ]);
+
+      let fatherNameEn = rawFatherEn || '';
+      let fatherNameHi = rawFatherHi || '';
+
+      if (!fatherNameEn && !fatherNameHi && genericFather) {
+        const bracketMatch = genericFather.match(/^([^(]+)\s*\(([^)]+)\)$/);
+        if (bracketMatch && containsEnglish(bracketMatch[1]) && isHindiText(bracketMatch[2])) {
+          fatherNameEn = bracketMatch[1].trim();
+          fatherNameHi = bracketMatch[2].trim();
+        } else if (isHindiText(genericFather) && !containsEnglish(genericFather)) {
+          fatherNameHi = genericFather;
+          fatherNameEn = genericFather;
+        } else {
+          fatherNameEn = genericFather;
+          fatherNameHi = transliterateToHindi(genericFather);
+        }
+      } else if (fatherNameEn && !fatherNameHi) {
+        fatherNameHi = isHindiText(fatherNameEn) && !containsEnglish(fatherNameEn)
+          ? fatherNameEn
+          : transliterateToHindi(fatherNameEn);
+      } else if (fatherNameHi && !fatherNameEn) {
+        fatherNameEn = fatherNameHi;
+      }
+      const fatherName = fatherNameEn || fatherNameHi || genericFather || '';
       let mobile = getValue(row, [
         'Mobile Number', 'Mobile', 'Phone', 
         'मोबाइल', 'मोबाइल नंबर', 
@@ -369,15 +469,36 @@ export function ExcelImportModal({ isOpen, onClose }) {
       let members = [];
       if (Array.isArray(row.members) && row.members.length > 0) {
         members = row.members.map((m, mIdx) => {
-          const mName = m.name || m.nameEnglish || m.nameHindi || m['Member Name'] || m['सदस्य नाम'] || (mIdx === 0 ? headName : `सदस्य ${mIdx + 1}`);
+          const rawMName = m.name || m.nameEnglish || m.nameHindi || m['Member Name'] || m['सदस्य नाम'] || (mIdx === 0 ? headName : `सदस्य ${mIdx + 1}`);
+          let mEn = m.nameEnglish || m['Member Name (English)'] || '';
+          let mHi = m.nameHindi || m['Member Name (Hindi)'] || m['सदस्य नाम (हिंदी)'] || '';
+
+          if (!mEn && !mHi && rawMName) {
+            const bracketMatch = String(rawMName).match(/^([^(]+)\s*\(([^)]+)\)$/);
+            if (bracketMatch && containsEnglish(bracketMatch[1]) && isHindiText(bracketMatch[2])) {
+              mEn = bracketMatch[1].trim();
+              mHi = bracketMatch[2].trim();
+            } else if (isHindiText(rawMName) && !containsEnglish(rawMName)) {
+              mHi = rawMName;
+              mEn = rawMName;
+            } else {
+              mEn = rawMName;
+              mHi = transliterateToHindi(rawMName);
+            }
+          } else if (mEn && !mHi) {
+            mHi = isHindiText(mEn) && !containsEnglish(mEn) ? mEn : transliterateToHindi(mEn);
+          } else if (mHi && !mEn) {
+            mEn = mHi;
+          }
+
           const mAge = parseInt(m.age || m['Age'] || m['आयु'] || '30', 10);
           const mGender = String(m.gender || m['Gender'] || m['लिंग'] || 'Male');
           const mRelation = m.relation || m['Relation'] || m['संबंध'] || (mIdx === 0 ? 'Head' : 'Member');
           return {
             id: m.id || mIdx + 1,
-            name: mName,
-            nameEnglish: m.nameEnglish || mName,
-            nameHindi: m.nameHindi || mName,
+            name: mHi || mEn || rawMName,
+            nameEnglish: mEn || rawMName,
+            nameHindi: mHi || rawMName,
             age: isNaN(mAge) ? 30 : mAge,
             gender: mGender.toLowerCase().startsWith('f') || mGender.includes('महिला') || mGender.includes('स्त्री') ? 'Female' : 'Male',
             relation: mRelation,
@@ -390,16 +511,41 @@ export function ExcelImportModal({ isOpen, onClose }) {
       } else {
         // Flat columns Member 1 Name ... Member 10 Name
         for (let m = 1; m <= 10; m++) {
-          const mName = getValue(row, [`Member ${m} Name`, `Member${m}Name`, `member_${m}_name`, `सदस्य ${m} नाम`]);
-          if (mName) {
+          const rawMName = getValue(row, [`Member ${m} Name`, `Member${m}Name`, `member_${m}_name`, `सदस्य ${m} नाम`]);
+          const rawMEn = getValue(row, [`Member ${m} Name (English)`, `Member${m}NameEnglish`, `Member ${m} English`]);
+          const rawMHi = getValue(row, [`Member ${m} Name (Hindi)`, `Member${m}NameHindi`, `सदस्य ${m} नाम (हिंदी)`]);
+
+          if (rawMName || rawMEn || rawMHi) {
+            let mEn = rawMEn || '';
+            let mHi = rawMHi || '';
+            const baseName = rawMName || mEn || mHi;
+
+            if (!mEn && !mHi && baseName) {
+              const bracketMatch = String(baseName).match(/^([^(]+)\s*\(([^)]+)\)$/);
+              if (bracketMatch && containsEnglish(bracketMatch[1]) && isHindiText(bracketMatch[2])) {
+                mEn = bracketMatch[1].trim();
+                mHi = bracketMatch[2].trim();
+              } else if (isHindiText(baseName) && !containsEnglish(baseName)) {
+                mHi = baseName;
+                mEn = baseName;
+              } else {
+                mEn = baseName;
+                mHi = transliterateToHindi(baseName);
+              }
+            } else if (mEn && !mHi) {
+              mHi = isHindiText(mEn) && !containsEnglish(mEn) ? mEn : transliterateToHindi(mEn);
+            } else if (mHi && !mEn) {
+              mEn = mHi;
+            }
+
             const mAge = parseInt(getValue(row, [`Member ${m} Age`, `Member${m}Age`, `member_${m}_age`, `सदस्य ${m} आयु`]) || '30', 10);
             const mGender = getValue(row, [`Member ${m} Gender`, `Member${m}Gender`, `member_${m}_gender`, `सदस्य ${m} लिंग`]) || 'Male';
             const mRelation = getValue(row, [`Member ${m} Relation`, `Member${m}Relation`, `member_${m}_relation`, `सदस्य ${m} संबंध`]) || (m === 1 ? 'Head' : 'Member');
             members.push({
               id: m,
-              name: mName,
-              nameEnglish: mName,
-              nameHindi: mName,
+              name: mHi || mEn || baseName,
+              nameEnglish: mEn || baseName,
+              nameHindi: mHi || baseName,
               age: isNaN(mAge) ? 30 : mAge,
               gender: mGender.toLowerCase().startsWith('f') || mGender.includes('महिला') ? 'Female' : 'Male',
               relation: mRelation,
@@ -415,9 +561,9 @@ export function ExcelImportModal({ isOpen, onClose }) {
       if (members.length === 0 && headName) {
         members.push({
           id: 1,
-          name: headName,
-          nameEnglish: headName,
-          nameHindi: headName,
+          name: headNameHi || headNameEn || headName,
+          nameEnglish: headNameEn || headName,
+          nameHindi: headNameHi || headName,
           age: 40,
           gender: 'Male',
           relation: 'Head',
@@ -431,12 +577,12 @@ export function ExcelImportModal({ isOpen, onClose }) {
       const parsedItem = {
         id: row.id ? String(row.id).trim() : undefined,
         rowNumber,
-        familyHeadName: headName,
-        familyHeadNameEnglish: headName,
-        familyHeadNameHindi: headName,
-        fatherName,
-        fatherNameEnglish: fatherName,
-        fatherNameHindi: fatherName,
+        familyHeadName: headNameHi || headNameEn || headName,
+        familyHeadNameEnglish: headNameEn || headName,
+        familyHeadNameHindi: headNameHi || headName,
+        fatherName: fatherNameHi || fatherNameEn || fatherName,
+        fatherNameEnglish: fatherNameEn || fatherName,
+        fatherNameHindi: fatherNameHi || fatherName,
         mobile,
         alternateMobile: altMobile,
         village,

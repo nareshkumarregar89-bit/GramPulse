@@ -17,11 +17,13 @@ import {
   ExternalLink,
   Navigation,
   Lock,
-  AlertCircle
+  AlertCircle,
+  RefreshCw
 } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
 import { useToast } from '../contexts/ToastContext';
 import { useAuth } from '../contexts/AuthContext';
+import { transliterateToHindi } from '../utils/transliteration';
 
 const steps = [
   { id: 1, label: 'Family Info', labelHi: 'परिवार विवरण', icon: User },
@@ -109,13 +111,23 @@ export function NewSurvey() {
   }));
   const [gpsLoading, setGpsLoading] = useState(false);
   const [gpsError, setGpsError] = useState('');
+  const [isHeadHindiManual, setIsHeadHindiManual] = useState(false);
+  const [isFatherHindiManual, setIsFatherHindiManual] = useState(false);
 
   // Check if editing
   useEffect(() => {
     if (id) {
       const existingFamily = getFamilyById(id);
       if (existingFamily) {
-        setFamily(existingFamily);
+        setFamily({
+          ...existingFamily,
+          members: (existingFamily.members || []).map(m => ({
+            ...m,
+            isHindiManual: Boolean(m.nameHindi)
+          }))
+        });
+        if (existingFamily.familyHeadNameHindi) setIsHeadHindiManual(true);
+        if (existingFamily.fatherNameHindi) setIsFatherHindiManual(true);
       }
     }
   }, [id, getFamilyById]);
@@ -175,8 +187,14 @@ export function NewSurvey() {
       );
       return;
     }
+    const cleanedMembers = (family.members || []).map(m => {
+      const { isHindiManual, ...rest } = m;
+      return rest;
+    });
+
     const enrichedFamily = {
       ...family,
+      members: cleanedMembers,
       village: family.village || (selectedVillage !== 'all' ? selectedVillage : (villages[0] || 'समोड़ी (Samodi)')),
       surveyorId: family.surveyorId || currentUser?.uid || '',
       surveyorName: family.surveyorName || userProfile?.name || currentUser?.email?.split('@')[0] || 'Admin',
@@ -209,10 +227,77 @@ export function NewSurvey() {
     }
   };
 
+  const handleHeadNameEnglishChange = (enVal) => {
+    setFamily(prev => {
+      const next = { ...prev, familyHeadNameEnglish: enVal };
+      if (!isHeadHindiManual || !prev.familyHeadNameHindi) {
+        next.familyHeadNameHindi = transliterateToHindi(enVal);
+      }
+      return next;
+    });
+  };
+
+  const handleHeadNameHindiChange = (hiVal) => {
+    setIsHeadHindiManual(true);
+    setFamily(prev => ({ ...prev, familyHeadNameHindi: hiVal }));
+  };
+
+  const handleRegenerateHeadHindi = () => {
+    const transliterated = transliterateToHindi(family.familyHeadNameEnglish || '');
+    setFamily(prev => ({ ...prev, familyHeadNameHindi: transliterated }));
+    setIsHeadHindiManual(false);
+  };
+
+  const handleFatherNameEnglishChange = (enVal) => {
+    setFamily(prev => {
+      const next = { ...prev, fatherNameEnglish: enVal };
+      if (!isFatherHindiManual || !prev.fatherNameHindi) {
+        next.fatherNameHindi = transliterateToHindi(enVal);
+      }
+      return next;
+    });
+  };
+
+  const handleFatherNameHindiChange = (hiVal) => {
+    setIsFatherHindiManual(true);
+    setFamily(prev => ({ ...prev, fatherNameHindi: hiVal }));
+  };
+
+  const handleRegenerateFatherHindi = () => {
+    const transliterated = transliterateToHindi(family.fatherNameEnglish || '');
+    setFamily(prev => ({ ...prev, fatherNameHindi: transliterated }));
+    setIsFatherHindiManual(false);
+  };
+
   const updateMember = (index, field, value) => {
     setFamily(prev => ({
       ...prev,
-      members: prev.members.map((m, i) => i === index ? { ...m, [field]: value } : m)
+      members: prev.members.map((m, i) => {
+        if (i !== index) return m;
+        const updated = { ...m, [field]: value };
+        if (field === 'nameEnglish') {
+          if (!m.isHindiManual || !m.nameHindi) {
+            updated.nameHindi = transliterateToHindi(value);
+          }
+        } else if (field === 'nameHindi') {
+          updated.isHindiManual = true;
+        }
+        return updated;
+      })
+    }));
+  };
+
+  const handleRegenerateMemberHindi = (index) => {
+    setFamily(prev => ({
+      ...prev,
+      members: prev.members.map((m, i) => {
+        if (i !== index) return m;
+        return {
+          ...m,
+          nameHindi: transliterateToHindi(m.nameEnglish || ''),
+          isHindiManual: false
+        };
+      })
     }));
   };
 
@@ -226,26 +311,52 @@ export function NewSurvey() {
               <InputField
                 label={t('family_head_english')}
                 value={family.familyHeadNameEnglish}
-                onChange={(v) => setFamily(p => ({ ...p, familyHeadNameEnglish: v }))}
+                onChange={handleHeadNameEnglishChange}
+                placeholder="e.g. Ramesh Kumar"
                 required
               />
               <InputField
                 label={t('family_head_hindi')}
                 value={family.familyHeadNameHindi}
-                onChange={(v) => setFamily(p => ({ ...p, familyHeadNameHindi: v }))}
+                onChange={handleHeadNameHindiChange}
+                placeholder="उदा. रमेश कुमार"
                 required
+                actionButton={
+                  <button
+                    type="button"
+                    onClick={handleRegenerateHeadHindi}
+                    title={language === 'hi' ? 'अंग्रेजी से पुनः हिंदी बनाएं' : 'Regenerate Hindi from English'}
+                    className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 px-2 py-0.5 rounded-md hover:bg-emerald-100 dark:hover:bg-emerald-900/50"
+                  >
+                    <RefreshCw className="w-3 h-3" />
+                    <span>{t('regenerate_hindi') || 'Regenerate Hindi'}</span>
+                  </button>
+                }
               />
               <InputField
                 label={t('father_husband_english')}
                 value={family.fatherNameEnglish}
-                onChange={(v) => setFamily(p => ({ ...p, fatherNameEnglish: v }))}
+                onChange={handleFatherNameEnglishChange}
+                placeholder="e.g. Shyam Singh"
                 required
               />
               <InputField
                 label={t('father_husband_hindi')}
                 value={family.fatherNameHindi}
-                onChange={(v) => setFamily(p => ({ ...p, fatherNameHindi: v }))}
+                onChange={handleFatherNameHindiChange}
+                placeholder="उदा. श्याम सिंह"
                 required
+                actionButton={
+                  <button
+                    type="button"
+                    onClick={handleRegenerateFatherHindi}
+                    title={language === 'hi' ? 'अंग्रेजी से पुनः हिंदी बनाएं' : 'Regenerate Hindi from English'}
+                    className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 px-2 py-0.5 rounded-md hover:bg-emerald-100 dark:hover:bg-emerald-900/50"
+                  >
+                    <RefreshCw className="w-3 h-3" />
+                    <span>{t('regenerate_hindi') || 'Regenerate Hindi'}</span>
+                  </button>
+                }
               />
               <InputField
                 label={t('mobile')}
@@ -492,8 +603,29 @@ export function NewSurvey() {
                     )}
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <InputField label={t('member_name_english')} value={member.nameEnglish} onChange={(v) => updateMember(index, 'nameEnglish', v)} />
-                    <InputField label={t('member_name_hindi')} value={member.nameHindi} onChange={(v) => updateMember(index, 'nameHindi', v)} />
+                    <InputField 
+                      label={t('member_name_english')} 
+                      value={member.nameEnglish} 
+                      onChange={(v) => updateMember(index, 'nameEnglish', v)} 
+                      placeholder="e.g. Ramesh Kumar"
+                    />
+                    <InputField 
+                      label={t('member_name_hindi')} 
+                      value={member.nameHindi} 
+                      onChange={(v) => updateMember(index, 'nameHindi', v)} 
+                      placeholder="उदा. रमेश कुमार"
+                      actionButton={
+                        <button
+                          type="button"
+                          onClick={() => handleRegenerateMemberHindi(index)}
+                          title={language === 'hi' ? 'अंग्रेजी से पुनः हिंदी बनाएं' : 'Regenerate Hindi from English'}
+                          className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 px-2 py-0.5 rounded-md hover:bg-emerald-100 dark:hover:bg-emerald-900/50"
+                        >
+                          <RefreshCw className="w-3 h-3" />
+                          <span>{t('regenerate_hindi') || 'Regenerate Hindi'}</span>
+                        </button>
+                      }
+                    />
                     <InputField label={t('age')} type="number" value={member.age} onChange={(v) => updateMember(index, 'age', v)} />
                     <SelectField label={t('gender')} value={member.gender} onChange={(v) => updateMember(index, 'gender', v)} options={['Male', 'Female', 'Other']} />
                     <InputField label={t('relation')} value={member.relation} onChange={(v) => updateMember(index, 'relation', v)} />
@@ -761,22 +893,26 @@ export function NewSurvey() {
   );
 }
 
-function InputField({ label, value, onChange, type = 'text', required, className = '' }) {
+function InputField({ label, value, onChange, type = 'text', required, className = '', actionButton = null, placeholder = '' }) {
   const { darkMode } = useData();
   return (
     <div className={className}>
-      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-        {label} {required && <span className="text-red-500">*</span>}
-      </label>
+      <div className="flex items-center justify-between mb-2 gap-2">
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+          {label} {required && <span className="text-red-500">*</span>}
+        </label>
+        {actionButton}
+      </div>
       <input
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
         className={`
           w-full px-4 py-3 rounded-xl border outline-none transition-all
           ${darkMode
-            ? 'bg-gray-800 border-gray-700 text-white focus:border-green-500'
-            : 'bg-gray-50 border-gray-200 text-gray-900 focus:border-green-500'
+            ? 'bg-gray-800 border-gray-700 text-white focus:border-green-500 placeholder-gray-500'
+            : 'bg-gray-50 border-gray-200 text-gray-900 focus:border-green-500 placeholder-gray-400'
           }
         `}
       />
