@@ -153,10 +153,10 @@ exports.sendWelcomeEmailOnSignUp = functions.auth.user().onCreate(async (user) =
   });
 
   const mailOptions = {
-    from: `"GramPulse Portal" <${GMAIL_USER}>`,
+    from: `"VillagePulse Portal" <${GMAIL_USER}>`,
     to: email,
-    subject: '🎉 Welcome to GramPulse - Registration Successful!',
-    text: `नमस्ते ${displayName},\n\nGramPulse पोर्टल पर आपका खाता सफलतापूर्वक बन चुका है।\nEmail: ${email}\nDate: ${registrationDate}\n\nअब आप पोर्टल पर लॉगिन करके ग्राम सर्वेक्षण कार्य शुरू कर सकते हैं।\n\nGramPulse Team`,
+    subject: '🎉 Welcome to VillagePulse - Registration Successful!',
+    text: `नमस्ते ${displayName},\n\nVillagePulse पोर्टल पर आपका खाता सफलतापूर्वक बन चुका है।\nEmail: ${email}\nDate: ${registrationDate}\n\nअब आप पोर्टल पर लॉगिन करके ग्राम सर्वेक्षण कार्य शुरू कर सकते हैं।\n\nVillagePulse Team`,
     html: `
       <div style="margin: 0; padding: 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f3f4f6; color: #1f2937;">
         <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.06); border: 1px solid #e5e7eb;">
@@ -164,7 +164,7 @@ exports.sendWelcomeEmailOnSignUp = functions.auth.user().onCreate(async (user) =
           <!-- Header Banner -->
           <tr>
             <td style="background: linear-gradient(135deg, #15803d 0%, #4338ca 100%); padding: 32px 24px; text-align: center;">
-              <h1 style="color: #ffffff; margin: 0; font-size: 26px; font-weight: 700; letter-spacing: -0.5px;">GramPulse</h1>
+              <h1 style="color: #ffffff; margin: 0; font-size: 26px; font-weight: 700; letter-spacing: -0.5px;">VillagePulse</h1>
               <p style="color: #dcfce7; margin: 6px 0 0; font-size: 14px; font-weight: 500;">ग्राम सर्वेक्षण प्रबंधन एवं विश्लेषण पोर्टल</p>
             </td>
           </tr>
@@ -176,7 +176,7 @@ exports.sendWelcomeEmailOnSignUp = functions.auth.user().onCreate(async (user) =
                 नमस्ते ${displayName}, स्वागत है! 👋
               </h2>
               <p style="margin: 0 0 18px; color: #4b5563; font-size: 15px; line-height: 1.6;">
-                GramPulse पोर्टल पर आपका खाता <strong>सफलतापूर्वक रजिस्टर</strong> हो गया है। आपका विवरण नीचे दिया गया है:
+                VillagePulse पोर्टल पर आपका खाता <strong>सफलतापूर्वक रजिस्टर</strong> हो गया है। आपका विवरण नीचे दिया गया है:
               </p>
 
               <!-- Registration Details Box -->
@@ -209,7 +209,7 @@ exports.sendWelcomeEmailOnSignUp = functions.auth.user().onCreate(async (user) =
           <!-- Email Footer -->
           <tr>
             <td style="background-color: #f8fafc; padding: 18px 24px; text-align: center; border-top: 1px solid #f1f5f9; font-size: 12px; color: #94a3b8;">
-              &copy; ${new Date().getFullYear()} GramPulse Survey System. All rights reserved.
+              &copy; ${new Date().getFullYear()} VillagePulse Survey System. All rights reserved.
             </td>
           </tr>
         </table>
@@ -259,17 +259,17 @@ exports.sendLoginAlert = functions.https.onCall(async (data, context) => {
   });
 
   const mailOptions = {
-    from: `"GramPulse Security" <${GMAIL_USER}>`,
+    from: `"VillagePulse Security" <${GMAIL_USER}>`,
     to: email,
-    subject: '🔐 GramPulse: New Login Detected',
+    subject: '🔐 VillagePulse: New Login Detected',
     html: `
       <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 580px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden;">
         <div style="background: #1e293b; padding: 20px; text-align: center; color: #fff;">
-          <h2 style="margin: 0; font-size: 20px;">GramPulse Security Alert</h2>
+          <h2 style="margin: 0; font-size: 20px;">VillagePulse Security Alert</h2>
         </div>
         <div style="padding: 24px;">
           <p>नमस्ते <strong>${displayName}</strong>,</p>
-          <p>आपके GramPulse खाते में नया लॉगिन दर्ज किया गया है:</p>
+          <p>आपके VillagePulse खाते में नया लॉगिन दर्ज किया गया है:</p>
           <div style="background: #f8fafc; padding: 14px; border-radius: 8px; border: 1px solid #e2e8f0; font-size: 14px; margin: 16px 0;">
             <p style="margin: 4px 0;"><strong>Time:</strong> ${loginDate} IST</p>
             <p style="margin: 4px 0;"><strong>Account:</strong> ${email}</p>
@@ -277,7 +277,7 @@ exports.sendLoginAlert = functions.https.onCall(async (data, context) => {
           <p style="color: #64748b; font-size: 13px;">यदि यह आप थे, तो आपको कुछ करने की आवश्यकता नहीं है। यदि आपने यह लॉगिन नहीं किया था, तो कृपया तुरंत अपना पासवर्ड बदलें।</p>
         </div>
         <div style="background: #f1f5f9; padding: 12px; text-align: center; font-size: 12px; color: #64748b;">
-          GramPulse &copy; ${new Date().getFullYear()}
+          VillagePulse &copy; ${new Date().getFullYear()}
         </div>
       </div>
     `

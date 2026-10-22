@@ -33,6 +33,7 @@ import {
   removeOfflineSurvey, 
   getOfflineCount 
 } from '../utils/offlineQueue';
+import { sortFamiliesById, compareFamilyIds } from '../utils/familySort';
 
 const DataContext = createContext();
 
@@ -133,6 +134,10 @@ export function DataProvider({ children }) {
     userProfile, 
     assignedVillages = [], 
     assignedVillageIds = [], 
+    safeMode = false,
+    canEdit = false,
+    canDelete = false,
+    canAddSurvey = false,
     isReadOnly = false 
   } = auth;
 
@@ -351,7 +356,7 @@ export function DataProvider({ children }) {
               }
             }
           });
-          setRawFamilies(loaded);
+          setRawFamilies(sortFamiliesById(loaded));
 
           // Batch auto-heal missing villageId (chunks of 40)
           if (toHeal.length > 0) {
@@ -390,7 +395,7 @@ export function DataProvider({ children }) {
       const syncCombinedFamilies = () => {
         setIsFirebaseConnected(true);
         const combined = Array.from(combinedMap.values());
-        setRawFamilies(combined);
+        setRawFamilies(sortFamiliesById(combined));
       };
 
       // Strategy 1: General collection listener with client-side assigned village filter
@@ -836,10 +841,10 @@ export function DataProvider({ children }) {
 
   // Add a single family with village validation
   const addFamily = async (family) => {
-    if (isReadOnly) {
+    if (!isAdmin && !canEdit) {
       throw new Error(language === 'hi' 
-        ? 'आपके खाते को केवल देखने (View-Only) की अनुमति है। आप नए रिकॉर्ड नहीं जोड़ सकते।'
-        : 'Your account has view-only permissions. You cannot add survey records.');
+        ? 'सुरक्षित मोड (Safe Mode) सक्रिय नहीं है। जब तक व्यवस्थापक सुरक्षित मोड सक्रिय नहीं करता, आप केवल डेटा देख सकते हैं।'
+        : 'Safe Mode is disabled. You have view-only access until an administrator enables Safe Mode for your account.');
     }
 
     const vIds = (assignedVillageIds && assignedVillageIds.length > 0)
@@ -914,10 +919,10 @@ export function DataProvider({ children }) {
   const bulkAddFamilies = async (importedFamilies, options = {}) => {
     const { replaceAll = false } = options;
 
-    if (isReadOnly) {
+    if (!isAdmin && !canEdit) {
       throw new Error(language === 'hi' 
-        ? 'आपके खाते को केवल देखने (View-Only) की अनुमति है। आप रिकॉर्ड आयात नहीं कर सकते।'
-        : 'Your account has view-only permissions. You cannot import survey records.');
+        ? 'सुरक्षित मोड (Safe Mode) सक्रिय नहीं है। आप रिकॉर्ड आयात नहीं कर सकते।'
+        : 'Safe Mode is disabled. You cannot import survey records.');
     }
 
     const vIds = (assignedVillageIds && assignedVillageIds.length > 0)
@@ -1012,9 +1017,15 @@ export function DataProvider({ children }) {
   const loadStandard227Families = loadStandard287Families;
   const loadStandard142Families = loadStandard287Families;
 
-  // Update a family (Allowed for assigned surveyors & admins, even in safe view/edit mode)
+  // Update a family (Requires Safe Mode for surveyors; Admin can always edit)
   const updateFamily = async (id, updatedFamily) => {
     if (!isAdmin) {
+      if (!canEdit) {
+        throw new Error(language === 'hi' 
+          ? 'सुरक्षित मोड (Safe Mode) सक्रिय नहीं है। जब तक व्यवस्थापक सुरक्षित मोड सक्रिय नहीं करता, आप रिकॉर्ड्स संपादित नहीं कर सकते।'
+          : 'Safe Mode is disabled. You cannot edit records until an administrator enables Safe Mode for your account.');
+      }
+
       const vIds = (assignedVillageIds && assignedVillageIds.length > 0)
         ? assignedVillageIds
         : deriveAssignedVillageIds(userProfile, villageRecords);
@@ -1027,7 +1038,9 @@ export function DataProvider({ children }) {
       const allowed = scopedFamilies.some(f => f.id === id);
       if (!allowed) {
         console.error('Unauthorized update attempt on family:', id);
-        throw new Error('You do not have permission to edit records outside your assigned village.');
+        throw new Error(language === 'hi'
+          ? 'आप अपने आवंटित गाँव से बाहर के रिकॉर्ड संपादित नहीं कर सकते।'
+          : 'You do not have permission to edit records outside your assigned village.');
       }
     }
 
@@ -1053,20 +1066,12 @@ export function DataProvider({ children }) {
     }
   };
 
-  // Delete a family (move to deletedFamilies - restricted for view-only / safe mode)
+  // Delete a family (move to deletedFamilies - strictly Admin only)
   const deleteFamily = async (id) => {
-    if (isReadOnly) {
-      throw new Error(language === 'hi' 
-        ? 'आपके खाते को रिकॉर्ड हटाने (Delete) की अनुमति नहीं है। केवल व्यवस्थापक ही रिकॉर्ड हटा सकते हैं।'
-        : 'Your account does not have permission to delete records. Only administrators can delete records.');
-    }
-
     if (!isAdmin) {
-      const allowed = scopedFamilies.some(f => f.id === id);
-      if (!allowed) {
-        console.error('Unauthorized delete attempt on family:', id);
-        throw new Error('You do not have permission to delete records outside your assigned village.');
-      }
+      throw new Error(language === 'hi' 
+        ? 'रिकॉर्ड हटाने (Delete) की अनुमति केवल व्यवस्थापक (Admin) को है। सर्वेयर रिकॉर्ड डिलीट नहीं कर सकते।'
+        : 'Only administrators have permission to delete records. Surveyors cannot delete records.');
     }
 
     const familyToDelete = rawFamilies.find(f => f.id === id);
@@ -1088,8 +1093,14 @@ export function DataProvider({ children }) {
     }
   };
 
-  // Restore a family
+  // Restore a family (strictly Admin only)
   const restoreFamily = async (id) => {
+    if (!isAdmin) {
+      throw new Error(language === 'hi' 
+        ? 'केवल व्यवस्थापक ही रिकॉर्ड वापस ला सकते हैं।' 
+        : 'Only administrators can restore records.');
+    }
+
     const familyToRestore = deletedFamilies.find(f => f.id === id);
     if (familyToRestore) {
       const { deletedAt, ...restoredFamily } = familyToRestore;
@@ -1104,8 +1115,14 @@ export function DataProvider({ children }) {
     }
   };
 
-  // Permanently delete a family
+  // Permanently delete a family (strictly Admin only)
   const permanentlyDeleteFamily = async (id) => {
+    if (!isAdmin) {
+      throw new Error(language === 'hi' 
+        ? 'केवल व्यवस्थापक ही रिकॉर्ड स्थायी रूप से मिटा सकते हैं।' 
+        : 'Only administrators can permanently delete records.');
+    }
+
     setDeletedFamilies(prev => prev.filter(f => f.id !== id));
     try {
       await deleteDoc(doc(db, 'deletedFamilies', id));
@@ -1114,8 +1131,14 @@ export function DataProvider({ children }) {
     }
   };
 
-  // Restore all deleted families
+  // Restore all deleted families (strictly Admin only)
   const restoreAllFamilies = async () => {
+    if (!isAdmin) {
+      throw new Error(language === 'hi' 
+        ? 'केवल व्यवस्थापक ही रिकॉर्ड वापस ला सकते हैं।' 
+        : 'Only administrators can restore records.');
+    }
+
     const toRestore = [...deletedFamilies];
     if (toRestore.length === 0) return;
     setRawFamilies(prev => [...prev, ...toRestore.map(f => {
@@ -1136,8 +1159,14 @@ export function DataProvider({ children }) {
     }
   };
 
-  // Permanently delete all families (purge trash)
+  // Permanently delete all families (purge trash - strictly Admin only)
   const permanentlyDeleteAllFamilies = async () => {
+    if (!isAdmin) {
+      throw new Error(language === 'hi' 
+        ? 'केवल व्यवस्थापक ही रिकॉर्ड स्थायी रूप से मिटा सकते हैं।' 
+        : 'Only administrators can permanently delete records.');
+    }
+
     const toDelete = [...deletedFamilies];
     if (toDelete.length === 0) return;
     setDeletedFamilies([]);
@@ -1328,6 +1357,9 @@ export function DataProvider({ children }) {
   };
 
   const deleteVillage = async (villageName) => {
+    if (!isAdmin) {
+      throw new Error('Only administrators can delete villages.');
+    }
     const matched = (villageRecords || []).find(v => isFamilyInVillage({ village: villageName }, v.id));
     if (matched) {
       return deleteVillageRecord(matched.id);
@@ -1350,6 +1382,9 @@ export function DataProvider({ children }) {
   };
 
   const deleteMohalla = async (mohalla) => {
+    if (!isAdmin) {
+      throw new Error('Only administrators can delete mohallas.');
+    }
     const nextMohallas = mohallas.filter(m => m !== mohalla);
     setMohallas(nextMohallas);
     try {
@@ -1374,6 +1409,9 @@ export function DataProvider({ children }) {
   };
 
   const deleteCaste = async (caste) => {
+    if (!isAdmin) {
+      throw new Error('Only administrators can delete castes.');
+    }
     const nextCastes = castes.filter(c => c !== caste);
     setCastes(nextCastes);
     try {

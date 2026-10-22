@@ -5,6 +5,7 @@ import {
   onAuthStateChanged,
   sendPasswordResetEmail,
   createUserWithEmailAndPassword,
+  updateProfile,
   GoogleAuthProvider,
   signInWithPopup,
   getAuth
@@ -21,6 +22,7 @@ import {
 import { initializeApp, getApps } from 'firebase/app';
 import { auth, db } from '../firebase';
 import { resolveVillageId, deriveAssignedVillageIds, getVillageDisplayName, getUniqueAssignedVillageNames } from '../utils/villageUtils';
+import { sendRegistrationWelcomeEmail } from '../utils/emailNotifier';
 
 const AuthContext = createContext();
 
@@ -114,10 +116,17 @@ export function AuthProvider({ children }) {
               assignedVillageIds: [],
               assignedVillageId: null,
               assignmentStatus: isSuperAdmin ? 'Assigned' : 'Unassigned',
-              status: 'active',
+              status: isSuperAdmin ? 'active' : 'pending',
               createdAt: new Date().toISOString()
             };
             await setDoc(userDocRef, newProfile);
+
+            // Send registration welcome notification email
+            sendRegistrationWelcomeEmail({
+              to_email: user.email,
+              to_name: newProfile.name,
+              role: newProfile.role
+            }).catch(e => console.warn('Welcome email dispatch:', e));
           }
         } catch (initErr) {
           console.warn('Initial profile check error:', initErr);
@@ -138,7 +147,18 @@ export function AuthProvider({ children }) {
             setCurrentUser(null);
             setUserRole(null);
             setUserProfile(null);
-            setAuthError('Your account has been deactivated by the administrator.');
+            setAuthError('ACCOUNT_INACTIVE');
+            setLoading(false);
+            return;
+          }
+
+          // Pending approval check (Requires admin approval)
+          if (data.status === 'pending' && user.uid !== SUPER_ADMIN_UID) {
+            await signOut(auth);
+            setCurrentUser(null);
+            setUserRole(null);
+            setUserProfile(null);
+            setAuthError('ACCOUNT_PENDING');
             setLoading(false);
             return;
           }
@@ -167,12 +187,22 @@ export function AuthProvider({ children }) {
           }
 
           const role = data.role || (user.uid === SUPER_ADMIN_UID ? 'admin' : 'surveyor');
+          const isAdminUser = role === 'admin' || user.uid === SUPER_ADMIN_UID;
           const userAssignedVillages = data.assignedVillages || (data.assignedVillage ? [data.assignedVillage] : []);
           const userAssignedVillageIds = deriveAssignedVillageIds(data);
           const primaryVillageId = userAssignedVillageIds[0] || data.assignedVillageId || null;
           const isAssigned = (userAssignedVillages.length > 0 || userAssignedVillageIds.length > 0);
-          const assignmentStatus = (isAssigned || role === 'admin') ? 'Assigned' : 'Unassigned';
-          const isReadOnly = Boolean(data.isReadOnly || data.accessLevel === 'view_only' || data.role === 'viewer');
+          const assignmentStatus = (isAssigned || isAdminUser) ? 'Assigned' : 'Unassigned';
+
+          // Safe Mode Permissions Logic:
+          // Admin always has full rights (canEdit=true, canDelete=true, isReadOnly=false).
+          // Surveyor: If safeMode is NOT ticked (false/undefined), surveyor is View-Only (cannot edit, cannot delete).
+          // Even when safeMode is TICKED (true), surveyor CAN edit, but CANNOT delete (only admin can delete!).
+          const safeMode = isAdminUser ? true : Boolean(data.safeMode);
+          const isReadOnly = isAdminUser ? false : (data.safeMode !== undefined ? !data.safeMode : Boolean(data.isReadOnly || data.accessLevel === 'view_only' || data.role === 'viewer'));
+          const canEdit = isAdminUser || safeMode;
+          const canDelete = isAdminUser; // Strictly Admin only!
+          const canAddSurvey = isAdminUser || safeMode;
           const enrichedVillages = isAssigned ? enrichVillageVariants(userAssignedVillages, userAssignedVillageIds) : userAssignedVillages;
 
           setUserRole(role);
@@ -183,7 +213,11 @@ export function AuthProvider({ children }) {
             assignedVillageIds: userAssignedVillageIds,
             assignedVillageId: primaryVillageId,
             assignmentStatus,
-            isReadOnly
+            safeMode,
+            isReadOnly,
+            canEdit,
+            canDelete,
+            canAddSurvey
           });
           setLoading(false);
         }, (err) => {
@@ -263,21 +297,71 @@ export function AuthProvider({ children }) {
 
   const login = async (email, password) => {
     setAuthError('');
-    const cred = await signInWithEmailAndPassword(auth, email, password);
-    // Double check active status upon login
+    const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
+    // Double check active/pending status upon login
     try {
       const snap = await getDoc(doc(db, 'users', cred.user.uid));
       if (snap.exists()) {
         const data = snap.data();
         if (data.status === 'inactive' && cred.user.uid !== SUPER_ADMIN_UID) {
           await signOut(auth);
-          throw new Error('Your account has been deactivated by the administrator.');
+          throw new Error('ACCOUNT_INACTIVE');
+        }
+        if (data.status === 'pending' && cred.user.uid !== SUPER_ADMIN_UID) {
+          await signOut(auth);
+          throw new Error('ACCOUNT_PENDING');
         }
       }
     } catch (e) {
-      if (e.message.includes('deactivated')) throw e;
+      if (e.message === 'ACCOUNT_INACTIVE' || e.message === 'ACCOUNT_PENDING') throw e;
     }
     return cred;
+  };
+
+  const signup = async (email, password, name) => {
+    setAuthError('');
+    const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
+    const user = cred.user;
+
+    if (name && name.trim()) {
+      try {
+        await updateProfile(user, { displayName: name.trim() });
+      } catch (profileErr) {
+        console.warn('Could not update auth profile displayName:', profileErr);
+      }
+    }
+
+    const isSuperAdmin = user.uid === SUPER_ADMIN_UID;
+    const initialStatus = isSuperAdmin ? 'active' : 'pending';
+
+    const newProfile = {
+      uid: user.uid,
+      email: user.email,
+      name: (name || user.email.split('@')[0] || 'Surveyor').trim(),
+      photoURL: '',
+      role: isSuperAdmin ? 'admin' : 'surveyor',
+      assignedVillages: [],
+      assignedVillageIds: [],
+      assignedVillageId: null,
+      assignmentStatus: isSuperAdmin ? 'Assigned' : 'Unassigned',
+      status: initialStatus,
+      createdAt: new Date().toISOString()
+    };
+
+    await setDoc(doc(db, 'users', user.uid), newProfile);
+
+    // Send registration welcome notification email
+    sendRegistrationWelcomeEmail({
+      to_email: user.email,
+      to_name: newProfile.name,
+      role: newProfile.role
+    }).catch(e => console.warn('Signup welcome email dispatch:', e));
+
+    if (!isSuperAdmin) {
+      await signOut(auth);
+    }
+
+    return { user: cred.user, status: initialStatus };
   };
 
   const logout = () => {
@@ -300,7 +384,11 @@ export function AuthProvider({ children }) {
         const data = userSnap.data();
         if (data.status === 'inactive' && user.uid !== SUPER_ADMIN_UID) {
           await signOut(auth);
-          throw new Error('Your account has been deactivated by the administrator.');
+          throw new Error('ACCOUNT_INACTIVE');
+        }
+        if (data.status === 'pending' && user.uid !== SUPER_ADMIN_UID) {
+          await signOut(auth);
+          throw new Error('ACCOUNT_PENDING');
         }
         // If previously soft-deleted, reset to fresh unassigned profile
         if ((data.status === 'deleted' || data.isDeleted) && user.uid !== SUPER_ADMIN_UID) {
@@ -314,14 +402,17 @@ export function AuthProvider({ children }) {
             assignedVillageIds: [],
             assignedVillageId: null,
             assignmentStatus: 'Unassigned',
-            status: 'active',
+            status: 'pending',
             createdAt: new Date().toISOString()
           };
           await setDoc(userDocRef, newProfile);
           try { await deleteDoc(doc(db, 'deletedUsers', user.uid)); } catch (e) {}
+          await signOut(auth);
+          throw new Error('ACCOUNT_PENDING');
         }
       } else {
         const isSuperAdmin = user.uid === SUPER_ADMIN_UID;
+        const initialStatus = isSuperAdmin ? 'active' : 'pending';
         const newProfile = {
           uid: user.uid,
           email: user.email,
@@ -332,20 +423,32 @@ export function AuthProvider({ children }) {
           assignedVillageIds: [],
           assignedVillageId: null,
           assignmentStatus: isSuperAdmin ? 'Assigned' : 'Unassigned',
-          status: 'active',
+          status: initialStatus,
           createdAt: new Date().toISOString()
         };
         await setDoc(userDocRef, newProfile);
+
+        // Send registration welcome notification email
+        sendRegistrationWelcomeEmail({
+          to_email: user.email,
+          to_name: newProfile.name,
+          role: newProfile.role
+        }).catch(e => console.warn('Google user welcome email dispatch:', e));
+
+        if (!isSuperAdmin) {
+          await signOut(auth);
+          throw new Error('ACCOUNT_PENDING');
+        }
       }
     } catch (e) {
-      if (e.message.includes('deactivated')) throw e;
+      if (e.message === 'ACCOUNT_INACTIVE' || e.message === 'ACCOUNT_PENDING') throw e;
       console.warn('Firestore profile check for Google user:', e);
     }
     return cred;
   };
 
   // Admin function: Create user without signing out Admin
-  const createUserByAdmin = async ({ name, email, password, role, assignedVillages, isReadOnly = false, accessLevel = 'standard' }) => {
+  const createUserByAdmin = async ({ name, email, password, role, assignedVillages, safeMode = false, isReadOnly, accessLevel }) => {
     const secondaryAppName = 'SecondaryAuthApp';
     const existingApp = getApps().find(a => a.name === secondaryAppName);
     const secondaryApp = existingApp || initializeApp(auth.app.options, secondaryAppName);
@@ -359,6 +462,10 @@ export function AuthProvider({ children }) {
         ? assignedVillages.map(v => resolveVillageId(v)).filter(Boolean)
         : [];
 
+      const isRoleAdmin = role === 'admin';
+      const userSafeMode = isRoleAdmin ? true : Boolean(safeMode);
+      const userReadOnly = isRoleAdmin ? false : !userSafeMode;
+
       const profile = {
         uid: newUid,
         email: email.trim(),
@@ -367,15 +474,24 @@ export function AuthProvider({ children }) {
         assignedVillages: isAssigned ? enrichVillageVariants(assignedVillages, assignedVillageIds) : [],
         assignedVillageIds,
         assignedVillageId: assignedVillageIds[0] || null,
-        assignmentStatus: (isAssigned || role === 'admin') ? 'Assigned' : 'Unassigned',
-        isReadOnly: Boolean(isReadOnly || accessLevel === 'view_only' || role === 'viewer'),
-        accessLevel: accessLevel || (isReadOnly ? 'view_only' : 'standard'),
+        assignmentStatus: (isAssigned || isRoleAdmin) ? 'Assigned' : 'Unassigned',
+        safeMode: userSafeMode,
+        isReadOnly: userReadOnly,
+        accessLevel: isRoleAdmin ? 'full' : (userSafeMode ? 'standard' : 'view_only'),
         status: 'active',
         createdAt: new Date().toISOString()
       };
 
       await setDoc(doc(db, 'users', newUid), profile);
       await signOut(secondaryAuth);
+
+      // Send registration welcome notification email to the new surveyor
+      sendRegistrationWelcomeEmail({
+        to_email: profile.email,
+        to_name: profile.name,
+        role: profile.role
+      }).catch(e => console.warn('Admin user creation email dispatch:', e));
+
       return profile;
     } catch (err) {
       console.error('Failed to create user by admin:', err);
@@ -402,9 +518,18 @@ export function AuthProvider({ children }) {
       }
       if (payload.role === 'admin') {
         payload.assignmentStatus = 'Assigned';
-      }
-      if (payload.isReadOnly !== undefined || payload.accessLevel !== undefined) {
-        payload.isReadOnly = Boolean(payload.isReadOnly || payload.accessLevel === 'view_only');
+        payload.safeMode = true;
+        payload.isReadOnly = false;
+        payload.accessLevel = 'full';
+      } else {
+        if (payload.safeMode !== undefined) {
+          payload.safeMode = Boolean(payload.safeMode);
+          payload.isReadOnly = !payload.safeMode;
+          payload.accessLevel = payload.safeMode ? 'standard' : 'view_only';
+        } else if (payload.isReadOnly !== undefined) {
+          payload.safeMode = !payload.isReadOnly;
+          payload.accessLevel = payload.safeMode ? 'standard' : 'view_only';
+        }
       }
 
       await updateDoc(userDocRef, payload);
@@ -458,9 +583,21 @@ export function AuthProvider({ children }) {
 
   // Admin function: Toggle active/inactive
   const toggleUserStatus = async (uid, currentStatus) => {
-    const nextStatus = currentStatus === 'active' ? 'inactive' : 'active';
-    await updateUserByAdmin(uid, { status: nextStatus });
+    const nextStatus = (currentStatus === 'active') ? 'inactive' : 'active';
+    await updateUserByAdmin(uid, { 
+      status: nextStatus,
+      ...(nextStatus === 'active' ? { approvedAt: new Date().toISOString() } : {})
+    });
     return nextStatus;
+  };
+
+  // Admin function: Approve pending user
+  const approveUser = async (uid) => {
+    await updateUserByAdmin(uid, {
+      status: 'active',
+      approvedAt: new Date().toISOString()
+    });
+    return 'active';
   };
 
   // Admin function: Send password reset email
@@ -590,21 +727,32 @@ export function AuthProvider({ children }) {
     ? userProfile.assignedVillageIds
     : deriveAssignedVillageIds(userProfile);
 
-  const isReadOnly = Boolean(userProfile?.isReadOnly || userProfile?.accessLevel === 'view_only' || userRole === 'viewer');
+  const isAdmin = userRole === 'admin';
+  const safeMode = isAdmin ? true : Boolean(userProfile?.safeMode);
+  const isReadOnly = isAdmin ? false : (userProfile?.safeMode !== undefined ? !userProfile.safeMode : Boolean(userProfile?.isReadOnly || userProfile?.accessLevel === 'view_only' || userRole === 'viewer'));
+  const canEdit = isAdmin || safeMode;
+  const canDelete = isAdmin; // Strictly Admin only! Surveyors can never delete!
+  const canAddSurvey = isAdmin || safeMode;
 
   const value = {
     currentUser,
     userRole,
     userProfile,
     allUsers,
-    isAdmin: userRole === 'admin',
+    isAdmin,
     isSurveyor: userRole === 'surveyor',
+    safeMode,
+    canEdit,
+    canDelete,
+    canAddSurvey,
     assignedVillages,
     assignedVillageVariants: rawAssignedVillages,
     assignedVillageIds,
     isReadOnly,
     login,
+    signup,
     logout,
+    approveUser,
     signInWithGoogle,
     createUserByAdmin,
     updateUserByAdmin,

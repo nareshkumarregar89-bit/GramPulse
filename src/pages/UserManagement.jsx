@@ -36,6 +36,7 @@ export function UserManagement() {
     updateUserByAdmin, 
     assignVillageToUser,
     toggleUserStatus, 
+    approveUser,
     sendUserPasswordReset, 
     deleteUserByAdmin,
     currentUser 
@@ -81,8 +82,25 @@ export function UserManagement() {
 
   // Calculate user stats
   const totalUsers = allUsers.length;
-  const activeSurveyors = allUsers.filter(u => u.role === 'surveyor' && u.status !== 'inactive').length;
+  const activeSurveyors = allUsers.filter(u => u.role === 'surveyor' && u.status === 'active').length;
+  const pendingUsers = allUsers.filter(u => u.status === 'pending');
   const inactiveUsers = allUsers.filter(u => u.status === 'inactive').length;
+
+  // Handle Approve User
+  const handleApproveUser = async (user) => {
+    try {
+      await approveUser(user.uid);
+      addToast(
+        language === 'hi' 
+          ? `यूज़र "${user.name || user.email}" को सफलतापूर्वक स्वीकृत (Active) कर दिया गया!` 
+          : `User "${user.name || user.email}" approved and activated!`,
+        'success'
+      );
+    } catch (err) {
+      console.error('Approve user error:', err);
+      addToast(language === 'hi' ? 'स्वीकृत करने में त्रुटि हुई।' : 'Failed to approve user.', 'error');
+    }
+  };
 
   // Handle Add User submission
   const handleAddUserSubmit = async (e) => {
@@ -283,7 +301,7 @@ export function UserManagement() {
       </div>
 
       {/* Top Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <div className={`p-5 rounded-2xl border ${darkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">
@@ -302,6 +320,20 @@ export function UserManagement() {
             <UserCheck className="w-5 h-5 text-green-500" />
           </div>
           <p className="text-2xl font-bold text-green-600 dark:text-green-400 mt-2">{activeSurveyors}</p>
+        </div>
+
+        <div className={`p-5 rounded-2xl border ${
+          pendingUsers.length > 0
+            ? darkMode ? 'bg-amber-950/20 border-amber-800' : 'bg-amber-50 border-amber-300'
+            : darkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'
+        }`}>
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-amber-600 dark:text-amber-400 uppercase">
+              {language === 'hi' ? 'प्रतीक्षारत अप्रूवल' : 'Pending'}
+            </span>
+            <Clock className="w-5 h-5 text-amber-500" />
+          </div>
+          <p className="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-2">{pendingUsers.length}</p>
         </div>
 
         <div className={`p-5 rounded-2xl border ${darkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
@@ -324,6 +356,31 @@ export function UserManagement() {
           <p className="text-2xl font-bold text-teal-600 dark:text-teal-400 mt-2">{villages.length}</p>
         </div>
       </div>
+
+      {/* Pending Approval Banner */}
+      {pendingUsers.length > 0 && (
+        <div className={`p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+          darkMode ? 'bg-amber-950/20 border-amber-800/50 text-amber-200' : 'bg-amber-50 border-amber-200 text-amber-900'
+        }`}>
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-amber-500/20 text-amber-500 shrink-0">
+              <Clock className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="font-bold text-sm">
+                {language === 'hi' 
+                  ? `🔔 ${pendingUsers.length} नए यूज़र(s) एडमिन अप्रूवल की प्रतीक्षा में हैं!` 
+                  : `🔔 ${pendingUsers.length} new user(s) awaiting your approval!`}
+              </p>
+              <p className="text-xs opacity-80 mt-0.5">
+                {language === 'hi'
+                  ? 'नए यूज़र्स ने साइन अप किया है। पोर्टल एक्सेस देने के लिए तालिका में "स्वीकृत करें" बटन दबाएं।'
+                  : 'New users have signed up. Click "Approve" in the table below to activate their access.'}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Village Distribution Summary Card */}
       <div className={`p-6 rounded-2xl border ${darkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
@@ -451,7 +508,7 @@ export function UserManagement() {
                   : (allFamilies || []).filter(f => userAssignedVids.some(vid => isFamilyInVillage ? isFamilyInVillage(f, vid) : isFamilyInVillageRecord(f, vid, activeVillageRecords))).length;
 
                 const surveyCount = (allFamilies || []).filter(f => f.surveyorId === user.uid || f.createdBy === user.uid).length;
-                const isUserActive = user.status !== 'inactive';
+                const isUserActive = user.status === 'active';
                 const isSelf = user.uid === currentUser?.uid;
 
                 const uniqueAssignedDisplay = Array.from(new Set(
@@ -556,28 +613,46 @@ export function UserManagement() {
                     </td>
 
                     <td className="p-4">
-                      <button
-                        type="button"
-                        onClick={() => handleToggleStatus(user)}
-                        disabled={isSelf}
-                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold transition-all ${
-                          isUserActive
-                            ? 'bg-green-500/10 text-green-600 dark:text-green-400 hover:bg-green-500/20'
-                            : 'bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-500/20'
-                        } ${isSelf ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'}`}
-                      >
-                        {isUserActive ? (
-                          <>
-                            <CheckCircle className="w-3 h-3 text-green-500" />
-                            <span>{language === 'hi' ? 'सक्रिय' : 'Active'}</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3 h-3 text-red-500" />
-                            <span>{language === 'hi' ? 'निष्क्रिय' : 'Inactive'}</span>
-                          </>
-                        )}
-                      </button>
+                      {user.status === 'pending' ? (
+                        <div className="flex items-center gap-2">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30">
+                            <Clock className="w-3 h-3 text-amber-500" />
+                            <span>{language === 'hi' ? 'प्रतीक्षारत' : 'Pending'}</span>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleApproveUser(user)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-all active:scale-95"
+                            title={language === 'hi' ? 'स्वीकृत करें' : 'Approve User'}
+                          >
+                            <CheckCircle2 className="w-3 h-3" />
+                            <span>{language === 'hi' ? 'स्वीकृत करें' : 'Approve'}</span>
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleToggleStatus(user)}
+                          disabled={isSelf}
+                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold transition-all ${
+                            isUserActive
+                              ? 'bg-green-500/10 text-green-600 dark:text-green-400 hover:bg-green-500/20'
+                              : 'bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-500/20'
+                          } ${isSelf ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'}`}
+                        >
+                          {isUserActive ? (
+                            <>
+                              <CheckCircle className="w-3 h-3 text-green-500" />
+                              <span>{language === 'hi' ? 'सक्रिय' : 'Active'}</span>
+                            </>
+                          ) : (
+                            <>
+                              <XCircle className="w-3 h-3 text-red-500" />
+                              <span>{language === 'hi' ? 'निष्क्रिय' : 'Inactive'}</span>
+                            </>
+                          )}
+                        </button>
+                      )}
                     </td>
 
                     <td className="p-4 text-right">

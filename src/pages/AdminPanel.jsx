@@ -54,7 +54,7 @@ export function AdminPanel() {
     darkMode, 
     language 
   } = useData();
-  const { allUsers = [], currentUser, userProfile, deleteUserByAdmin, toggleUserStatus, assignVillageToUser } = useAuth();
+  const { allUsers = [], currentUser, userProfile, deleteUserByAdmin, toggleUserStatus, approveUser, assignVillageToUser } = useAuth();
   const { addToast } = useToast();
   const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState(null);
@@ -916,7 +916,7 @@ export function AdminPanel() {
           ) : (
             displayedUsers.map((user) => {
               const surveyCount = allFamilies.filter(f => f.surveyorId === user.uid || f.createdBy === user.uid).length;
-              const isUserActive = user.status !== 'inactive';
+              const isUserActive = user.status === 'active';
               const isSelf = user.uid === currentUser?.uid;
               const isSuperAdmin = user.uid === 'sJwiZZ6cf8Ze8YAmMMK8T1FwF232';
 
@@ -964,18 +964,36 @@ export function AdminPanel() {
                         {language === 'hi' ? 'दर्ज परिवार:' : 'Surveys:'} <strong className="text-gray-800 dark:text-gray-200">{surveyCount}</strong>
                       </span>
 
-                      <button
-                        type="button"
-                        onClick={() => handleToggleStatus(user)}
-                        disabled={isSelf}
-                        className={`text-[10px] px-2 py-0.5 rounded-full font-bold transition-all ${
-                          isUserActive
-                            ? 'bg-green-500/10 text-green-600 dark:text-green-400'
-                            : 'bg-red-500/10 text-red-600 dark:text-red-400'
-                        } ${isSelf ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:opacity-80 active:scale-95'}`}
-                      >
-                        {isUserActive ? (language === 'hi' ? 'सक्रिय' : 'Active') : (language === 'hi' ? 'निष्क्रिय' : 'Inactive')}
-                      </button>
+                      {user.status === 'pending' ? (
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              await approveUser(user.uid);
+                              addToast(language === 'hi' ? 'यूज़र को स्वीकृत किया गया!' : 'User approved!', 'success');
+                            } catch (err) {
+                              addToast(language === 'hi' ? 'त्रुटि हुई।' : 'Error approving user', 'error');
+                            }
+                          }}
+                          className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400 hover:bg-emerald-600 hover:text-white transition-all cursor-pointer"
+                          title={language === 'hi' ? 'स्वीकृत करने के लिए क्लिक करें' : 'Click to approve'}
+                        >
+                          {language === 'hi' ? 'प्रतीक्षारत (Approve)' : 'Pending (Approve)'}
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleToggleStatus(user)}
+                          disabled={isSelf}
+                          className={`text-[10px] px-2 py-0.5 rounded-full font-bold transition-all ${
+                            isUserActive
+                              ? 'bg-green-500/10 text-green-600 dark:text-green-400'
+                              : 'bg-red-500/10 text-red-600 dark:text-red-400'
+                          } ${isSelf ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:opacity-80 active:scale-95'}`}
+                        >
+                          {isUserActive ? (language === 'hi' ? 'सक्रिय' : 'Active') : (language === 'hi' ? 'निष्क्रिय' : 'Inactive')}
+                        </button>
+                      )}
                     </div>
 
                     {/* Assigned Villages */}
