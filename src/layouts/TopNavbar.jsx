@@ -11,7 +11,9 @@ import {
   LogOut,
   Building2,
   Shield,
-  RefreshCw
+  RefreshCw,
+  CloudUpload,
+  WifiOff
 } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -29,12 +31,16 @@ export function TopNavbar({ setIsMobileSidebarOpen }) {
     villages, 
     activeVillageRecords = [],
     selectedVillage, 
-    setSelectedVillage
+    setSelectedVillage,
+    isOnline,
+    offlineQueueCount,
+    syncOfflineSurveys
   } = useData();
   const { currentUser, userProfile, isAdmin, logout } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
   const navigate = useNavigate();
 
   const assignedVillageDisplayList = getUniqueAssignedVillageNames(userProfile, activeVillageRecords, language);
@@ -182,6 +188,47 @@ export function TopNavbar({ setIsMobileSidebarOpen }) {
               {language === 'hi' ? 'रिफ्रेश' : 'Refresh'}
             </span>
           </button>
+
+          {/* OFFLINE / AUTO-SYNC STATUS BADGE */}
+          <div className="flex items-center">
+            {!isOnline ? (
+              <div 
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-300 text-xs font-bold animate-pulse"
+                title={language === 'hi' ? 'इंटरनेट बंद है। सर्वे सुरक्षित रूप से ऑफ़लाइन सेव होंगे।' : 'Offline: Surveys are safely saved locally'}
+              >
+                <WifiOff className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">{language === 'hi' ? 'ऑफ़लाइन' : 'Offline'}</span>
+                {offlineQueueCount > 0 && (
+                  <span className="px-1.5 py-0.2 bg-amber-500 text-white rounded-full text-[10px]">
+                    {offlineQueueCount}
+                  </span>
+                )}
+              </div>
+            ) : offlineQueueCount > 0 ? (
+              <button
+                type="button"
+                onClick={async () => {
+                  setIsSyncing(true);
+                  await syncOfflineSurveys();
+                  setIsSyncing(false);
+                }}
+                disabled={isSyncing}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-xs font-bold shadow-md transition-all disabled:opacity-75"
+                title={language === 'hi' ? 'ऑफ़लाइन सर्वे तुरंत सिंक करें' : 'Sync pending offline surveys now'}
+              >
+                <CloudUpload className={`w-3.5 h-3.5 ${isSyncing ? 'animate-bounce' : ''}`} />
+                <span>{language === 'hi' ? `${offlineQueueCount} सिंक करें` : `Sync (${offlineQueueCount})`}</span>
+              </button>
+            ) : (
+              <div 
+                className="hidden xl:flex items-center gap-1.5 px-2 py-1 rounded-xl text-emerald-600 dark:text-emerald-400 text-[11px] font-medium"
+                title="क्लाउड से जुड़ा हुआ है (Online)"
+              >
+                <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+                <span className="text-[10px]">ऑनलाइन</span>
+              </div>
+            )}
+          </div>
 
 
 

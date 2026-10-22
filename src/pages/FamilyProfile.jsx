@@ -10,12 +10,15 @@ import {
   Banknote,
   Home,
   Users,
-  MapPin
+  MapPin,
+  CreditCard
 } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 import { useData } from '../contexts/DataContext';
 import { useAuth } from '../contexts/AuthContext';
 import { PrintDataModal } from '../components/PrintDataModal';
 import { PrintDocument } from '../components/PrintDocument';
+import { FamilyIdCardModal } from '../components/FamilyIdCardModal';
 
 export function FamilyProfile() {
   const { id } = useParams();
@@ -23,6 +26,7 @@ export function FamilyProfile() {
   const { getFamilyById, darkMode, language } = useData();
   const { currentUser, userProfile, isReadOnly } = useAuth();
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+  const [isIdCardModalOpen, setIsIdCardModalOpen] = useState(false);
   const family = getFamilyById(id);
 
   if (!family) {
@@ -60,6 +64,17 @@ export function FamilyProfile() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {/* DIGITAL ID CARD BUTTON */}
+          <button
+            type="button"
+            onClick={() => setIsIdCardModalOpen(true)}
+            className="flex items-center gap-2 px-3.5 py-2.5 bg-gradient-to-r from-emerald-600 to-indigo-600 hover:from-emerald-700 hover:to-indigo-700 text-white rounded-xl text-xs sm:text-sm font-bold shadow-md transition-all active:scale-95"
+            title={language === 'hi' ? 'डिजिटल पहचान पत्र (ID Card) देखें' : 'View Digital ID Card'}
+          >
+            <CreditCard className="w-4 h-4" />
+            <span>{language === 'hi' ? 'पहचान पत्र (ID Card)' : 'Family ID Card'}</span>
+          </button>
+
           <button
             onClick={() => setIsPrintModalOpen(true)}
             className={`p-3 rounded-xl ${darkMode ? 'bg-gray-800 text-white hover:bg-gray-700' : 'bg-white text-gray-900 hover:bg-gray-50'} border`}
@@ -80,11 +95,20 @@ export function FamilyProfile() {
       {/* QR Code Section */}
       <div className={`p-6 rounded-2xl border ${darkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
         <div className="flex flex-col md:flex-row items-center gap-6">
-          <div className="p-4 bg-white rounded-xl">
-            <div className="w-32 h-32 flex items-center justify-center border-2 border-dashed rounded-xl">
-              <QrCode className="w-24 h-24 text-gray-400" />
-            </div>
-            <p className="text-center text-xs text-gray-500 mt-2">Family QR</p>
+          <div 
+            onClick={() => setIsIdCardModalOpen(true)}
+            className="p-3.5 bg-white rounded-2xl border-2 border-indigo-100 shadow-sm flex flex-col items-center cursor-pointer hover:shadow-md hover:border-indigo-300 transition-all group"
+            title={language === 'hi' ? 'डिजिटल पहचान पत्र देखने के लिए क्लिक करें' : 'Click to view Digital ID Card'}
+          >
+            <QRCodeSVG 
+              value={`${typeof window !== 'undefined' ? window.location.origin : ''}/verify/${family.id}`} 
+              size={110} 
+              level="M" 
+            />
+            <p className="text-center text-[10px] font-bold text-indigo-600 group-hover:text-indigo-700 mt-2 flex items-center gap-1">
+              <CreditCard className="w-3 h-3" />
+              <span>{language === 'hi' ? 'पहचान पत्र देखें' : 'View ID Card'}</span>
+            </p>
           </div>
           <div className="flex-1">
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Family Overview</h2>
@@ -238,6 +262,13 @@ export function FamilyProfile() {
           currentUser={currentUser}
           userProfile={userProfile}
           language={language}
+        />
+
+        {/* Digital Family ID Card Modal */}
+        <FamilyIdCardModal
+          family={family}
+          isOpen={isIdCardModalOpen}
+          onClose={() => setIsIdCardModalOpen(false)}
         />
       </div>
 

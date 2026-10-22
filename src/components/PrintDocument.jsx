@@ -121,26 +121,6 @@ export function PrintDocument({
             </tbody>
           </table>
 
-          {/* Official Signatures & Verification Footer */}
-          <div className="print-avoid-break pt-8 mt-6 border-t border-gray-400">
-            <p className="text-[10px] text-gray-500 italic mb-8">
-              * {language === 'hi' 
-                  ? 'प्रमाणित किया जाता है कि यह विवरण ग्राम पंचायत स्तर पर संकलित एवं विलेजपल्स डेटाबेस में पंजीकृत सत्य प्रतिलिपि है।' 
-                  : 'Certified that this record is a true verified copy from the VillagePulse Village Survey demographic database.'}
-            </p>
-            <div className="flex justify-between items-end px-6 text-xs text-gray-900">
-              <div className="text-center">
-                <div className="w-48 border-b border-gray-800 pb-1 font-semibold"></div>
-                <p className="mt-1 font-bold">{language === 'hi' ? 'सर्वेयर / डेटा प्रविष्टि ऑपरेटर' : 'Surveyor / Operator Signature'}</p>
-                <p className="text-[10px] text-gray-600">{printedBy}</p>
-              </div>
-              <div className="text-center">
-                <div className="w-48 border-b border-gray-800 pb-1 font-semibold"></div>
-                <p className="mt-1 font-bold">{language === 'hi' ? 'ग्राम विकास अधिकारी / सरपंच' : 'Authorized Signatory / Seal'}</p>
-                <p className="text-[10px] text-gray-600">{language === 'hi' ? 'ग्राम पंचायत' : 'Gram Panchayat Office'}</p>
-              </div>
-            </div>
-          </div>
         </div>
       ) : (
         /* ================= FORMAT 2: COMPREHENSIVE FAMILY DOSSIERS ================= */
@@ -304,50 +284,6 @@ export function PrintDocument({
                   </table>
                 </div>
 
-                {/* Section 4: GPS, Housing & Surveyor Audit Info */}
-                <div className="mb-4 text-xs border border-gray-400 p-2.5 rounded bg-gray-50/50">
-                  <div className="grid grid-cols-4 gap-2">
-                    <div>
-                      <span className="text-gray-600 block text-[10px]">{language === 'hi' ? 'मकान का प्रकार:' : 'House Type:'}</span>
-                      <span className="font-semibold text-gray-900">{fam.houseType || 'पक्का (Pucca)'}</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-600 block text-[10px]">{language === 'hi' ? 'शौचालय सुविधा:' : 'Toilet Facility:'}</span>
-                      <span className="font-semibold text-gray-900">{fam.toiletAvailable || 'उपलब्ध (Yes)'}</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-600 block text-[10px]">{language === 'hi' ? 'GPS लोकेशन:' : 'GPS Coordinates:'}</span>
-                      <span className="font-mono text-[10px] font-semibold text-gray-900">
-                        {fam.latitude && fam.longitude ? `${fam.latitude}, ${fam.longitude}` : 'Not Captured'}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-gray-600 block text-[10px]">{language === 'hi' ? 'सर्वेयर का नाम:' : 'Surveyor:'}</span>
-                      <span className="font-semibold text-gray-900 truncate block">{fam.surveyorName || fam.surveyorEmail || 'Admin'}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Verification & Signatures */}
-                <div className="pt-6 border-t-2 border-gray-800 mt-4">
-                  <div className="flex justify-between items-end px-4 text-xs text-gray-900">
-                    <div className="text-center">
-                      <div className="w-44 border-b border-gray-800 pb-1"></div>
-                      <p className="mt-1 font-bold">{language === 'hi' ? 'मुखिया का हस्ताक्षर / अंगूठा' : 'Signature / Thumb of Head'}</p>
-                      <p className="text-[10px] text-gray-600">({headName})</p>
-                    </div>
-                    <div className="text-center">
-                      <div className="w-44 border-b border-gray-800 pb-1"></div>
-                      <p className="mt-1 font-bold">{language === 'hi' ? 'सर्वेयर हस्ताक्षर' : 'Surveyor Signature'}</p>
-                      <p className="text-[10px] text-gray-600">({fam.surveyorName || 'Survey Officer'})</p>
-                    </div>
-                    <div className="text-center">
-                      <div className="w-44 border-b border-gray-800 pb-1"></div>
-                      <p className="mt-1 font-bold">{language === 'hi' ? 'सरपंच / ग्राम विकास अधिकारी मुहर' : 'Gram Panchayat Seal'}</p>
-                      <p className="text-[10px] text-gray-600">{fam.village || ''}</p>
-                    </div>
-                  </div>
-                </div>
               </div>
             );
           })}

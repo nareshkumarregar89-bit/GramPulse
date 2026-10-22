@@ -15,7 +15,8 @@ import {
   Square,
   X,
   AlertTriangle,
-  Sparkles
+  Sparkles,
+  CreditCard
 } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
 import { useToast } from '../contexts/ToastContext';
@@ -23,6 +24,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { ExcelImportModal } from '../components/ExcelImportModal';
 import { PrintDataModal } from '../components/PrintDataModal';
 import { PrintDocument } from '../components/PrintDocument';
+import { FamilyIdCardModal } from '../components/FamilyIdCardModal';
 import { getUniqueAssignedVillageNames } from '../utils/villageUtils';
 
 export function Families() {
@@ -51,6 +53,13 @@ export function Families() {
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [activePrintTarget, setActivePrintTarget] = useState(null); // null = all / selected
   const [selectedIds, setSelectedIds] = useState(new Set());
+  const [idCardFamily, setIdCardFamily] = useState(null);
+  const [isIdCardModalOpen, setIsIdCardModalOpen] = useState(false);
+
+  const handleOpenIdCard = (targetFamily) => {
+    setIdCardFamily(targetFamily);
+    setIsIdCardModalOpen(true);
+  };
 
   useEffect(() => {
     const m = searchParams.get('mohalla');
@@ -497,6 +506,14 @@ export function Families() {
                         >
                           <Eye className="w-4 h-4" />
                         </button>
+                        {/* ID Card Button */}
+                        <button
+                          onClick={() => handleOpenIdCard(family)}
+                          className={`p-2 rounded-lg transition-colors ${darkMode ? 'hover:bg-emerald-950/50 text-emerald-400' : 'hover:bg-emerald-50 text-emerald-600'}`}
+                          title={language === 'hi' ? 'डिजिटल पहचान पत्र (ID Card)' : 'Digital Family ID Card'}
+                        >
+                          <CreditCard className="w-4 h-4" />
+                        </button>
                         {/* Direct Print Dossier Button */}
                         <button
                           onClick={() => handleOpenPrintModal(family)}
@@ -606,6 +623,14 @@ export function Families() {
                   >
                     {language === 'hi' ? 'संपादित करें' : 'Edit'}
                   </button>
+                  {/* ID Card Button Mobile */}
+                  <button
+                    onClick={() => handleOpenIdCard(family)}
+                    className={`p-2 rounded-xl border ${darkMode ? 'border-gray-700 text-emerald-400 hover:bg-gray-800' : 'border-gray-200 text-emerald-600 hover:bg-gray-100'}`}
+                    title={language === 'hi' ? 'पहचान पत्र (ID Card)' : 'Family ID Card'}
+                  >
+                    <CreditCard className="w-4 h-4" />
+                  </button>
                   {/* Direct Print Button Mobile */}
                   <button
                     onClick={() => handleOpenPrintModal(family)}
@@ -660,6 +685,16 @@ export function Families() {
           currentUser={currentUser}
           userProfile={userProfile}
           language={language}
+        />
+
+        {/* Digital Family ID Card Modal */}
+        <FamilyIdCardModal
+          family={idCardFamily}
+          isOpen={isIdCardModalOpen}
+          onClose={() => {
+            setIsIdCardModalOpen(false);
+            setIdCardFamily(null);
+          }}
         />
       </div>
 

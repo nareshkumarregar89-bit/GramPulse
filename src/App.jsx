@@ -19,6 +19,7 @@ import { VillageManagement } from './pages/VillageManagement';
 import { AdminPanel } from './pages/AdminPanel';
 import { Profile } from './pages/Profile';
 import { DataPrint } from './pages/DataPrint';
+import { FamilyVerification } from './pages/FamilyVerification';
 import { ToastContainer } from './components/ToastContainer';
 import { InstallPwaPrompt } from './components/InstallPwaPrompt';
 import { UpdatePrompt } from './components/UpdatePrompt';
@@ -34,6 +35,9 @@ function App() {
             <Routes>
               {/* Public Login Route */}
               <Route path="/login" element={<Login />} />
+
+              {/* Public QR Verification Route (Accessible without login) */}
+              <Route path="/verify/:id" element={<FamilyVerification />} />
 
               {/* Protected App Routes */}
               <Route

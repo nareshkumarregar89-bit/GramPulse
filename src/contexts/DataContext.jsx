@@ -27,6 +27,12 @@ import {
   deriveAssignedVillageIds 
 } from '../utils/villageUtils';
 import { transliterateToHindi, isHindiText, containsEnglish } from '../utils/transliteration';
+import { 
+  getOfflineQueue, 
+  saveOfflineSurvey, 
+  removeOfflineSurvey, 
+  getOfflineCount 
+} from '../utils/offlineQueue';
 
 const DataContext = createContext();
 
@@ -139,6 +145,72 @@ export function DataProvider({ children }) {
   const [darkMode, setDarkMode] = useLocalStorage('villagepulse-darkmode', false);
   const [language, setLanguage] = useLocalStorage('villagepulse-language', 'en');
   const [isFirebaseConnected, setIsFirebaseConnected] = useState(false);
+  const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
+  const [offlineQueueCount, setOfflineQueueCount] = useState(getOfflineCount());
+
+  // Offline queue auto-sync engine
+  const syncOfflineSurveys = useCallback(async () => {
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      return { synced: 0, pending: getOfflineCount() };
+    }
+
+    const queue = getOfflineQueue();
+    if (!queue || queue.length === 0) {
+      setOfflineQueueCount(0);
+      return { synced: 0, pending: 0 };
+    }
+
+    let synced = 0;
+    for (const item of queue) {
+      try {
+        const { _isOfflineSaved, _offlineTimestamp, ...cleanData } = item;
+        await setDoc(doc(db, 'families', cleanData.id), cleanData);
+        removeOfflineSurvey(item.id);
+        synced += 1;
+      } catch (err) {
+        console.warn(`Sync failed for offline survey ${item.id}:`, err.message);
+      }
+    }
+
+    const remaining = getOfflineCount();
+    setOfflineQueueCount(remaining);
+    return { synced, pending: remaining };
+  }, []);
+
+  // Listen for online/offline events & auto-sync
+  useEffect(() => {
+    const onOnline = () => {
+      setIsOnline(true);
+      syncOfflineSurveys().then(res => {
+        if (res.synced > 0) {
+          console.log(`Auto-synced ${res.synced} offline surveys to Firestore.`);
+        }
+      });
+    };
+
+    const onOffline = () => {
+      setIsOnline(false);
+    };
+
+    const onQueueChanged = (e) => {
+      setOfflineQueueCount(e.detail?.count ?? getOfflineCount());
+    };
+
+    window.addEventListener('online', onOnline);
+    window.addEventListener('offline', onOffline);
+    window.addEventListener('grampulse:offline_queue_changed', onQueueChanged);
+
+    // Initial check on mount
+    if (typeof navigator !== 'undefined' && navigator.onLine && getOfflineCount() > 0) {
+      syncOfflineSurveys();
+    }
+
+    return () => {
+      window.removeEventListener('online', onOnline);
+      window.removeEventListener('offline', onOffline);
+      window.removeEventListener('grampulse:offline_queue_changed', onQueueChanged);
+    };
+  }, [syncOfflineSurveys]);
 
   // Sync dark class on html root element for Tailwind dark: variants
   useEffect(() => {
@@ -820,12 +892,19 @@ export function DataProvider({ children }) {
     // Immediate local state update
     setRawFamilies(prev => [...prev.filter(f => f.id !== newId), newFamily]);
 
-    // Push to Firestore
+    // Push to Firestore or fallback gracefully to offline queue
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      console.log('Offline mode detected. Enqueuing survey locally...');
+      saveOfflineSurvey(newFamily);
+      return { ...newFamily, _isOfflineSaved: true };
+    }
+
     try {
       await setDoc(doc(db, 'families', newId), newFamily);
     } catch (err) {
-      console.error('Firestore addFamily error:', err);
-      throw err;
+      console.warn('Firestore addFamily network error, saving to offline queue:', err.message);
+      saveOfflineSurvey(newFamily);
+      return { ...newFamily, _isOfflineSaved: true };
     }
 
     return newFamily;
@@ -1554,7 +1633,11 @@ export function DataProvider({ children }) {
       exportData,
       importData,
       migrateMissingVillageIds,
-      resolveUncertainRecordVillage
+      resolveUncertainRecordVillage,
+      isOnline,
+      offlineQueueCount,
+      syncOfflineSurveys,
+      getOfflineQueue
     }}>
       {children}
     </DataContext.Provider>

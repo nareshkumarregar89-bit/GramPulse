@@ -791,34 +791,6 @@ export function DataPrint() {
                 </table>
               </div>
 
-              {/* ---------------- 3. VERIFICATION & SIGNATURES FOOTER ---------------- */}
-              <div className="print-avoid-break pt-6 mt-4 border-t-2 border-slate-900">
-                <div className="text-[10px] text-slate-700 italic mb-7 font-medium">
-                  <p>
-                    * Certified that this report is an authentic survey record from the VillagePulse Digital Demographic Database.
-                  </p>
-                  <p className="text-[9px] text-slate-500 not-italic">
-                    (* प्रमाणित किया जाता है कि यह विवरण विलेजपल्स (VillagePulse) डिजिटल सर्वेक्षण डेटाबेस में संकलित एवं पंजीकृत आधिकारिक अभिलेख है।)
-                  </p>
-                </div>
-
-                <div className="flex justify-between items-end px-6 sm:px-10 text-xs text-slate-900">
-                  <div className="text-center">
-                    <div className="w-52 border-b-2 border-slate-900 pb-1 font-semibold"></div>
-                    <p className="mt-2 font-bold text-slate-950">Surveyor / Operator Signature</p>
-                    <p className="text-[11px] text-slate-700 font-semibold">{generatedByName}</p>
-                    <p className="text-[9px] text-slate-500 uppercase tracking-wider">सर्वेक्षक / ऑपरेटर हस्ताक्षर</p>
-                  </div>
-                  <div className="text-center">
-                    <div className="w-52 border-b-2 border-slate-900 pb-1 font-semibold"></div>
-                    <p className="mt-2 font-bold text-slate-950">Authorized Signatory & Seal</p>
-                    <p className="text-[11px] text-slate-700 font-semibold">
-                      {selectedVillage === 'all' ? 'Gram Panchayat Office' : `Gram Panchayat ${villageDisplayName}`}
-                    </p>
-                    <p className="text-[9px] text-slate-500 uppercase tracking-wider">सरपंच / ग्राम विकास अधिकारी मुहर</p>
-                  </div>
-                </div>
-              </div>
             </div>
           )}
         </div>

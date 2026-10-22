@@ -18,12 +18,15 @@ import {
   Navigation,
   Lock,
   AlertCircle,
-  RefreshCw
+  RefreshCw,
+  Scan,
+  Camera
 } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
 import { useToast } from '../contexts/ToastContext';
 import { useAuth } from '../contexts/AuthContext';
 import { transliterateToHindi } from '../utils/transliteration';
+import { DocumentQrScannerModal } from '../components/DocumentQrScannerModal';
 
 const steps = [
   { id: 1, label: 'Family Info', labelHi: 'परिवार विवरण', icon: User },
@@ -114,6 +117,80 @@ export function NewSurvey() {
   const [isHeadHindiManual, setIsHeadHindiManual] = useState(false);
   const [isFatherHindiManual, setIsFatherHindiManual] = useState(false);
 
+  // QR Scanner Modal State
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [scannerTarget, setScannerTarget] = useState('head'); // 'head' | 'docs' | number (member index)
+
+  const handleOpenScanner = (target = 'head') => {
+    setScannerTarget(target);
+    setIsScannerOpen(true);
+  };
+
+  const handleQrScanSuccess = (scanned) => {
+    if (!scanned) return;
+
+    if (scannerTarget === 'head' || scannerTarget === 'docs') {
+      setFamily(prev => {
+        const next = { ...prev };
+        if (scanned.nameEnglish) next.familyHeadNameEnglish = scanned.nameEnglish;
+        if (scanned.nameHindi) {
+          next.familyHeadNameHindi = scanned.nameHindi;
+          setIsHeadHindiManual(true);
+        }
+        if (scanned.fatherNameEnglish) next.fatherNameEnglish = scanned.fatherNameEnglish;
+        if (scanned.fatherNameHindi) {
+          next.fatherNameHindi = scanned.fatherNameHindi;
+          setIsFatherHindiManual(true);
+        }
+        if (scanned.aadhaarNumber) next.aadhaarNumber = scanned.aadhaarNumber;
+        if (scanned.janAadhaarNumber) next.janAadhaarNumber = scanned.janAadhaarNumber;
+        if (scanned.house) next.houseNumber = scanned.house;
+        if (scanned.pinCode) next.pinCode = scanned.pinCode;
+        if (scanned.address) next.address = scanned.address;
+        if (scanned.mobile) next.mobile = scanned.mobile;
+        return next;
+      });
+
+      addToast(
+        language === 'hi'
+          ? `✓ QR कोड से ${scanned.type === 'janaadhaar' ? 'जन-आधार' : 'आधार'} विवरण स्वतः भर दिया गया!`
+          : `✓ ${scanned.type === 'janaadhaar' ? 'Jan-Aadhaar' : 'Aadhaar'} details auto-filled from QR code!`,
+        'success'
+      );
+    } else if (typeof scannerTarget === 'number') {
+      const memberIdx = scannerTarget;
+      setFamily(prev => ({
+        ...prev,
+        members: prev.members.map((m, i) => {
+          if (i !== memberIdx) return m;
+          return {
+            ...m,
+            nameEnglish: scanned.nameEnglish || m.nameEnglish,
+            nameHindi: scanned.nameHindi || m.nameHindi,
+            age: scanned.age || m.age,
+            gender: scanned.gender || m.gender,
+            aadhaarNumber: scanned.aadhaarNumber || m.aadhaarNumber,
+            isHindiManual: Boolean(scanned.nameHindi || m.nameHindi)
+          };
+        })
+      }));
+
+      addToast(
+        language === 'hi'
+          ? `✓ सदस्य #${memberIdx + 1} का विवरण QR कोड से भर दिया गया!`
+          : `✓ Member #${memberIdx + 1} details auto-filled from QR!`,
+        'success'
+      );
+    }
+  };
+
+  const getScannerTargetLabel = () => {
+    if (scannerTarget === 'head') return language === 'hi' ? 'परिवार मुखिया' : 'Family Head';
+    if (scannerTarget === 'docs') return language === 'hi' ? 'सरकारी दस्तावेज़' : 'Govt Documents';
+    if (typeof scannerTarget === 'number') return `${language === 'hi' ? 'सदस्य' : 'Member'} #${scannerTarget + 1}`;
+    return 'दस्तावेज़';
+  };
+
   // Check if editing
   useEffect(() => {
     if (id) {
@@ -177,7 +254,7 @@ export function NewSurvey() {
     );
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (isReadOnly && !id) {
       addToast(
         language === 'hi' 
@@ -202,11 +279,20 @@ export function NewSurvey() {
       updatedAt: new Date().toISOString()
     };
     if (id) {
-      updateFamily(id, enrichedFamily);
+      await updateFamily(id, enrichedFamily);
       addToast(language === 'hi' ? 'रिकॉर्ड सफलतापूर्वक अपडेट हुआ!' : 'Family updated successfully!', 'success');
     } else {
-      addFamily(enrichedFamily);
-      addToast(language === 'hi' ? 'सर्वे सफलतापूर्वक सबमिट हुआ!' : 'Family added successfully!', 'success');
+      const res = await addFamily(enrichedFamily);
+      if (res?._isOfflineSaved) {
+        addToast(
+          language === 'hi'
+            ? 'सर्वे ऑफ़लाइन सुरक्षित हो गया! इंटरनेट कनेक्ट होने पर स्वतः सिंक हो जाएगा।'
+            : 'Survey saved offline! It will sync automatically when back online.',
+          'info'
+        );
+      } else {
+        addToast(language === 'hi' ? 'सर्वे सफलतापूर्वक सबमिट हुआ!' : 'Family added successfully!', 'success');
+      }
     }
     navigate('/families');
   };
@@ -306,7 +392,22 @@ export function NewSurvey() {
       case 1:
         return (
           <div className="space-y-4">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">{t('family_info')}</h2>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-gray-100 dark:border-gray-800">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">{t('family_info')}</h2>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                  {language === 'hi' ? 'परिवार मुखिया और निवास का विवरण' : 'Head of family and residential details'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleOpenScanner('head')}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 hover:from-emerald-700 hover:to-indigo-700 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-600/20 transition-all hover:scale-[1.02] active:scale-95 shrink-0"
+              >
+                <Camera className="w-4 h-4" />
+                <span>{language === 'hi' ? '📷 आधार / जन-आधार QR स्कैन' : '📷 Scan Aadhaar / Jan-Aadhaar'}</span>
+              </button>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <InputField
                 label={t('family_head_english')}
@@ -476,7 +577,24 @@ export function NewSurvey() {
       case 2:
         return (
           <div className="space-y-4">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Government Documents</h2>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-gray-100 dark:border-gray-800">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                  {language === 'hi' ? 'सरकारी पहचान दस्तावेज़' : 'Government Documents'}
+                </h2>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                  {language === 'hi' ? 'आधार, जन-आधार, राशन कार्ड एवं पहचान पत्र विवरण' : 'Aadhaar, Jan-Aadhaar, Ration Card and Voter ID'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleOpenScanner('docs')}
+                className="inline-flex items-center justify-center gap-2 px-3.5 py-2 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 rounded-xl text-xs font-semibold hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-all shrink-0 active:scale-95"
+              >
+                <Scan className="w-4 h-4" />
+                <span>{language === 'hi' ? 'दस्तावेज़ QR स्कैन करें' : 'Scan Document QR'}</span>
+              </button>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <InputField
                 label="Aadhaar Number"
@@ -592,15 +710,29 @@ export function NewSurvey() {
                   className={`p-4 rounded-2xl border ${darkMode ? 'bg-gray-800/50 border-gray-700' : 'bg-gray-50 border-gray-200'}`}
                 >
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-medium text-gray-900 dark:text-white">Member {index + 1}</h3>
-                    {family.members.length > 1 && (
+                    <h3 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                      <span>{language === 'hi' ? `सदस्य ${index + 1}` : `Member ${index + 1}`}</span>
+                    </h3>
+                    <div className="flex items-center gap-2">
                       <button
-                        onClick={() => removeMember(index)}
-                        className="p-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"
+                        type="button"
+                        onClick={() => handleOpenScanner(index)}
+                        title={language === 'hi' ? 'सदस्य का आधार QR स्कैन करें' : 'Scan Member Aadhaar QR'}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 rounded-xl text-xs font-semibold hover:bg-emerald-100 dark:hover:bg-emerald-900/60 transition-all active:scale-95"
                       >
-                        <X className="w-4 h-4" />
+                        <Scan className="w-3.5 h-3.5" />
+                        <span>{language === 'hi' ? 'QR स्कैन' : 'Scan QR'}</span>
                       </button>
-                    )}
+                      {family.members.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeMember(index)}
+                          className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <InputField 
@@ -889,6 +1021,14 @@ export function NewSurvey() {
           </button>
         )}
       </div>
+
+      {/* Aadhaar / Jan-Aadhaar Optical QR Scanner Modal */}
+      <DocumentQrScannerModal
+        isOpen={isScannerOpen}
+        onClose={() => setIsScannerOpen(false)}
+        onScanSuccess={handleQrScanSuccess}
+        targetLabel={getScannerTargetLabel()}
+      />
     </div>
   );
 }
