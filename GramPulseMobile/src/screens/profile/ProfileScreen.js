@@ -67,18 +67,33 @@ export function ProfileScreen({ navigation }) {
               onPress: async () => {
                 try {
                   await Updates.fetchUpdateAsync();
-                  await Updates.reloadAsync();
+                  Alert.alert(
+                    'अपडेट डाउनलोड पूर्ण! 🎉',
+                    'अपडेट सफलतापूर्वक डाउनलोड हो गया है।\n\nबदलाव तुरंत देखने के लिए ऐप को रीस्टार्ट किया जा रहा है।\n\n(यदि स्क्रीन न बदले, तो कृपया ऐप को Recent Apps से स्वाइप करके बंद करें और दोबारा खोलें)।',
+                    [
+                      {
+                        text: 'रीस्टार्ट करें (Restart)',
+                        onPress: async () => {
+                          try {
+                            await Updates.reloadAsync();
+                          } catch (err) {
+                            console.log('Reload notice:', err);
+                          }
+                        },
+                      },
+                    ]
+                  );
                 } catch (err) {
                   Alert.alert('अपडेट त्रुटि', 'अपडेट डाउनलोड नहीं हो सका: ' + err.message);
                 }
-              }
-            }
+              },
+            },
           ]
         );
       } else {
         Alert.alert(
           '✅ नवीनतम संस्करण (Up to date)',
-          `आपका ऐप पहले से ही नवीनतम संस्करण पर है।\n\n• चैनल: ${Updates.channel || 'preview'}\n• रनटाइम: ${Updates.runtimeVersion || '1.0.x'}\n• अपडेट ID: ${Updates.updateId ? Updates.updateId.slice(0, 8) : 'Embedded Base'}`
+          `आपका ऐप पहले से ही नवीनतम संस्करण पर है।\n\n• चैनल: ${Updates.channel || 'preview'}\n• रनटाइम: ${Updates.runtimeVersion || '1.0.x'}\n• सक्रिय कोड: ${Updates.isEmbeddedLaunch ? 'Embedded Base APK' : 'Live OTA Active'}\n• अपडेट ID: ${Updates.updateId ? Updates.updateId.slice(0, 8) : 'Embedded Base'}`
         );
       }
     } catch (e) {
@@ -370,15 +385,22 @@ export function ProfileScreen({ navigation }) {
           <Text style={styles.aboutText}>
             VillagePulse is a modern rural census and household intelligence system built for Indian Panchayats. Designed for offline resilience, live cloud synchronization, and field surveys.
           </Text>
-          <View style={{ marginTop: 10, padding: 10, backgroundColor: COLORS.background, borderRadius: SIZES.radiusSm, borderWidth: 1, borderColor: COLORS.cardBorder }}>
-            <Text style={{ fontSize: 12, fontWeight: '700', color: COLORS.textPrimary }}>
-              VillagePulse Mobile • v1.0.2
+          <View style={{ marginTop: 10, padding: 12, backgroundColor: isDark ? colors.background : colors.surfaceSubtle, borderRadius: SIZES.radiusSm, borderWidth: 1, borderColor: colors.cardBorder }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textPrimary }}>
+                VillagePulse Mobile
+              </Text>
+              <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, backgroundColor: Updates.isEmbeddedLaunch ? colors.cardBorder : colors.primaryLight }}>
+                <Text style={{ fontSize: 10, fontWeight: '700', color: Updates.isEmbeddedLaunch ? colors.textMuted : colors.primaryDark }}>
+                  {Updates.isEmbeddedLaunch ? 'Embedded Base' : 'Live OTA Active'}
+                </Text>
+              </View>
+            </View>
+            <Text style={{ fontSize: 11, color: colors.textMuted, marginTop: 4 }}>
+              Channel: {Updates.channel || 'preview'} • Runtime: {Updates.runtimeVersion || '1.0.x'}
             </Text>
-            <Text style={{ fontSize: 11, color: COLORS.textMuted, marginTop: 2 }}>
-              Channel: {Updates.channel || 'preview'} | Runtime: {Updates.runtimeVersion || '1.0.x'}
-            </Text>
-            <Text style={{ fontSize: 10, color: COLORS.textMuted, marginTop: 1 }}>
-              OTA Build: {Updates.updateId ? Updates.updateId.slice(0, 12) + '...' : 'Embedded Base'}
+            <Text style={{ fontSize: 10, color: colors.textMuted, marginTop: 2 }}>
+              Update ID: {Updates.updateId ? Updates.updateId.slice(0, 16) : 'Base APK'}
             </Text>
           </View>
 

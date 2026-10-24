@@ -67,7 +67,25 @@ export function UpdateModal({ autoCheck = true, visibleOverride, onCloseOverride
     try {
       if (Updates.isEnabled) {
         await Updates.fetchUpdateAsync();
-        await Updates.reloadAsync();
+        setIsDownloading(false);
+        setModalVisible(false);
+
+        Alert.alert(
+          'अपडेट डाउनलोड हो गया! 🎉',
+          'नया संस्करण सफलतापूर्वक डाउनलोड हो गया है।\n\nबदलाव लागू करने के लिए ऐप को तुरंत रीस्टार्ट किया जा रहा है।\n\n(यदि बदलाव तुरंत न दिखें, तो कृपया ऐप को Recent Apps से स्वाइप करके बंद करें और दोबारा खोलें)।',
+          [
+            {
+              text: 'रीस्टार्ट करें (Restart App)',
+              onPress: async () => {
+                try {
+                  await Updates.reloadAsync();
+                } catch (reloadErr) {
+                  console.log('Reload notice:', reloadErr);
+                }
+              },
+            },
+          ]
+        );
       } else {
         setModalVisible(false);
         setIsDownloading(false);
@@ -76,7 +94,7 @@ export function UpdateModal({ autoCheck = true, visibleOverride, onCloseOverride
       setIsDownloading(false);
       Alert.alert(
         'अपडेट त्रुटि (Update Error)',
-        'अपडेट डाउनलोड करने में समस्या आई। कृपया थोड़ी देर बाद पुनः प्रयास करें।'
+        'अपडेट डाउनलोड करने में समस्या आई: ' + (error?.message || 'कृपया थोड़ी देर बाद पुनः प्रयास करें।')
       );
     }
   };
