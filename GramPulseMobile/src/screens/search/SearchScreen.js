@@ -11,11 +11,13 @@ import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, SHADOWS, SIZES } from '../../constants/theme';
 import { useData } from '../../contexts/DataContext';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useLanguage } from '../../contexts/LanguageContext';
 import { FamilyCard } from '../../components/FamilyCard';
 
 export function SearchScreen({ navigation }) {
   const { filteredFamilies } = useData();
-  const { colors, isDarkMode } = useTheme();
+  const { colors, isDark } = useTheme();
+  const { t, language } = useLanguage();
   const [query, setQuery] = useState('');
   const [searchFilter, setSearchFilter] = useState('all'); // 'all' | 'janAadhaar' | 'name' | 'mobile'
 
@@ -61,15 +63,15 @@ export function SearchScreen({ navigation }) {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Top Search App Bar */}
-      <View style={[styles.topBar, { backgroundColor: isDarkMode ? '#064E3B' : colors.primary }]}>
+      <View style={[styles.topBar, { backgroundColor: isDark ? '#064E3B' : colors.primary }]}>
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
         </TouchableOpacity>
-        <View style={[styles.searchInputWrapper, { backgroundColor: isDarkMode ? '#1E293B' : '#FFFFFF' }]}>
+        <View style={[styles.searchInputWrapper, { backgroundColor: isDark ? colors.surface : '#FFFFFF' }]}>
           <Ionicons name="search" size={18} color={colors.textMuted} />
           <TextInput
             style={[styles.input, { color: colors.textPrimary }]}
-            placeholder="Search Jan Aadhaar, Name, Mobile..."
+            placeholder={t('searchFamilyPlaceholder', 'Search Jan Aadhaar, Name, Mobile...')}
             placeholderTextColor={colors.textMuted}
             value={query}
             onChangeText={setQuery}
@@ -91,40 +93,80 @@ export function SearchScreen({ navigation }) {
       </View>
 
       {/* Filter Chips */}
-      <View style={styles.filterRow}>
+      <View style={[styles.filterRow, { backgroundColor: colors.surface, borderBottomColor: colors.cardBorder }]}>
         <TouchableOpacity
-          style={[styles.filterChip, searchFilter === 'all' && styles.filterChipActive]}
+          style={[
+            styles.filterChip,
+            { backgroundColor: isDark ? colors.background : colors.surfaceSubtle },
+            searchFilter === 'all' && { backgroundColor: colors.primary },
+          ]}
           onPress={() => setSearchFilter('all')}
         >
-          <Text style={[styles.filterChipText, searchFilter === 'all' && styles.filterChipTextActive]}>
-            All Fields
+          <Text
+            style={[
+              styles.filterChipText,
+              { color: colors.textSecondary },
+              searchFilter === 'all' && styles.filterChipTextActive,
+            ]}
+          >
+            {language === 'hi' ? 'सभी फ़ील्ड्स' : 'All Fields'}
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.filterChip, searchFilter === 'name' && styles.filterChipActive]}
+          style={[
+            styles.filterChip,
+            { backgroundColor: isDark ? colors.background : colors.surfaceSubtle },
+            searchFilter === 'name' && { backgroundColor: colors.primary },
+          ]}
           onPress={() => setSearchFilter('name')}
         >
-          <Text style={[styles.filterChipText, searchFilter === 'name' && styles.filterChipTextActive]}>
-            Head Name
+          <Text
+            style={[
+              styles.filterChipText,
+              { color: colors.textSecondary },
+              searchFilter === 'name' && styles.filterChipTextActive,
+            ]}
+          >
+            {t('headName', 'Head Name')}
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.filterChip, searchFilter === 'janAadhaar' && styles.filterChipActive]}
+          style={[
+            styles.filterChip,
+            { backgroundColor: isDark ? colors.background : colors.surfaceSubtle },
+            searchFilter === 'janAadhaar' && { backgroundColor: colors.primary },
+          ]}
           onPress={() => setSearchFilter('janAadhaar')}
         >
-          <Text style={[styles.filterChipText, searchFilter === 'janAadhaar' && styles.filterChipTextActive]}>
-            Jan Aadhaar
+          <Text
+            style={[
+              styles.filterChipText,
+              { color: colors.textSecondary },
+              searchFilter === 'janAadhaar' && styles.filterChipTextActive,
+            ]}
+          >
+            {t('janAadhaar', 'Jan Aadhaar')}
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.filterChip, searchFilter === 'mobile' && styles.filterChipActive]}
+          style={[
+            styles.filterChip,
+            { backgroundColor: isDark ? colors.background : colors.surfaceSubtle },
+            searchFilter === 'mobile' && { backgroundColor: colors.primary },
+          ]}
           onPress={() => setSearchFilter('mobile')}
         >
-          <Text style={[styles.filterChipText, searchFilter === 'mobile' && styles.filterChipTextActive]}>
-            Mobile
+          <Text
+            style={[
+              styles.filterChipText,
+              { color: colors.textSecondary },
+              searchFilter === 'mobile' && styles.filterChipTextActive,
+            ]}
+          >
+            {t('mobileNo', 'Mobile')}
           </Text>
         </TouchableOpacity>
       </View>
@@ -132,8 +174,10 @@ export function SearchScreen({ navigation }) {
       {/* Results Header */}
       {Boolean(query) && (
         <View style={styles.resultsHeader}>
-          <Text style={styles.resultsCount}>
-            Found <Text style={styles.bold}>{results.length}</Text> matches
+          <Text style={[styles.resultsCount, { color: colors.textSecondary }]}>
+            {language === 'hi' ? 'कुल ' : 'Found '}
+            <Text style={[styles.bold, { color: colors.primary }]}>{results.length}</Text>
+            {language === 'hi' ? ' परिणाम मिले' : ' matches'}
           </Text>
         </View>
       )}
@@ -152,18 +196,26 @@ export function SearchScreen({ navigation }) {
         ListEmptyComponent={
           query ? (
             <View style={styles.emptyContainer}>
-              <Feather name="alert-circle" size={40} color={COLORS.textMuted} />
-              <Text style={styles.emptyTitle}>No Matching Households</Text>
-              <Text style={styles.emptySub}>
-                Check spelling or try searching with Jan Aadhaar number
+              <Feather name="alert-circle" size={40} color={colors.textMuted} />
+              <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>
+                {language === 'hi' ? 'कोई मेल नहीं मिला' : 'No Matching Households'}
+              </Text>
+              <Text style={[styles.emptySub, { color: colors.textMuted }]}>
+                {language === 'hi'
+                  ? 'वर्तनी जांचें या जन आधार संख्या दर्ज करके खोजें'
+                  : 'Check spelling or try searching with Jan Aadhaar number'}
               </Text>
             </View>
           ) : (
             <View style={styles.emptyContainer}>
-              <Ionicons name="search-outline" size={48} color={COLORS.cardBorder} />
-              <Text style={styles.emptyTitle}>Type to Search Survey Records</Text>
-              <Text style={styles.emptySub}>
-                Instant fuzzy search across {families.length} families
+              <Ionicons name="search-outline" size={48} color={colors.cardBorder} />
+              <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>
+                {language === 'hi' ? 'खोजने के लिए टाइप करें' : 'Type to Search Survey Records'}
+              </Text>
+              <Text style={[styles.emptySub, { color: colors.textMuted }]}>
+                {language === 'hi'
+                  ? `कुल ${filteredFamilies.length} परिवारों में त्वरित खोज`
+                  : `Instant search across ${filteredFamilies.length} families`}
               </Text>
             </View>
           )

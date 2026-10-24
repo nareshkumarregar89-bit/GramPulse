@@ -20,11 +20,15 @@ import {
 import { COLORS, SHADOWS, SIZES } from '../../constants/theme';
 import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTheme } from '../../contexts/ThemeContext';
+import { useLanguage } from '../../contexts/LanguageContext';
 import { villagesList } from '../../constants/villages';
 
 export function NewSurveyScreen({ navigation }) {
   const { addFamily, castes, mohallas, selectedVillage } = useData();
   const { currentUser } = useAuth();
+  const { colors, isDark } = useTheme();
+  const { t, language } = useLanguage();
 
   const [activeStep, setActiveStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -175,26 +179,30 @@ export function NewSurveyScreen({ navigation }) {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       {/* Top Header */}
-      <View style={styles.topBar}>
+      <View style={[styles.topBar, { backgroundColor: isDark ? '#064E3B' : colors.primary }]}>
         <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
-          <Ionicons name="close" size={22} color={COLORS.surface} />
+          <Ionicons name="close" size={22} color="#FFFFFF" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>New Family Survey (नया सर्वेक्षण)</Text>
+        <Text style={styles.headerTitle}>
+          {language === 'hi' ? 'नया परिवार सर्वेक्षण (New Survey)' : 'New Household Survey'}
+        </Text>
         <View style={{ width: 38 }} />
       </View>
 
       {/* Step Indicators */}
-      <View style={styles.stepTabs}>
+      <View style={[styles.stepTabs, { backgroundColor: colors.surface, borderBottomColor: colors.cardBorder }]}>
         <TouchableOpacity
           style={[styles.stepTab, activeStep === 1 && styles.stepTabActive]}
           onPress={() => setActiveStep(1)}
         >
           <Text style={[styles.stepNum, activeStep === 1 && styles.stepNumActive]}>1</Text>
-          <Text style={[styles.stepLabel, activeStep === 1 && styles.stepLabelActive]}>Basic</Text>
+          <Text style={[styles.stepLabel, { color: colors.textSecondary }, activeStep === 1 && styles.stepLabelActive]}>
+            {t('step1', 'Basic')}
+          </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -202,7 +210,9 @@ export function NewSurveyScreen({ navigation }) {
           onPress={() => setActiveStep(2)}
         >
           <Text style={[styles.stepNum, activeStep === 2 && styles.stepNumActive]}>2</Text>
-          <Text style={[styles.stepLabel, activeStep === 2 && styles.stepLabelActive]}>IDs</Text>
+          <Text style={[styles.stepLabel, { color: colors.textSecondary }, activeStep === 2 && styles.stepLabelActive]}>
+            {t('step2', 'IDs')}
+          </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -210,7 +220,9 @@ export function NewSurveyScreen({ navigation }) {
           onPress={() => setActiveStep(3)}
         >
           <Text style={[styles.stepNum, activeStep === 3 && styles.stepNumActive]}>3</Text>
-          <Text style={[styles.stepLabel, activeStep === 3 && styles.stepLabelActive]}>Members</Text>
+          <Text style={[styles.stepLabel, { color: colors.textSecondary }, activeStep === 3 && styles.stepLabelActive]}>
+            {t('step3', 'Members')}
+          </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -218,7 +230,9 @@ export function NewSurveyScreen({ navigation }) {
           onPress={() => setActiveStep(4)}
         >
           <Text style={[styles.stepNum, activeStep === 4 && styles.stepNumActive]}>4</Text>
-          <Text style={[styles.stepLabel, activeStep === 4 && styles.stepLabelActive]}>Submit</Text>
+          <Text style={[styles.stepLabel, { color: colors.textSecondary }, activeStep === 4 && styles.stepLabelActive]}>
+            {t('step4', 'Submit')}
+          </Text>
         </TouchableOpacity>
       </View>
 

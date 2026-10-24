@@ -19,24 +19,28 @@ import { COLORS, SHADOWS, SIZES } from '../../constants/theme';
 import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useLanguage } from '../../contexts/LanguageContext';
 import { FamilyIdCardModal } from '../../components/FamilyIdCardModal';
 
 export function FamilyDetailScreen({ route, navigation }) {
   const { id } = route.params || {};
   const { getFamilyById, deleteFamily } = useData();
   const { isAdmin } = useAuth();
-  const { colors, isDarkMode } = useTheme();
+  const { colors, isDark } = useTheme();
+  const { t, language } = useLanguage();
   const [idCardModalVisible, setIdCardModalVisible] = React.useState(false);
 
   const family = getFamilyById(id);
 
   if (!family) {
     return (
-      <View style={styles.centerContainer}>
-        <Ionicons name="alert-circle-outline" size={48} color={COLORS.danger} />
-        <Text style={styles.notFoundText}>Family Record Not Found</Text>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <Text style={styles.backBtnText}>Go Back</Text>
+      <View style={[styles.centerContainer, { backgroundColor: colors.background }]}>
+        <Ionicons name="alert-circle-outline" size={48} color={colors.danger} />
+        <Text style={[styles.notFoundText, { color: colors.textPrimary }]}>
+          {language === 'hi' ? 'परिवार रिकॉर्ड नहीं मिला' : 'Family Record Not Found'}
+        </Text>
+        <TouchableOpacity style={[styles.backBtn, { backgroundColor: colors.primary }]} onPress={() => navigation.goBack()}>
+          <Text style={styles.backBtnText}>{t('back', 'Go Back')}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -49,7 +53,10 @@ export function FamilyDetailScreen({ route, navigation }) {
     if (family.mobile) {
       Linking.openURL(`tel:${family.mobile}`);
     } else {
-      Alert.alert('No Contact Number', 'No mobile number was recorded for this household.');
+      Alert.alert(
+        language === 'hi' ? 'मोबाइल नंबर उपलब्ध नहीं है' : 'No Contact Number',
+        language === 'hi' ? 'इस परिवार के लिए कोई संपर्क नंबर दर्ज नहीं है।' : 'No mobile number was recorded for this household.'
+      );
     }
   };
 
@@ -64,12 +71,14 @@ export function FamilyDetailScreen({ route, navigation }) {
 
   const handleDelete = () => {
     Alert.alert(
-      'रिकॉर्ड रीसायकल बिन में भेजें (Soft Delete)',
-      `क्या आप परिवार ${family.id} का रिकॉर्ड रीसायकल बिन (Deleted Records) में भेजना चाहते हैं?\n\nआप इसे एडमिन पैनल से बाद में कभी भी पुनर्स्थापित (Restore) कर सकते हैं।`,
+      language === 'hi' ? 'रिकॉर्ड रीसायकल बिन में भेजें (Soft Delete)' : 'Send to Recycle Bin',
+      language === 'hi'
+        ? `क्या आप परिवार ${family.id} का रिकॉर्ड रीसायकल बिन (Deleted Records) में भेजना चाहते हैं?\n\nआप इसे एडमिन पैनल से बाद में कभी भी पुनर्स्थापित (Restore) कर सकते हैं।`
+        : `Move family ${family.id} record to the Recycle Bin?\n\nAdministrators can restore it at any time from the Recycle Bin panel.`,
       [
-        { text: 'रद्द करें', style: 'cancel' },
+        { text: t('cancel', 'रद्द करें'), style: 'cancel' },
         {
-          text: 'रीसायकल बिन में भेजें',
+          text: language === 'hi' ? 'रीसायकल बिन में भेजें' : 'Move to Trash',
           style: 'destructive',
           onPress: async () => {
             await deleteFamily(family.id);
@@ -81,45 +90,45 @@ export function FamilyDetailScreen({ route, navigation }) {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Top App Bar */}
-      <View style={styles.appBar}>
+      <View style={[styles.appBar, { backgroundColor: isDark ? '#064E3B' : colors.primary }]}>
         <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={22} color={COLORS.surface} />
+          <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
         </TouchableOpacity>
-        <Text style={styles.appBarTitle}>Family Dossier</Text>
+        <Text style={styles.appBarTitle}>{t('familyDetailTitle', 'Family Dossier')}</Text>
         <View style={styles.appBarActions}>
           <TouchableOpacity
             style={styles.iconBtn}
             onPress={() => setIdCardModalVisible(true)}
             accessibilityLabel="Digital ID Card"
           >
-            <MaterialCommunityIcons name="qrcode" size={20} color={COLORS.surface} />
+            <MaterialCommunityIcons name="qrcode" size={20} color="#FFFFFF" />
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.iconBtn}
             onPress={() => navigation.navigate('DataPrint', { familyId: family.id })}
           >
-            <Ionicons name="print-outline" size={20} color={COLORS.surface} />
+            <Ionicons name="print-outline" size={20} color="#FFFFFF" />
           </TouchableOpacity>
           <TouchableOpacity style={styles.iconBtn} onPress={handleShare}>
-            <Ionicons name="share-social-outline" size={20} color={COLORS.surface} />
+            <Ionicons name="share-social-outline" size={20} color="#FFFFFF" />
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.iconBtn}
             onPress={() => navigation.navigate('EditSurvey', { id: family.id })}
           >
-            <Feather name="edit-2" size={18} color={COLORS.surface} />
+            <Feather name="edit-2" size={18} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Header Dossier Card */}
-        <View style={[styles.dossierCard, SHADOWS.md]}>
+        <View style={[styles.dossierCard, SHADOWS.md, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
           <View style={styles.dossierTop}>
-            <View style={styles.idChip}>
-              <Text style={styles.idChipText}>{family.id}</Text>
+            <View style={[styles.idChip, { backgroundColor: colors.primaryLight }]}>
+              <Text style={[styles.idChipText, { color: colors.primaryDark }]}>{family.id}</Text>
             </View>
             <View style={styles.badgeRow}>
               {isBpl && (
@@ -127,264 +136,288 @@ export function FamilyDetailScreen({ route, navigation }) {
                   <Text style={styles.bplPillText}>BPL</Text>
                 </View>
               )}
-              <View style={styles.categoryPill}>
-                <Text style={styles.categoryPillText}>{family.caste || 'Caste'}</Text>
+              <View style={[styles.categoryPill, { backgroundColor: isDark ? colors.background : colors.surfaceSubtle }]}>
+                <Text style={[styles.categoryPillText, { color: colors.textSecondary }]}>{family.caste || 'Caste'}</Text>
               </View>
             </View>
           </View>
 
-          <Text style={styles.headTitle}>
+          <Text style={[styles.headTitle, { color: colors.textPrimary }]}>
             {family.familyHeadNameHindi || family.familyHeadNameEnglish}
           </Text>
           {family.familyHeadNameEnglish && family.familyHeadNameHindi && (
-            <Text style={styles.headSubtitle}>{family.familyHeadNameEnglish}</Text>
+            <Text style={[styles.headSubtitle, { color: colors.textSecondary }]}>{family.familyHeadNameEnglish}</Text>
           )}
 
           {family.fatherName ? (
             <View style={styles.infoLine}>
-              <Text style={styles.infoLabel}>पिता/पति (Father/Husband):</Text>
-              <Text style={styles.infoValue}>
+              <Text style={[styles.infoLabel, { color: colors.textMuted }]}>
+                {language === 'hi' ? 'पिता/पति:' : 'Father / Husband:'}
+              </Text>
+              <Text style={[styles.infoValue, { color: colors.textPrimary }]}>
                 {family.fatherNameHindi || family.fatherNameEnglish || family.fatherName}
               </Text>
             </View>
           ) : null}
 
           <View style={styles.infoLine}>
-            <Text style={styles.infoLabel}>गाँव (Village):</Text>
-            <Text style={styles.infoValue}>{family.village || 'समोड़ी (Samodi)'}</Text>
+            <Text style={[styles.infoLabel, { color: colors.textMuted }]}>
+              {language === 'hi' ? 'गाँव:' : 'Village:'}
+            </Text>
+            <Text style={[styles.infoValue, { color: colors.textPrimary }]}>{family.village || 'समोड़ी (Samodi)'}</Text>
           </View>
 
           <View style={styles.infoLine}>
-            <Text style={styles.infoLabel}>मोहल्ला (Mohalla):</Text>
-            <Text style={styles.infoValue}>{family.mohalla || 'Main Mohalla'}</Text>
+            <Text style={[styles.infoLabel, { color: colors.textMuted }]}>
+              {language === 'hi' ? 'मोहल्ला:' : 'Mohalla:'}
+            </Text>
+            <Text style={[styles.infoValue, { color: colors.textPrimary }]}>{family.mohalla || 'Main Mohalla'}</Text>
           </View>
 
           {family.houseNumber ? (
             <View style={styles.infoLine}>
-              <Text style={styles.infoLabel}>मकान संख्या (House No):</Text>
-              <Text style={styles.infoValue}>{family.houseNumber}</Text>
+              <Text style={[styles.infoLabel, { color: colors.textMuted }]}>
+                {language === 'hi' ? 'मकान संख्या:' : 'House No:'}
+              </Text>
+              <Text style={[styles.infoValue, { color: colors.textPrimary }]}>{family.houseNumber}</Text>
             </View>
           ) : null}
 
           {/* Quick Call Button */}
           {family.mobile && (
-            <TouchableOpacity style={styles.callActionBar} onPress={handleCall} activeOpacity={0.8}>
-              <Ionicons name="call" size={18} color={COLORS.surface} />
-              <Text style={styles.callActionBarText}>Call {family.mobile}</Text>
+            <TouchableOpacity style={[styles.callActionBar, { backgroundColor: colors.primary }]} onPress={handleCall} activeOpacity={0.8}>
+              <Ionicons name="call" size={18} color="#FFFFFF" />
+              <Text style={styles.callActionBarText}>
+                {language === 'hi' ? 'कॉल करें ' : 'Call '}{family.mobile}
+              </Text>
             </TouchableOpacity>
           )}
 
           {/* Digital Family ID Card with QR Action */}
           <TouchableOpacity
-            style={[styles.idCardActionBtn, { backgroundColor: isDarkMode ? '#064E3B' : colors.primaryLight }]}
+            style={[styles.idCardActionBtn, { backgroundColor: isDark ? '#064E3B' : colors.primaryLight }]}
             onPress={() => setIdCardModalVisible(true)}
             activeOpacity={0.8}
           >
-            <MaterialCommunityIcons name="badge-account-horizontal" size={20} color={isDarkMode ? '#34D399' : colors.primaryDark} />
-            <Text style={[styles.idCardActionText, { color: isDarkMode ? '#34D399' : colors.primaryDark }]}>
-              डिजिटल पहचान पत्र व QR कोड (Digital ID Card)
+            <MaterialCommunityIcons name="badge-account-horizontal" size={20} color={isDark ? '#34D399' : colors.primaryDark} />
+            <Text style={[styles.idCardActionText, { color: isDark ? '#34D399' : colors.primaryDark }]}>
+              {language === 'hi' ? 'डिजिटल पहचान पत्र व QR कोड (Digital ID Card)' : 'Digital Family ID Card & QR'}
             </Text>
           </TouchableOpacity>
 
           {/* Print Dossier Quick Action */}
           <TouchableOpacity
-            style={styles.printActionBar}
+            style={[styles.printActionBar, { backgroundColor: isDark ? colors.surface : colors.primaryLight, borderColor: colors.primary }]}
             onPress={() => navigation.navigate('DataPrint', { familyId: family.id })}
             activeOpacity={0.8}
           >
-            <Ionicons name="document-text-outline" size={18} color={COLORS.primary} />
-            <Text style={styles.printActionBarText}>Print Detailed Dossier (पीडीएफ / डॉसियर)</Text>
+            <Ionicons name="document-text-outline" size={18} color={colors.primary} />
+            <Text style={[styles.printActionBarText, { color: colors.primary }]}>
+              {language === 'hi' ? 'विस्तृत डॉसियर प्रिंट करें (Print Dossier)' : 'Print Detailed Dossier'}
+            </Text>
           </TouchableOpacity>
         </View>
 
         {/* Government Identity Documents */}
         <View style={styles.sectionHeader}>
-          <MaterialCommunityIcons name="card-account-details" size={20} color={COLORS.primary} />
-          <Text style={styles.sectionTitle}>Government Documents (दस्तावेज़)</Text>
+          <MaterialCommunityIcons name="card-account-details" size={20} color={colors.primary} />
+          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
+            {language === 'hi' ? 'शासकीय दस्तावेज़ (Govt Documents)' : 'Government Documents'}
+          </Text>
         </View>
 
-        <View style={[styles.sectionCard, SHADOWS.sm]}>
+        <View style={[styles.sectionCard, SHADOWS.sm, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
           <View style={styles.docRow}>
             <View style={styles.docLeft}>
-              <Text style={styles.docLabel}>Jan Aadhaar (जन आधार)</Text>
-              <Text style={styles.docValue}>
-                {family.janAadhaarNumber || family.janAadhaar || 'Not Available'}
+              <Text style={[styles.docLabel, { color: colors.textMuted }]}>Jan Aadhaar (जन आधार)</Text>
+              <Text style={[styles.docValue, { color: colors.textPrimary }]}>
+                {family.janAadhaarNumber || family.janAadhaar || (language === 'hi' ? 'उपलब्ध नहीं' : 'Not Available')}
               </Text>
             </View>
-            <MaterialCommunityIcons name="card-bulleted" size={24} color={COLORS.primary} />
+            <MaterialCommunityIcons name="card-bulleted" size={24} color={colors.primary} />
           </View>
 
-          <View style={styles.divider} />
+          <View style={[styles.divider, { backgroundColor: colors.cardBorder }]} />
 
           <View style={styles.docRow}>
             <View style={styles.docLeft}>
-              <Text style={styles.docLabel}>Ration Card (राशन कार्ड)</Text>
-              <Text style={styles.docValue}>
-                {family.rationCardNumber || family.rationCard || 'Not Available'}
+              <Text style={[styles.docLabel, { color: colors.textMuted }]}>Ration Card (राशन कार्ड)</Text>
+              <Text style={[styles.docValue, { color: colors.textPrimary }]}>
+                {family.rationCardNumber || family.rationCard || (language === 'hi' ? 'उपलब्ध नहीं' : 'Not Available')}
               </Text>
             </View>
-            <MaterialCommunityIcons name="file-document-outline" size={24} color={COLORS.accent} />
+            <MaterialCommunityIcons name="file-document-outline" size={24} color={colors.accent} />
           </View>
 
-          <View style={styles.divider} />
+          <View style={[styles.divider, { backgroundColor: colors.cardBorder }]} />
 
           <View style={styles.docRow}>
             <View style={styles.docLeft}>
-              <Text style={styles.docLabel}>Voter ID (मतदाता पहचान पत्र)</Text>
-              <Text style={styles.docValue}>{family.voterId || 'Not Recorded'}</Text>
+              <Text style={[styles.docLabel, { color: colors.textMuted }]}>Voter ID (मतदाता पहचान पत्र)</Text>
+              <Text style={[styles.docValue, { color: colors.textPrimary }]}>
+                {family.voterId || (language === 'hi' ? 'दर्ज नहीं' : 'Not Recorded')}
+              </Text>
             </View>
-            <Ionicons name="finger-print-outline" size={24} color={COLORS.info} />
+            <Ionicons name="finger-print-outline" size={24} color={colors.info} />
           </View>
         </View>
 
         {/* Socio-Economic & Bank Info */}
         <View style={styles.sectionHeader}>
-          <FontAwesome5 name="rupee-sign" size={16} color={COLORS.primary} />
-          <Text style={styles.sectionTitle}>Socio-Economic & Amenities</Text>
+          <FontAwesome5 name="rupee-sign" size={16} color={colors.primary} />
+          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
+            {language === 'hi' ? 'आर्थिक एवं आवास विवरण' : 'Socio-Economic & Amenities'}
+          </Text>
         </View>
 
-        <View style={[styles.sectionCard, SHADOWS.sm]}>
+        <View style={[styles.sectionCard, SHADOWS.sm, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
           <View style={styles.twoColRow}>
             <View style={styles.col}>
-              <Text style={styles.colLabel}>Category</Text>
-              <Text style={styles.colValue}>{family.category || 'General'}</Text>
+              <Text style={[styles.colLabel, { color: colors.textMuted }]}>{language === 'hi' ? 'श्रेणी' : 'Category'}</Text>
+              <Text style={[styles.colValue, { color: colors.textPrimary }]}>{family.category || 'General'}</Text>
             </View>
             <View style={styles.col}>
-              <Text style={styles.colLabel}>Monthly Income</Text>
-              <Text style={styles.colValue}>
-                {family.monthlyIncome ? `₹ ${family.monthlyIncome}` : 'Not Stated'}
+              <Text style={[styles.colLabel, { color: colors.textMuted }]}>{language === 'hi' ? 'मासिक आय' : 'Monthly Income'}</Text>
+              <Text style={[styles.colValue, { color: colors.textPrimary }]}>
+                {family.monthlyIncome ? `₹ ${family.monthlyIncome}` : (language === 'hi' ? 'दर्ज नहीं' : 'Not Stated')}
               </Text>
             </View>
           </View>
 
-          <View style={styles.divider} />
+          <View style={[styles.divider, { backgroundColor: colors.cardBorder }]} />
 
           <View style={styles.twoColRow}>
             <View style={styles.col}>
-              <Text style={styles.colLabel}>House Type</Text>
-              <Text style={styles.colValue}>{family.houseType || 'Pucca'}</Text>
+              <Text style={[styles.colLabel, { color: colors.textMuted }]}>{language === 'hi' ? 'मकान प्रकार' : 'House Type'}</Text>
+              <Text style={[styles.colValue, { color: colors.textPrimary }]}>{family.houseType || 'Pucca'}</Text>
             </View>
             <View style={styles.col}>
-              <Text style={styles.colLabel}>Occupation</Text>
-              <Text style={styles.colValue}>{family.occupation || 'Agriculture'}</Text>
+              <Text style={[styles.colLabel, { color: colors.textMuted }]}>{language === 'hi' ? 'व्यवसाय' : 'Occupation'}</Text>
+              <Text style={[styles.colValue, { color: colors.textPrimary }]}>{family.occupation || 'Agriculture'}</Text>
             </View>
           </View>
 
           {/* Amenities Grid */}
           <View style={styles.amenitiesContainer}>
-            <View style={[styles.amenityPill, family.waterConnection && styles.amenityActive]}>
+            <View style={[styles.amenityPill, { backgroundColor: isDark ? colors.background : colors.surfaceSubtle }, family.waterConnection && { backgroundColor: colors.primaryLight }]}>
               <Ionicons
                 name="water-outline"
                 size={16}
-                color={family.waterConnection ? COLORS.primary : COLORS.textMuted}
+                color={family.waterConnection ? colors.primary : colors.textMuted}
               />
-              <Text style={styles.amenityText}>Water</Text>
+              <Text style={[styles.amenityText, { color: colors.textSecondary }]}>{language === 'hi' ? 'जल (Water)' : 'Water'}</Text>
             </View>
-            <View style={[styles.amenityPill, family.electricityConnection && styles.amenityActive]}>
+            <View style={[styles.amenityPill, { backgroundColor: isDark ? colors.background : colors.surfaceSubtle }, family.electricityConnection && { backgroundColor: colors.primaryLight }]}>
               <Ionicons
                 name="flash-outline"
                 size={16}
-                color={family.electricityConnection ? COLORS.primary : COLORS.textMuted}
+                color={family.electricityConnection ? colors.primary : colors.textMuted}
               />
-              <Text style={styles.amenityText}>Electricity</Text>
+              <Text style={[styles.amenityText, { color: colors.textSecondary }]}>{language === 'hi' ? 'विद्युत (Power)' : 'Electricity'}</Text>
             </View>
-            <View style={[styles.amenityPill, family.toilet && styles.amenityActive]}>
+            <View style={[styles.amenityPill, { backgroundColor: isDark ? colors.background : colors.surfaceSubtle }, family.toilet && { backgroundColor: colors.primaryLight }]}>
               <MaterialCommunityIcons
                 name="toilet"
                 size={16}
-                color={family.toilet ? COLORS.primary : COLORS.textMuted}
+                color={family.toilet ? colors.primary : colors.textMuted}
               />
-              <Text style={styles.amenityText}>Toilet</Text>
+              <Text style={[styles.amenityText, { color: colors.textSecondary }]}>{language === 'hi' ? 'शौचालय' : 'Toilet'}</Text>
             </View>
-            <View style={[styles.amenityPill, family.gasConnection && styles.amenityActive]}>
+            <View style={[styles.amenityPill, { backgroundColor: isDark ? colors.background : colors.surfaceSubtle }, family.gasConnection && { backgroundColor: colors.primaryLight }]}>
               <MaterialCommunityIcons
                 name="gas-cylinder"
                 size={16}
-                color={family.gasConnection ? COLORS.primary : COLORS.textMuted}
+                color={family.gasConnection ? colors.primary : colors.textMuted}
               />
-              <Text style={styles.amenityText}>Gas</Text>
+              <Text style={[styles.amenityText, { color: colors.textSecondary }]}>{language === 'hi' ? 'गैस कनेक्शन' : 'Gas'}</Text>
             </View>
           </View>
         </View>
 
         {/* Family Members Section */}
         <View style={styles.sectionHeader}>
-          <MaterialCommunityIcons name="account-group" size={20} color={COLORS.primary} />
-          <Text style={styles.sectionTitle}>
-            Family Members ({members.length} सदस्य)
+          <MaterialCommunityIcons name="account-group" size={20} color={colors.primary} />
+          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
+            {language === 'hi' ? `परिवार के सदस्य (${members.length})` : `Family Members (${members.length})`}
           </Text>
         </View>
 
         {members.length > 0 ? (
           members.map((member, index) => (
-            <View key={member.id || index} style={[styles.memberCard, SHADOWS.sm]}>
+            <View key={member.id || index} style={[styles.memberCard, SHADOWS.sm, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
               <View style={styles.memberTop}>
-                <View style={styles.memberAvatar}>
-                  <Text style={styles.avatarInitial}>
+                <View style={[styles.memberAvatar, { backgroundColor: colors.primaryLight }]}>
+                  <Text style={[styles.avatarInitial, { color: colors.primaryDark }]}>
                     {(member.name || member.nameEnglish || 'M').charAt(0).toUpperCase()}
                   </Text>
                 </View>
                 <View style={styles.memberInfo}>
-                  <Text style={styles.memberName}>
+                  <Text style={[styles.memberName, { color: colors.textPrimary }]}>
                     {member.nameHindi || member.nameEnglish || member.name}
                   </Text>
-                  <Text style={styles.memberRelation}>
-                    {member.relation || 'Member'} • {member.gender || 'Male'} • {member.age || '—'} वर्ष
+                  <Text style={[styles.memberRelation, { color: colors.textSecondary }]}>
+                    {member.relation || 'Member'} • {member.gender || 'Male'} • {member.age || '—'} {language === 'hi' ? 'वर्ष' : 'yrs'}
                   </Text>
                 </View>
               </View>
 
               <View style={styles.memberMetaRow}>
                 {member.education ? (
-                  <View style={styles.memberMetaBadge}>
-                    <Ionicons name="school-outline" size={13} color={COLORS.textSecondary} />
-                    <Text style={styles.memberMetaText}>{member.education}</Text>
+                  <View style={[styles.memberMetaBadge, { backgroundColor: isDark ? colors.background : colors.surfaceSubtle }]}>
+                    <Ionicons name="school-outline" size={13} color={colors.textSecondary} />
+                    <Text style={[styles.memberMetaText, { color: colors.textSecondary }]}>{member.education}</Text>
                   </View>
                 ) : null}
                 {member.occupation ? (
-                  <View style={styles.memberMetaBadge}>
-                    <Ionicons name="briefcase-outline" size={13} color={COLORS.textSecondary} />
-                    <Text style={styles.memberMetaText}>{member.occupation}</Text>
+                  <View style={[styles.memberMetaBadge, { backgroundColor: isDark ? colors.background : colors.surfaceSubtle }]}>
+                    <Ionicons name="briefcase-outline" size={13} color={colors.textSecondary} />
+                    <Text style={[styles.memberMetaText, { color: colors.textSecondary }]}>{member.occupation}</Text>
                   </View>
                 ) : null}
                 {member.maritalStatus ? (
-                  <View style={styles.memberMetaBadge}>
-                    <Ionicons name="heart-outline" size={13} color={COLORS.textSecondary} />
-                    <Text style={styles.memberMetaText}>{member.maritalStatus}</Text>
+                  <View style={[styles.memberMetaBadge, { backgroundColor: isDark ? colors.background : colors.surfaceSubtle }]}>
+                    <Ionicons name="heart-outline" size={13} color={colors.textSecondary} />
+                    <Text style={[styles.memberMetaText, { color: colors.textSecondary }]}>{member.maritalStatus}</Text>
                   </View>
                 ) : null}
                 {member.mobile ? (
                   <TouchableOpacity
-                    style={[styles.memberMetaBadge, { backgroundColor: '#E8F5E9', borderColor: '#C8E6C9', borderWidth: 1 }]}
+                    style={[styles.memberMetaBadge, { backgroundColor: isDark ? '#064E3B' : '#E8F5E9', borderColor: colors.primary, borderWidth: 1 }]}
                     onPress={() => Linking.openURL(`tel:${member.mobile}`)}
                     activeOpacity={0.7}
                   >
-                    <Ionicons name="call" size={13} color={COLORS.primary} />
-                    <Text style={[styles.memberMetaText, { color: COLORS.primary, fontWeight: '700' }]}>{member.mobile}</Text>
+                    <Ionicons name="call" size={13} color={colors.primary} />
+                    <Text style={[styles.memberMetaText, { color: colors.primary, fontWeight: '700' }]}>{member.mobile}</Text>
                   </TouchableOpacity>
                 ) : null}
               </View>
 
               {member.aadhaarNumber ? (
-                <Text style={styles.memberAadhaar}>Aadhaar: {member.aadhaarNumber}</Text>
+                <Text style={[styles.memberAadhaar, { color: colors.textMuted }]}>Aadhaar: {member.aadhaarNumber}</Text>
               ) : null}
             </View>
           ))
         ) : (
           <View style={styles.emptyMembersBox}>
-            <Text style={styles.emptyMembersText}>No individual members recorded</Text>
+            <Text style={[styles.emptyMembersText, { color: colors.textMuted }]}>
+              {language === 'hi' ? 'कोई सदस्य विवरण दर्ज नहीं है' : 'No individual members recorded'}
+            </Text>
           </View>
         )}
 
         {/* Surveyor Metadata */}
-        <View style={[styles.surveyorMetaCard, SHADOWS.sm]}>
-          <Text style={styles.metaCardTitle}>Survey Audit Details</Text>
-          <Text style={styles.metaCardText}>Surveyor: {family.surveyorName || 'Panchayat Staff'}</Text>
-          <Text style={styles.metaCardText}>
-            Date: {family.surveyDate ? new Date(family.surveyDate).toLocaleDateString() : 'Recorded'}
+        <View style={[styles.surveyorMetaCard, SHADOWS.sm, { backgroundColor: isDark ? colors.surface : colors.surfaceSubtle, borderColor: colors.cardBorder }]}>
+          <Text style={[styles.metaCardTitle, { color: colors.textSecondary }]}>
+            {language === 'hi' ? 'सर्वेक्षण ऑडिट विवरण' : 'Survey Audit Details'}
+          </Text>
+          <Text style={[styles.metaCardText, { color: colors.textMuted }]}>
+            {language === 'hi' ? 'सर्वेक्षक:' : 'Surveyor:'} {family.surveyorName || (language === 'hi' ? 'पंचायत फील्ड स्टाफ' : 'Panchayat Staff')}
+          </Text>
+          <Text style={[styles.metaCardText, { color: colors.textMuted }]}>
+            {language === 'hi' ? 'दिनांक:' : 'Date:'} {family.surveyDate ? new Date(family.surveyDate).toLocaleDateString() : 'Recorded'}
           </Text>
           {family.location && (
-            <Text style={styles.metaCardText}>
+            <Text style={[styles.metaCardText, { color: colors.textMuted }]}>
               GPS: {family.location.latitude?.toFixed(4)}, {family.location.longitude?.toFixed(4)}
             </Text>
           )}
@@ -392,9 +425,15 @@ export function FamilyDetailScreen({ route, navigation }) {
 
         {/* Delete Record (Admin Only) */}
         {isAdmin && (
-          <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete} activeOpacity={0.8}>
-            <Ionicons name="trash-outline" size={18} color={COLORS.danger} />
-            <Text style={styles.deleteBtnText}>Delete Survey Record</Text>
+          <TouchableOpacity
+            style={[styles.deleteBtn, { backgroundColor: isDark ? '#450A0A' : '#FEE2E2' }]}
+            onPress={handleDelete}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="trash-outline" size={18} color={colors.danger} />
+            <Text style={[styles.deleteBtnText, { color: colors.danger }]}>
+              {language === 'hi' ? 'सर्वेक्षण रिकॉर्ड हटाएं (Delete)' : 'Delete Survey Record'}
+            </Text>
           </TouchableOpacity>
         )}
       </ScrollView>

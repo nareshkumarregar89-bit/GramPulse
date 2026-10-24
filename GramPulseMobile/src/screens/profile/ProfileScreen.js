@@ -19,6 +19,7 @@ import { COLORS, SHADOWS, SIZES } from '../../constants/theme';
 import { useAuth } from '../../contexts/AuthContext';
 import { useData } from '../../contexts/DataContext';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useLanguage } from '../../contexts/LanguageContext';
 import { Header } from '../../components/Header';
 import { getCleanUniqueAssignedVillages } from '../../constants/villages';
 
@@ -26,6 +27,7 @@ export function ProfileScreen({ navigation }) {
   const { currentUser, userProfile, userRole, isAdmin, assignedVillages, logout } = useAuth();
   const { families, deletedFamilies, isOnline, syncStatus, refreshData } = useData();
   const { isDarkMode, toggleDarkMode, colors } = useTheme();
+  const { t, isHindi, language, setLanguage } = useLanguage();
   const [isSyncing, setIsSyncing] = React.useState(false);
 
   const handleManualSync = async () => {
@@ -102,42 +104,44 @@ export function ProfileScreen({ navigation }) {
   };
 
   return (
-    <View style={styles.container}>
-      <Header title="Surveyor Profile" showVillagePicker={false} />
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <Header title={t('profileTitle', 'Surveyor Profile')} showVillagePicker={false} />
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* User Card */}
-        <View style={[styles.profileCard, SHADOWS.md]}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>
+        <View style={[styles.profileCard, SHADOWS.md, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+          <View style={[styles.avatar, { backgroundColor: colors.primarySubtle, borderColor: colors.primary }]}>
+            <Text style={[styles.avatarText, { color: colors.primary }]}>
               {(userProfile?.name || currentUser?.displayName || 'S').charAt(0).toUpperCase()}
             </Text>
           </View>
 
-          <Text style={styles.userName}>
-            {userProfile?.name || currentUser?.displayName || 'Panchayat Staff'}
+          <Text style={[styles.userName, { color: colors.textPrimary }]}>
+            {userProfile?.name || currentUser?.displayName || t('surveyor', 'Surveyor')}
           </Text>
-          <Text style={styles.userEmail}>
+          <Text style={[styles.userEmail, { color: colors.textMuted }]}>
             {currentUser?.email || 'surveyor@villagepulse.gov.in'}
           </Text>
 
-          <View style={[styles.roleBadge, isAdmin ? styles.roleAdmin : styles.roleSurveyor]}>
+          <View style={[styles.roleBadge, isAdmin ? styles.roleAdmin : { backgroundColor: colors.primarySubtle }]}>
             <MaterialCommunityIcons
               name={isAdmin ? 'shield-crown' : 'badge-account-outline'}
               size={16}
-              color={isAdmin ? '#B45309' : COLORS.primary}
+              color={isAdmin ? '#B45309' : colors.primary}
             />
-            <Text style={[styles.roleText, isAdmin ? styles.roleTextAdmin : styles.roleTextSurveyor]}>
-              {isAdmin ? 'Super Administrator' : 'Panchayat Field Surveyor'}
+            <Text style={[styles.roleText, isAdmin ? styles.roleTextAdmin : { color: colors.primary }]}>
+              {isAdmin ? t('superAdmin', 'Super Administrator') : t('surveyor', 'Surveyor')}
             </Text>
           </View>
         </View>
 
         {/* Assigned Villages Section */}
-        <View style={[styles.sectionCard, SHADOWS.sm]}>
+        <View style={[styles.sectionCard, SHADOWS.sm, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
           <View style={styles.sectionHeaderRow}>
-            <Ionicons name="location" size={20} color={COLORS.primary} />
-            <Text style={styles.sectionTitle}>Assigned Villages (आवंटित गाँव)</Text>
+            <Ionicons name="location" size={20} color={colors.primary} />
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
+              {t('assignedVillages', 'Assigned Villages (आवंटित गाँव)')}
+            </Text>
           </View>
 
           <View style={styles.villagesRow}>
@@ -216,20 +220,20 @@ export function ProfileScreen({ navigation }) {
           <View style={styles.sectionHeaderRow}>
             <Ionicons name={isDarkMode ? 'moon' : 'sunny'} size={20} color={isDarkMode ? '#FBBF24' : colors.primary} />
             <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
-              Appearance & Theme (थीम मोड)
+              {t('appearanceTitle', 'Appearance & Theme (थीम मोड)')}
             </Text>
           </View>
           <Text style={[styles.roleSubtext, { color: colors.textSecondary }]}>
-            कम रोशनी या रात के समय आंखों के आराम के लिए डार्क मोड को सक्रिय करें
+            {t('appearanceDesc', 'कम रोशनी या रात के समय आंखों के आराम के लिए डार्क मोड को सक्रिय करें')}
           </Text>
 
           <View style={styles.themeToggleRow}>
             <View style={styles.themeToggleLeft}>
               <Text style={[styles.themeToggleTitle, { color: colors.textPrimary }]}>
-                {isDarkMode ? 'डार्क मोड सक्रिय (Dark Mode ON)' : 'लाइट मोड सक्रिय (Light Mode ON)'}
+                {isDarkMode ? t('darkModeOn', 'Dark Mode Active') : t('lightModeOn', 'Light Mode Active')}
               </Text>
               <Text style={[styles.themeToggleSub, { color: colors.textMuted }]}>
-                {isDarkMode ? 'डार्क स्लेट थीम चालू है' : 'मानक ब्राइट थीम चालू है'}
+                {isDarkMode ? 'डार्क स्लेट थीम सक्रिय है' : 'मानक ब्राइट थीम सक्रिय है'}
               </Text>
             </View>
             <Switch
@@ -238,6 +242,47 @@ export function ProfileScreen({ navigation }) {
               trackColor={{ false: '#CBD5E1', true: colors.primary }}
               thumbColor="#FFFFFF"
             />
+          </View>
+        </View>
+
+        {/* Language Selection Card */}
+        <View style={[styles.sectionCard, SHADOWS.sm, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+          <View style={styles.sectionHeaderRow}>
+            <Ionicons name="globe-outline" size={20} color={colors.primary} />
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
+              {t('languageTitle', 'Language (भाषा चयन)')}
+            </Text>
+          </View>
+          <Text style={[styles.roleSubtext, { color: colors.textSecondary }]}>
+            {t('languageDesc', 'ऐप की भाषा हिंदी या अंग्रेजी में बदलें')}
+          </Text>
+
+          <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
+            <TouchableOpacity
+              style={[
+                styles.actionCardBtn,
+                { flex: 1, backgroundColor: isHindi ? colors.primary : colors.surfaceSubtle, borderWidth: 1, borderColor: isHindi ? colors.primary : colors.cardBorder },
+              ]}
+              onPress={() => setLanguage('hi')}
+              activeOpacity={0.8}
+            >
+              <Text style={{ fontSize: 14, fontWeight: '700', color: isHindi ? '#FFFFFF' : colors.textPrimary }}>
+                🇮🇳 हिंदी (Hindi)
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.actionCardBtn,
+                { flex: 1, backgroundColor: !isHindi ? colors.primary : colors.surfaceSubtle, borderWidth: 1, borderColor: !isHindi ? colors.primary : colors.cardBorder },
+              ]}
+              onPress={() => setLanguage('en')}
+              activeOpacity={0.8}
+            >
+              <Text style={{ fontSize: 14, fontWeight: '700', color: !isHindi ? '#FFFFFF' : colors.textPrimary }}>
+                🌐 English
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
 

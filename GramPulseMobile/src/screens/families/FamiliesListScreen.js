@@ -15,11 +15,15 @@ import { useData } from '../../contexts/DataContext';
 import { Header } from '../../components/Header';
 import { FamilyCard } from '../../components/FamilyCard';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTheme } from '../../contexts/ThemeContext';
+import { useLanguage } from '../../contexts/LanguageContext';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 export function FamiliesListScreen({ navigation }) {
   const { filteredFamilies, castes, mohallas, loading, refreshData, hasAccess } = useData();
   const { isAdmin, isPending } = useAuth();
+  const { colors, isDark } = useTheme();
+  const { t, language } = useLanguage();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMohalla, setSelectedMohalla] = useState('All');
   const [selectedCaste, setSelectedCaste] = useState('All');
@@ -61,23 +65,23 @@ export function FamiliesListScreen({ navigation }) {
   }, [filteredFamilies, searchQuery, selectedMohalla, selectedCaste]);
 
   return (
-    <View style={styles.container}>
-      <Header title="Family Directory" showVillagePicker={true} />
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <Header title={t('familiesListTitle', 'Family Directory')} showVillagePicker={true} />
 
       {/* Search Input Bar */}
       <View style={styles.searchSection}>
-        <View style={[styles.searchBar, SHADOWS.sm]}>
-          <Ionicons name="search" size={20} color={COLORS.textMuted} />
+        <View style={[styles.searchBar, SHADOWS.sm, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+          <Ionicons name="search" size={20} color={colors.textMuted} />
           <TextInput
-            style={styles.searchInput}
-            placeholder="Search by Name, Jan Aadhaar, Mobile..."
-            placeholderTextColor={COLORS.textMuted}
+            style={[styles.searchInput, { color: colors.textPrimary }]}
+            placeholder={t('searchFamilyPlaceholder', 'Search by Name, Jan Aadhaar, Mobile...')}
+            placeholderTextColor={colors.textMuted}
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
           {Boolean(searchQuery) && (
             <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <Ionicons name="close-circle" size={18} color={COLORS.textMuted} />
+              <Ionicons name="close-circle" size={18} color={colors.textMuted} />
             </TouchableOpacity>
           )}
         </View>
@@ -87,11 +91,21 @@ export function FamiliesListScreen({ navigation }) {
       <View style={styles.filtersSection}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsScroll}>
           <TouchableOpacity
-            style={[styles.chip, selectedMohalla === 'All' && styles.chipActive]}
+            style={[
+              styles.chip,
+              { backgroundColor: colors.surface, borderColor: colors.cardBorder },
+              selectedMohalla === 'All' && { backgroundColor: colors.primary, borderColor: colors.primary },
+            ]}
             onPress={() => setSelectedMohalla('All')}
           >
-            <Text style={[styles.chipText, selectedMohalla === 'All' && styles.chipTextActive]}>
-              All Mohallas
+            <Text
+              style={[
+                styles.chipText,
+                { color: colors.textSecondary },
+                selectedMohalla === 'All' && styles.chipTextActive,
+              ]}
+            >
+              {t('allMohallas', 'All Mohallas')}
             </Text>
           </TouchableOpacity>
           {mohallas.map((m) => {
@@ -99,10 +113,22 @@ export function FamiliesListScreen({ navigation }) {
             return (
               <TouchableOpacity
                 key={m}
-                style={[styles.chip, isAct && styles.chipActive]}
+                style={[
+                  styles.chip,
+                  { backgroundColor: colors.surface, borderColor: colors.cardBorder },
+                  isAct && { backgroundColor: colors.primary, borderColor: colors.primary },
+                ]}
                 onPress={() => setSelectedMohalla(isAct ? 'All' : m)}
               >
-                <Text style={[styles.chipText, isAct && styles.chipTextActive]}>{m}</Text>
+                <Text
+                  style={[
+                    styles.chipText,
+                    { color: colors.textSecondary },
+                    isAct && styles.chipTextActive,
+                  ]}
+                >
+                  {m}
+                </Text>
               </TouchableOpacity>
             );
           })}
@@ -111,8 +137,10 @@ export function FamiliesListScreen({ navigation }) {
 
       {/* Results Header Counter */}
       <View style={styles.resultsBar}>
-        <Text style={styles.resultsCount}>
-          Showing <Text style={styles.countBold}>{displayFamilies.length}</Text> Families
+        <Text style={[styles.resultsCount, { color: colors.textSecondary }]}>
+          {language === 'hi' ? 'दिखाए जा रहे: ' : 'Showing '}
+          <Text style={[styles.countBold, { color: colors.primary }]}>{displayFamilies.length}</Text>
+          {language === 'hi' ? ' परिवार' : ' Families'}
         </Text>
         {(selectedMohalla !== 'All' || selectedCaste !== 'All' || searchQuery) && (
           <TouchableOpacity
@@ -122,7 +150,7 @@ export function FamiliesListScreen({ navigation }) {
               setSearchQuery('');
             }}
           >
-            <Text style={styles.clearFilterText}>Reset Filters</Text>
+            <Text style={[styles.clearFilterText, { color: colors.danger }]}>{t('resetFilters', 'Reset Filters')}</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -142,7 +170,8 @@ export function FamiliesListScreen({ navigation }) {
           <RefreshControl
             refreshing={loading}
             onRefresh={refreshData}
-            colors={[COLORS.primary]}
+            colors={[colors.primary]}
+            tintColor={colors.primary}
           />
         }
         ListEmptyComponent={
@@ -150,19 +179,19 @@ export function FamiliesListScreen({ navigation }) {
             <MaterialCommunityIcons
               name={!hasAccess && !isAdmin ? 'shield-lock-outline' : 'search'}
               size={48}
-              color={!hasAccess && !isAdmin ? '#D97706' : COLORS.textMuted}
+              color={!hasAccess && !isAdmin ? '#D97706' : colors.textMuted}
             />
-            <Text style={styles.emptyTitle}>
+            <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>
               {!hasAccess && !isAdmin
-                ? 'डेटा एक्सेस अभी उपलब्ध नहीं है'
-                : 'कोई परिवार रिकॉर्ड नहीं मिला'}
+                ? t('approvalPending', 'डेटा एक्सेस अभी उपलब्ध नहीं है')
+                : t('noFamiliesFound', 'कोई परिवार रिकॉर्ड नहीं मिला')}
             </Text>
-            <Text style={[styles.emptySub, { textAlign: 'center' }]}>
+            <Text style={[styles.emptySub, { color: colors.textMuted, textAlign: 'center' }]}>
               {!hasAccess && !isAdmin
                 ? isPending
-                  ? 'आपके खाते की व्यवस्थापक द्वारा स्वीकृति लंबित है।'
-                  : 'प्रशासनिक रूप से गाँव आवंटित होने के बाद ही परिवार सूची दिखाई देगी।'
-                : 'फ़िल्टर बदलें या दूसरा खोज शब्द दर्ज करें'}
+                  ? t('approvalPendingDesc', 'आपके खाते की व्यवस्थापक द्वारा स्वीकृति लंबित है।')
+                  : t('allocationPendingDesc', 'प्रशासनिक रूप से गाँव आवंटित होने के बाद ही परिवार सूची दिखाई देगी।')
+                : t('noFamiliesSub', 'फ़िल्टर बदलें या दूसरा खोज शब्द दर्ज करें')}
             </Text>
           </View>
         }

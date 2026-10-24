@@ -9,12 +9,15 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, SHADOWS, SIZES } from '../../constants/theme';
 import { useData } from '../../contexts/DataContext';
 import { Header } from '../../components/Header';
-
 import { useAuth } from '../../contexts/AuthContext';
+import { useTheme } from '../../contexts/ThemeContext';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 export function AnalyticsScreen() {
   const { stats, selectedVillage, hasAccess } = useData();
   const { isAdmin } = useAuth();
+  const { colors, isDark } = useTheme();
+  const { t, language } = useLanguage();
 
   const totalPop = stats.totalPopulation || (hasAccess ? 1 : 0);
   const malePercent = totalPop > 0 ? Math.round((stats.maleCount / totalPop) * 100) : 0;
@@ -28,87 +31,109 @@ export function AnalyticsScreen() {
   const mohallaArray = Object.entries(stats.mohallaMap).sort((a, b) => b[1] - a[1]);
 
   return (
-    <View style={styles.container}>
-      <Header title="Village Demographics" showVillagePicker={true} />
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <Header title={t('analyticsTitle', 'Village Demographics')} showVillagePicker={true} />
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Authorization Restriction Notice */}
         {!hasAccess && !isAdmin && (
-          <View style={[styles.villageCard, { backgroundColor: '#FEF3C7', borderColor: '#FDE68A', marginBottom: 12 }]}>
+          <View style={[styles.villageCard, { backgroundColor: isDark ? '#451A03' : '#FEF3C7', borderColor: isDark ? '#78350F' : '#FDE68A', marginBottom: 12 }]}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <MaterialCommunityIcons name="shield-lock-outline" size={24} color="#D97706" />
-              <Text style={{ fontSize: 14, fontWeight: '800', color: '#92400E' }}>डेटा एक्सेस लंबित (Access Restricted)</Text>
+              <Text style={{ fontSize: 14, fontWeight: '800', color: isDark ? '#FDE68A' : '#92400E' }}>
+                {t('approvalPending', 'डेटा एक्सेस लंबित (Access Restricted)')}
+              </Text>
             </View>
-            <Text style={{ fontSize: 12, color: '#B45309', marginTop: 4, lineHeight: 18 }}>
-              सर्वेक्षण एवं जनसांख्यिकी आँकड़े केवल व्यवस्थापक द्वारा खाता स्वीकृत एवं गाँव आवंटित किए जाने के बाद दिखाई देंगे।
+            <Text style={{ fontSize: 12, color: isDark ? '#FBBF24' : '#B45309', marginTop: 4, lineHeight: 18 }}>
+              {t('approvalPendingDesc', 'सर्वेक्षण एवं जनसांख्यिकी आँकड़े केवल व्यवस्थापक द्वारा खाता स्वीकृत एवं गाँव आवंटित किए जाने के बाद दिखाई देंगे।')}
             </Text>
           </View>
         )}
 
         {/* Village Summary Header */}
-        <View style={[styles.villageCard, SHADOWS.sm]}>
-          <Text style={styles.villageTitle}>
-            {selectedVillage === 'All' ? 'All Gram Panchayats' : selectedVillage}
+        <View style={[styles.villageCard, SHADOWS.sm, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+          <Text style={[styles.villageTitle, { color: colors.textPrimary }]}>
+            {selectedVillage === 'All' ? (language === 'hi' ? 'सभी ग्राम पंचायतें (All Villages)' : 'All Gram Panchayats') : selectedVillage}
           </Text>
-          <Text style={styles.villageSub}>
-            Census & Demographic Analytics ({stats.totalFamilies} Families • {stats.totalPopulation} Residents)
+          <Text style={[styles.villageSub, { color: colors.textSecondary }]}>
+            {language === 'hi'
+              ? `जनसांख्यिकी विश्लेषण (${stats.totalFamilies} परिवार • ${stats.totalPopulation} कुल जनसंख्या)`
+              : `Census & Demographic Analytics (${stats.totalFamilies} Families • ${stats.totalPopulation} Residents)`}
           </Text>
         </View>
 
         {/* Gender Breakdown Section */}
-        <View style={[styles.card, SHADOWS.sm]}>
+        <View style={[styles.card, SHADOWS.sm, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
           <View style={styles.cardHeaderRow}>
-            <MaterialCommunityIcons name="gender-male-female" size={22} color={COLORS.primary} />
-            <Text style={styles.cardHeaderTitle}>Gender Distribution (लिंगानुपात)</Text>
+            <MaterialCommunityIcons name="gender-male-female" size={22} color={colors.primary} />
+            <Text style={[styles.cardHeaderTitle, { color: colors.textPrimary }]}>
+              {language === 'hi' ? 'लिंगानुपात (Gender Distribution)' : 'Gender Distribution'}
+            </Text>
           </View>
 
           <View style={styles.genderStatsRow}>
             <View style={styles.genderItem}>
-              <Text style={styles.genderCount}>{stats.maleCount}</Text>
-              <Text style={styles.genderLabel}>Male (पुरुष)</Text>
-              <Text style={styles.genderPercent}>{malePercent}%</Text>
+              <Text style={[styles.genderCount, { color: colors.textPrimary }]}>{stats.maleCount}</Text>
+              <Text style={[styles.genderLabel, { color: colors.textSecondary }]}>
+                {t('male', 'Male')} {language === 'hi' ? '(पुरुष)' : ''}
+              </Text>
+              <Text style={[styles.genderPercent, { color: colors.primary }]}>{malePercent}%</Text>
             </View>
-            <View style={styles.genderDivider} />
+            <View style={[styles.genderDivider, { backgroundColor: colors.cardBorder }]} />
             <View style={styles.genderItem}>
-              <Text style={styles.genderCount}>{stats.femaleCount}</Text>
-              <Text style={styles.genderLabel}>Female (महिला)</Text>
-              <Text style={styles.genderPercent}>{femalePercent}%</Text>
+              <Text style={[styles.genderCount, { color: colors.textPrimary }]}>{stats.femaleCount}</Text>
+              <Text style={[styles.genderLabel, { color: colors.textSecondary }]}>
+                {t('female', 'Female')} {language === 'hi' ? '(महिला)' : ''}
+              </Text>
+              <Text style={[styles.genderPercent, { color: colors.primary }]}>{femalePercent}%</Text>
             </View>
           </View>
 
           {/* Visual Ratio Bar */}
-          <View style={styles.ratioBarContainer}>
-            <View style={[styles.ratioBarLeft, { flex: malePercent || 1 }]} />
-            <View style={[styles.ratioBarRight, { flex: femalePercent || 1 }]} />
+          <View style={[styles.ratioBarContainer, { backgroundColor: isDark ? colors.background : colors.surfaceSubtle }]}>
+            <View style={[styles.ratioBarLeft, { flex: malePercent || 1, backgroundColor: colors.info }]} />
+            <View style={[styles.ratioBarRight, { flex: femalePercent || 1, backgroundColor: colors.accent }]} />
           </View>
         </View>
 
         {/* Economic / BPL Status */}
-        <View style={[styles.card, SHADOWS.sm]}>
+        <View style={[styles.card, SHADOWS.sm, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
           <View style={styles.cardHeaderRow}>
-            <MaterialCommunityIcons name="card-account-details-outline" size={22} color={COLORS.danger} />
-            <Text style={styles.cardHeaderTitle}>Economic Classification (आर्थिक स्थिति)</Text>
+            <MaterialCommunityIcons name="card-account-details-outline" size={22} color={colors.danger} />
+            <Text style={[styles.cardHeaderTitle, { color: colors.textPrimary }]}>
+              {language === 'hi' ? 'आर्थिक स्थिति (Economic Classification)' : 'Economic Classification'}
+            </Text>
           </View>
 
           <View style={styles.bplStatsRow}>
             <View style={styles.bplCol}>
-              <Text style={[styles.bplCount, { color: COLORS.danger }]}>{stats.bplCount}</Text>
-              <Text style={styles.bplLabel}>BPL Households</Text>
-              <Text style={styles.bplSub}>{bplPercent}% of village</Text>
+              <Text style={[styles.bplCount, { color: colors.danger }]}>{stats.bplCount}</Text>
+              <Text style={[styles.bplLabel, { color: colors.textSecondary }]}>
+                {language === 'hi' ? 'बीपीएल परिवार (BPL)' : 'BPL Households'}
+              </Text>
+              <Text style={[styles.bplSub, { color: colors.textMuted }]}>
+                {bplPercent}% {language === 'hi' ? 'गाँव का' : 'of village'}
+              </Text>
             </View>
             <View style={styles.bplCol}>
-              <Text style={[styles.bplCount, { color: COLORS.info }]}>{totalFam - stats.bplCount}</Text>
-              <Text style={styles.bplLabel}>APL / Other</Text>
-              <Text style={styles.bplSub}>{aplPercent}% of village</Text>
+              <Text style={[styles.bplCount, { color: colors.info }]}>{totalFam - stats.bplCount}</Text>
+              <Text style={[styles.bplLabel, { color: colors.textSecondary }]}>
+                {language === 'hi' ? 'सामान्य / अन्य (APL)' : 'APL / Other'}
+              </Text>
+              <Text style={[styles.bplSub, { color: colors.textMuted }]}>
+                {aplPercent}% {language === 'hi' ? 'गाँव का' : 'of village'}
+              </Text>
             </View>
           </View>
         </View>
 
         {/* Caste Breakdown */}
-        <View style={[styles.card, SHADOWS.sm]}>
+        <View style={[styles.card, SHADOWS.sm, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
           <View style={styles.cardHeaderRow}>
-            <MaterialCommunityIcons name="account-group" size={22} color={COLORS.scBadge} />
-            <Text style={styles.cardHeaderTitle}>Caste Breakdown (जातिवार विवरण)</Text>
+            <MaterialCommunityIcons name="account-group" size={22} color={colors.primary} />
+            <Text style={[styles.cardHeaderTitle, { color: colors.textPrimary }]}>
+              {language === 'hi' ? 'जातिवार विवरण (Caste Breakdown)' : 'Caste Breakdown'}
+            </Text>
           </View>
 
           {casteArray.map(([caste, count]) => {
@@ -116,13 +141,13 @@ export function AnalyticsScreen() {
             return (
               <View key={caste} style={styles.barItem}>
                 <View style={styles.barItemTop}>
-                  <Text style={styles.barItemLabel}>{caste}</Text>
-                  <Text style={styles.barItemValue}>
-                    {count} Families ({pct}%)
+                  <Text style={[styles.barItemLabel, { color: colors.textPrimary }]}>{caste}</Text>
+                  <Text style={[styles.barItemValue, { color: colors.textSecondary }]}>
+                    {count} {language === 'hi' ? 'परिवार' : 'Families'} ({pct}%)
                   </Text>
                 </View>
-                <View style={styles.barTrack}>
-                  <View style={[styles.barFill, { width: `${pct}%`, backgroundColor: COLORS.primary }]} />
+                <View style={[styles.barTrack, { backgroundColor: isDark ? colors.background : colors.surfaceSubtle }]}>
+                  <View style={[styles.barFill, { width: `${pct}%`, backgroundColor: colors.primary }]} />
                 </View>
               </View>
             );
@@ -130,10 +155,12 @@ export function AnalyticsScreen() {
         </View>
 
         {/* Mohalla Distribution */}
-        <View style={[styles.card, SHADOWS.sm]}>
+        <View style={[styles.card, SHADOWS.sm, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
           <View style={styles.cardHeaderRow}>
-            <Ionicons name="location-outline" size={22} color={COLORS.accent} />
-            <Text style={styles.cardHeaderTitle}>Mohalla Demographics (मोहल्लावार)</Text>
+            <Ionicons name="location-outline" size={22} color={colors.accent} />
+            <Text style={[styles.cardHeaderTitle, { color: colors.textPrimary }]}>
+              {language === 'hi' ? 'मोहल्लावार विवरण (Mohalla Distribution)' : 'Mohalla Demographics'}
+            </Text>
           </View>
 
           {mohallaArray.map(([mohalla, count]) => {
@@ -141,13 +168,13 @@ export function AnalyticsScreen() {
             return (
               <View key={mohalla} style={styles.barItem}>
                 <View style={styles.barItemTop}>
-                  <Text style={styles.barItemLabel}>{mohalla}</Text>
-                  <Text style={styles.barItemValue}>
-                    {count} Households ({pct}%)
+                  <Text style={[styles.barItemLabel, { color: colors.textPrimary }]}>{mohalla}</Text>
+                  <Text style={[styles.barItemValue, { color: colors.textSecondary }]}>
+                    {count} {language === 'hi' ? 'परिवार' : 'Households'} ({pct}%)
                   </Text>
                 </View>
-                <View style={styles.barTrack}>
-                  <View style={[styles.barFill, { width: `${pct}%`, backgroundColor: COLORS.accent }]} />
+                <View style={[styles.barTrack, { backgroundColor: isDark ? colors.background : colors.surfaceSubtle }]}>
+                  <View style={[styles.barFill, { width: `${pct}%`, backgroundColor: colors.accent }]} />
                 </View>
               </View>
             );

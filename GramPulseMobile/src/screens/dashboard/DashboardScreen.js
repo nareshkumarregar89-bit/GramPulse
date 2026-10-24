@@ -8,7 +8,9 @@ import {
   RefreshControl,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
-import { COLORS, SHADOWS, SIZES } from '../../constants/theme';
+import { SHADOWS, SIZES } from '../../constants/theme';
+import { useTheme } from '../../contexts/ThemeContext';
+import { useLanguage } from '../../contexts/LanguageContext';
 import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { Header } from '../../components/Header';
@@ -16,6 +18,8 @@ import { StatCard } from '../../components/StatCard';
 import { FamilyCard } from '../../components/FamilyCard';
 
 export function DashboardScreen({ navigation }) {
+  const { colors, isDarkMode } = useTheme();
+  const { t, isHindi } = useLanguage();
   const { stats, filteredFamilies, selectedVillage, loading, refreshData, hasAccess } = useData();
   const { currentUser, userProfile, isAdmin, isPending, isUnassigned } = useAuth();
   const [refreshing, setRefreshing] = React.useState(false);
@@ -31,7 +35,7 @@ export function DashboardScreen({ navigation }) {
   const recentSurveys = filteredFamilies.slice(0, 5);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <Header
         showVillagePicker={true}
         onSearchPress={() => navigation.navigate('Search')}
@@ -39,151 +43,173 @@ export function DashboardScreen({ navigation }) {
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />}
       >
         {/* Pending Approval / Unassigned Village Notice Banner */}
         {isPending ? (
-          <View style={styles.warningBanner}>
+          <View style={[styles.warningBanner, { backgroundColor: colors.warningLight || '#FEF3C7', borderColor: '#FDE68A' }]}>
             <MaterialCommunityIcons name="clock-alert-outline" size={24} color="#D97706" />
             <View style={styles.warningBannerTextWrap}>
-              <Text style={styles.warningBannerTitle}>खाता सत्यापन लंबित (Approval Pending)</Text>
+              <Text style={styles.warningBannerTitle}>{t('approvalPending', 'खाता सत्यापन लंबित (Approval Pending)')}</Text>
               <Text style={styles.warningBannerDesc}>
-                आपका खाता अभी व्यवस्थापक (Admin) की स्वीकृति की प्रतीक्षा कर रहा है। व्यवस्थापक द्वारा स्वीकृति और गाँव आवंटन के बाद आपको डेटा दिखाई देगा।
+                {t('approvalPendingDesc', 'आपका खाता अभी व्यवस्थापक (Admin) की स्वीकृति की प्रतीक्षा कर रहा है। व्यवस्थापक द्वारा स्वीकृति और गाँव आवंटन के बाद आपको डेटा दिखाई देगा।')}
               </Text>
             </View>
           </View>
         ) : isUnassigned && !isAdmin ? (
-          <View style={[styles.warningBanner, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}>
+          <View style={[styles.warningBanner, { backgroundColor: colors.infoLight || '#EFF6FF', borderColor: '#BFDBFE' }]}>
             <MaterialCommunityIcons name="map-marker-alert-outline" size={24} color="#2563EB" />
             <View style={styles.warningBannerTextWrap}>
-              <Text style={[styles.warningBannerTitle, { color: '#1E40AF' }]}>गाँव आवंटन प्रतीक्षित (Allocation Pending)</Text>
+              <Text style={[styles.warningBannerTitle, { color: '#1E40AF' }]}>
+                {t('allocationPending', 'गाँव आवंटन प्रतीक्षित (Allocation Pending)')}
+              </Text>
               <Text style={[styles.warningBannerDesc, { color: '#1E3A8A' }]}>
-                आपको अभी तक कोई गाँव (समोड़ी या कोटड़ी) आवंटित नहीं किया गया है। कृपया व्यवस्थापक (Admin) से गाँव आवंटन हेतु संपर्क करें।
+                {t('allocationPendingDesc', 'आपको अभी तक कोई गाँव (समोड़ी या कोटड़ी) आवंटित नहीं किया गया है। कृपया व्यवस्थापक (Admin) से गाँव आवंटन हेतु संपर्क करें।')}
               </Text>
             </View>
           </View>
         ) : null}
 
         {/* Welcome Greeting Banner */}
-        <View style={styles.bannerCard}>
+        <View style={[styles.bannerCard, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
           <View style={styles.bannerLeft}>
-            <Text style={styles.welcomeGreeting}>
-              नमस्ते, {userProfile?.name || currentUser?.displayName || 'Surveyor'}
+            <Text style={[styles.welcomeGreeting, { color: colors.textPrimary }]}>
+              {t('welcome', 'नमस्ते')}, {userProfile?.name || currentUser?.displayName || t('surveyor', 'Surveyor')}
             </Text>
-            <Text style={styles.bannerSubtitle}>
+            <Text style={[styles.bannerSubtitle, { color: colors.textSecondary }]}>
               {selectedVillage === 'All'
-                ? 'सभी ग्राम पंचायत सर्वेक्षण डेटा'
-                : `${selectedVillage} • डिजिटल परिवार रिकॉर्ड`}
+                ? t('allPanchayatData', 'सभी ग्राम पंचायत सर्वेक्षण डेटा')
+                : `${selectedVillage} • ${t('digitalFamilyRecord', 'डिजिटल परिवार रिकॉर्ड')}`}
             </Text>
-            <View style={styles.statusPill}>
-              <View style={styles.statusDot} />
-              <Text style={styles.statusPillText}>
-                {isAdmin ? 'Super Admin Mode' : 'Panchayat Field Sync'}
+            <View style={[styles.statusPill, { backgroundColor: colors.primarySubtle }]}>
+              <View style={[styles.statusDot, { backgroundColor: colors.primary }]} />
+              <Text style={[styles.statusPillText, { color: colors.primary }]}>
+                {isAdmin ? t('superAdmin', 'Super Administrator') : t('surveyor', 'Surveyor')}
               </Text>
             </View>
           </View>
-          <View style={styles.bannerBadge}>
-            <MaterialCommunityIcons name="shield-check" size={28} color={COLORS.primary} />
+          <View style={[styles.bannerBadge, { backgroundColor: colors.primarySubtle }]}>
+            <MaterialCommunityIcons name="shield-check" size={28} color={colors.primary} />
           </View>
         </View>
 
         {/* Primary KPI Grid */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Census Overview (सर्वेक्षण सांख्यिकी)</Text>
+          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
+            {t('censusOverview', 'Census Overview (सर्वेक्षण सांख्यिकी)')}
+          </Text>
         </View>
 
         <View style={styles.kpiGrid}>
           <View style={styles.kpiRow}>
             <StatCard
-              title="Total Families"
-              titleHi="कुल परिवार"
+              title={t('totalFamilies', 'Total Families')}
+              titleHi={isHindi ? 'कुल परिवार' : 'Households'}
               value={stats.totalFamilies}
               icon="home-group"
-              color={COLORS.primary}
-              bgColor={COLORS.primarySubtle}
+              color={colors.primary}
+              bgColor={colors.primarySubtle}
             />
             <StatCard
-              title="Population"
-              titleHi="कुल जनसंख्या"
+              title={t('population', 'Population')}
+              titleHi={isHindi ? 'कुल जनसंख्या' : 'Individuals'}
               value={stats.totalPopulation}
               icon="account-group"
-              color={COLORS.info}
-              bgColor={COLORS.infoLight}
+              color={colors.info}
+              bgColor={colors.infoLight}
             />
           </View>
 
           <View style={styles.kpiRow}>
             <StatCard
-              title="Male / Female"
-              titleHi="पुरुष / महिला"
+              title={t('maleFemale', 'Male / Female')}
+              titleHi={isHindi ? 'पुरुष / महिला' : 'Gender Ratio'}
               value={`${stats.maleCount} / ${stats.femaleCount}`}
               icon="gender-male-female"
-              color={COLORS.scBadge}
-              bgColor="#F3E8FF"
+              color="#A855F7"
+              bgColor={isDarkMode ? '#3B0764' : '#F3E8FF'}
             />
             <StatCard
-              title="BPL Households"
-              titleHi="बीपीएल परिवार"
+              title={t('bplHouseholds', 'BPL Households')}
+              titleHi={isHindi ? 'बीपीएल परिवार' : 'Ration Support'}
               value={stats.bplCount}
               icon="card-account-details-star"
-              color={COLORS.bplBadge}
-              bgColor={COLORS.dangerLight}
+              color={colors.danger}
+              bgColor={colors.dangerLight}
             />
           </View>
         </View>
 
         {/* Quick Action Dock */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Quick Actions (त्वरित कार्य)</Text>
+          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
+            {t('quickActions', 'Quick Actions (त्वरित कार्य)')}
+          </Text>
         </View>
 
         <View style={styles.actionGrid}>
           <TouchableOpacity
-            style={[styles.actionCard, { backgroundColor: COLORS.primarySubtle }]}
+            style={[styles.actionCard, { backgroundColor: isDarkMode ? '#064E3B' : colors.primarySubtle, borderColor: colors.cardBorder }]}
             onPress={() => navigation.navigate('Survey')}
             activeOpacity={0.8}
           >
-            <View style={[styles.actionIconBox, { backgroundColor: COLORS.primary }]}>
-              <Ionicons name="add" size={24} color={COLORS.surface} />
+            <View style={[styles.actionIconBox, { backgroundColor: colors.primary }]}>
+              <Ionicons name="add" size={24} color="#FFFFFF" />
             </View>
-            <Text style={styles.actionTitle}>New Survey</Text>
-            <Text style={styles.actionSub}>नया परिवार जोड़ें</Text>
+            <Text style={[styles.actionTitle, { color: colors.textPrimary }]}>
+              {t('actionNewSurvey', 'New Survey')}
+            </Text>
+            <Text style={[styles.actionSub, { color: colors.textSecondary }]}>
+              {t('actionNewSurveySub', 'नया परिवार जोड़ें')}
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.actionCard, { backgroundColor: '#F0FDF4' }]}
+            style={[styles.actionCard, { backgroundColor: isDarkMode ? '#14532D' : '#F0FDF4', borderColor: colors.cardBorder }]}
             onPress={() => navigation.navigate('DataPrint')}
             activeOpacity={0.8}
           >
             <View style={[styles.actionIconBox, { backgroundColor: '#16A34A' }]}>
-              <Ionicons name="print-outline" size={22} color={COLORS.surface} />
+              <Ionicons name="print-outline" size={22} color="#FFFFFF" />
             </View>
-            <Text style={styles.actionTitle}>Data Print</Text>
-            <Text style={styles.actionSub}>पीडीएफ व डॉसियर</Text>
+            <Text style={[styles.actionTitle, { color: colors.textPrimary }]}>
+              {t('actionDataPrint', 'Data Print')}
+            </Text>
+            <Text style={[styles.actionSub, { color: colors.textSecondary }]}>
+              {t('actionDataPrintSub', 'पीडीएफ व डॉसियर')}
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.actionCard, { backgroundColor: COLORS.infoLight }]}
+            style={[styles.actionCard, { backgroundColor: isDarkMode ? '#1E3A8A' : colors.infoLight, borderColor: colors.cardBorder }]}
             onPress={() => navigation.navigate('Search')}
             activeOpacity={0.8}
           >
-            <View style={[styles.actionIconBox, { backgroundColor: COLORS.info }]}>
-              <Ionicons name="search" size={22} color={COLORS.surface} />
+            <View style={[styles.actionIconBox, { backgroundColor: colors.info }]}>
+              <Ionicons name="search" size={22} color="#FFFFFF" />
             </View>
-            <Text style={styles.actionTitle}>Search Data</Text>
-            <Text style={styles.actionSub}>आईडी / नाम से खोजें</Text>
+            <Text style={[styles.actionTitle, { color: colors.textPrimary }]}>
+              {t('actionSearch', 'Search Data')}
+            </Text>
+            <Text style={[styles.actionSub, { color: colors.textSecondary }]}>
+              {t('actionSearchSub', 'आईडी / नाम से खोजें')}
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.actionCard, { backgroundColor: '#F3E8FF' }]}
+            style={[styles.actionCard, { backgroundColor: isDarkMode ? '#3B0764' : '#F3E8FF', borderColor: colors.cardBorder }]}
             onPress={() => navigation.navigate('FamiliesTab')}
             activeOpacity={0.8}
           >
-            <View style={[styles.actionIconBox, { backgroundColor: COLORS.scBadge }]}>
-              <Ionicons name="list" size={22} color={COLORS.surface} />
+            <View style={[styles.actionIconBox, { backgroundColor: '#A855F7' }]}>
+              <Ionicons name="list" size={22} color="#FFFFFF" />
             </View>
-            <Text style={styles.actionTitle}>Directory</Text>
-            <Text style={styles.actionSub}>परिवार सूची देखें</Text>
+            <Text style={[styles.actionTitle, { color: colors.textPrimary }]}>
+              {t('actionDirectory', 'Directory')}
+            </Text>
+            <Text style={[styles.actionSub, { color: colors.textSecondary }]}>
+              {t('actionDirectorySub', 'परिवार सूची देखें')}
+            </Text>
           </TouchableOpacity>
         </View>
 
@@ -191,39 +217,45 @@ export function DashboardScreen({ navigation }) {
         {isAdmin && (
           <View style={{ paddingHorizontal: SIZES.lg, marginTop: 12 }}>
             <TouchableOpacity
-              style={styles.adminActionCard}
+              style={[styles.adminActionCard, { backgroundColor: colors.surface, borderColor: '#6366F1' }]}
               onPress={() => navigation.navigate('AdminUserManagement')}
               activeOpacity={0.85}
             >
               <View style={styles.adminActionLeft}>
-                <View style={styles.adminActionIcon}>
-                  <MaterialCommunityIcons name="shield-account" size={24} color="#4F46E5" />
+                <View style={[styles.adminActionIcon, { backgroundColor: isDarkMode ? '#312E81' : '#EEF2FF' }]}>
+                  <MaterialCommunityIcons name="shield-account" size={24} color="#6366F1" />
                 </View>
                 <View>
-                  <Text style={styles.adminActionTitle}>Admin Control Panel (प्रबंधन)</Text>
-                  <Text style={styles.adminActionSub}>नए सर्वेक्षकों को अनुमति दें एवं गाँव आवंटित करें</Text>
+                  <Text style={[styles.adminActionTitle, { color: colors.textPrimary }]}>
+                    {t('adminControlPanel', 'Admin Control Panel (प्रबंधन)')}
+                  </Text>
+                  <Text style={[styles.adminActionSub, { color: colors.textSecondary }]}>
+                    {t('adminControlDesc', 'नए सर्वेक्षकों को अनुमति दें एवं गाँव आवंटित करें')}
+                  </Text>
                 </View>
               </View>
-              <Ionicons name="chevron-forward" size={20} color="#4F46E5" />
+              <Ionicons name="chevron-forward" size={20} color="#6366F1" />
             </TouchableOpacity>
           </View>
         )}
 
         {/* Caste Breakdown Horizontal Bar */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Caste Distribution (जातिगत विवरण)</Text>
+          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
+            {t('casteDistribution', 'Caste Distribution (जातिगत विवरण)')}
+          </Text>
           <TouchableOpacity onPress={() => navigation.navigate('Analytics')}>
-            <Text style={styles.seeAllText}>View All</Text>
+            <Text style={[styles.seeAllText, { color: colors.primary }]}>{t('viewAll', 'View All')}</Text>
           </TouchableOpacity>
         </View>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.casteScroll}>
           {Object.entries(stats.casteMap).map(([caste, count]) => (
-            <View key={caste} style={[styles.casteChip, SHADOWS.sm]}>
-              <View style={styles.casteDot} />
-              <Text style={styles.casteName}>{caste}</Text>
-              <View style={styles.casteBadge}>
-                <Text style={styles.casteCount}>{count}</Text>
+            <View key={caste} style={[styles.casteChip, SHADOWS.sm, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+              <View style={[styles.casteDot, { backgroundColor: colors.primary }]} />
+              <Text style={[styles.casteName, { color: colors.textPrimary }]}>{caste}</Text>
+              <View style={[styles.casteBadge, { backgroundColor: colors.primarySubtle }]}>
+                <Text style={[styles.casteCount, { color: colors.primary }]}>{count}</Text>
               </View>
             </View>
           ))}
@@ -231,9 +263,13 @@ export function DashboardScreen({ navigation }) {
 
         {/* Recent Household Surveys */}
         <View style={[styles.sectionHeader, { marginTop: 24 }]}>
-          <Text style={styles.sectionTitle}>Recent Surveys (हाल के सर्वेक्षण)</Text>
+          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
+            {t('recentSurveys', 'Recent Surveys (हाल के सर्वेक्षण)')}
+          </Text>
           <TouchableOpacity onPress={() => navigation.navigate('FamiliesTab')}>
-            <Text style={styles.seeAllText}>View All ({filteredFamilies.length})</Text>
+            <Text style={[styles.seeAllText, { color: colors.primary }]}>
+              {t('viewAll', 'View All')} ({filteredFamilies.length})
+            </Text>
           </TouchableOpacity>
         </View>
 
@@ -246,29 +282,31 @@ export function DashboardScreen({ navigation }) {
             />
           ))
         ) : (
-          <View style={styles.emptyCard}>
+          <View style={[styles.emptyCard, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
             <MaterialCommunityIcons
               name={!hasAccess && !isAdmin ? 'shield-lock-outline' : 'folder-open-outline'}
               size={40}
-              color={!hasAccess && !isAdmin ? '#D97706' : COLORS.textMuted}
+              color={!hasAccess && !isAdmin ? '#D97706' : colors.textMuted}
             />
-            <Text style={styles.emptyTitle}>
+            <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>
               {!hasAccess && !isAdmin
-                ? 'डेटा एक्सेस अभी उपलब्ध नहीं है (Awaiting Approval)'
-                : 'इस गाँव में अभी तक कोई परिवार दर्ज नहीं है'}
+                ? (isHindi ? 'डेटा एक्सेस अभी उपलब्ध नहीं है' : 'Data Access Pending')
+                : t('noSurveysYet', 'इस गाँव में अभी तक कोई परिवार दर्ज नहीं है')}
             </Text>
             {!hasAccess && !isAdmin ? (
-              <Text style={{ fontSize: 12, color: COLORS.textMuted, textAlign: 'center', marginTop: 6, lineHeight: 18 }}>
+              <Text style={{ fontSize: 12, color: colors.textMuted, textAlign: 'center', marginTop: 6, lineHeight: 18 }}>
                 {isPending
-                  ? 'आपका सर्वेक्षक खाता अभी व्यवस्थापक की स्वीकृति की प्रतीक्षा कर रहा है।'
-                  : 'प्रशासनिक रूप से कार्यक्षेत्र गाँव आवंटित होने के बाद ही परिवार दिखेंगे।'}
+                  ? t('approvalPendingDesc', 'आपका सर्वेक्षक खाता अभी व्यवस्थापक की स्वीकृति की प्रतीक्षा कर रहा है।')
+                  : t('allocationPendingDesc', 'प्रशासनिक रूप से कार्यक्षेत्र गाँव आवंटित होने के बाद ही परिवार दिखेंगे।')}
               </Text>
             ) : (
               <TouchableOpacity
-                style={styles.emptyBtn}
+                style={[styles.emptyBtn, { backgroundColor: colors.primary }]}
                 onPress={() => navigation.navigate('Survey')}
               >
-                <Text style={styles.emptyBtnText}>Record First Survey</Text>
+                <Text style={styles.emptyBtnText}>
+                  {t('actionNewSurvey', 'Record First Survey')}
+                </Text>
               </TouchableOpacity>
             )}
           </View>

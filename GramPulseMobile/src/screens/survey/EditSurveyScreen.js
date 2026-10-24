@@ -14,10 +14,14 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SHADOWS, SIZES } from '../../constants/theme';
 import { useData } from '../../contexts/DataContext';
+import { useTheme } from '../../contexts/ThemeContext';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 export function EditSurveyScreen({ route, navigation }) {
   const { id } = route.params || {};
   const { getFamilyById, updateFamily, castes, mohallas } = useData();
+  const { colors, isDark } = useTheme();
+  const { t, language } = useLanguage();
 
   const family = getFamilyById(id);
 
@@ -149,19 +153,21 @@ export function EditSurveyScreen({ route, navigation }) {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <View style={styles.topBar}>
+      <View style={[styles.topBar, { backgroundColor: isDark ? '#064E3B' : colors.primary }]}>
         <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={22} color={COLORS.surface} />
+          <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Edit Survey ({family.id})</Text>
+        <Text style={styles.headerTitle}>
+          {language === 'hi' ? 'सर्वेक्षण सुधार' : 'Edit Survey'} ({family.id})
+        </Text>
         <View style={{ width: 38 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={[styles.card, SHADOWS.sm]}>
+        <View style={[styles.card, SHADOWS.sm, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
           <Text style={styles.fieldLabel}>Head of Family (हिन्दी)</Text>
           <TextInput
             style={styles.input}

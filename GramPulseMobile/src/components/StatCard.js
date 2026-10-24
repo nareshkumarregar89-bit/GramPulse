@@ -1,18 +1,23 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { COLORS, SHADOWS, SIZES } from '../constants/theme';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { SHADOWS, SIZES } from '../constants/theme';
+import { useTheme } from '../contexts/ThemeContext';
 
-export function StatCard({ title, titleHi, value, icon, color = COLORS.primary, bgColor = COLORS.primarySubtle }) {
+export function StatCard({ title, titleHi, value, icon, color, bgColor }) {
+  const { colors, isDarkMode } = useTheme();
+  const cardColor = color || colors.primary;
+  const cardBg = bgColor || (isDarkMode ? '#064E3B' : colors.primarySubtle);
+
   return (
-    <View style={[styles.card, SHADOWS.sm]}>
-      <View style={[styles.iconBox, { backgroundColor: bgColor }]}>
-        <MaterialCommunityIcons name={icon} size={22} color={color} />
+    <View style={[styles.card, SHADOWS.sm, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+      <View style={[styles.iconBox, { backgroundColor: cardBg }]}>
+        <MaterialCommunityIcons name={icon} size={22} color={cardColor} />
       </View>
       <View style={styles.content}>
-        <Text style={styles.value}>{value}</Text>
-        <Text style={styles.title}>{title}</Text>
-        {titleHi && <Text style={styles.titleHi}>{titleHi}</Text>}
+        <Text style={[styles.value, { color: colors.textPrimary }]}>{value}</Text>
+        <Text style={[styles.title, { color: colors.textSecondary }]}>{title}</Text>
+        {titleHi && <Text style={[styles.titleHi, { color: colors.textMuted }]}>{titleHi}</Text>}
       </View>
     </View>
   );
@@ -20,11 +25,9 @@ export function StatCard({ title, titleHi, value, icon, color = COLORS.primary, 
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: COLORS.surface,
     borderRadius: SIZES.radiusMd,
     padding: SIZES.md,
     borderWidth: 1,
-    borderColor: COLORS.cardBorder,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
@@ -44,16 +47,13 @@ const styles = StyleSheet.create({
   value: {
     fontSize: 20,
     fontWeight: '800',
-    color: COLORS.textPrimary,
   },
   title: {
     fontSize: 12,
     fontWeight: '600',
-    color: COLORS.textSecondary,
     marginTop: 1,
   },
   titleHi: {
     fontSize: 10,
-    color: COLORS.textMuted,
   },
 });

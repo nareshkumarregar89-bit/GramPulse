@@ -92,6 +92,7 @@ export function ThemeProvider({ children }) {
     <ThemeContext.Provider
       value={{
         isDarkMode,
+        isDark: isDarkMode,
         toggleDarkMode,
         setDarkModeExplicit,
         colors,

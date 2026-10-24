@@ -10,14 +10,19 @@ import {
   ScrollView,
   ActivityIndicator,
   Image,
-  Alert
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SHADOWS, SIZES } from '../../constants/theme';
+import { SHADOWS, SIZES } from '../../constants/theme';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTheme } from '../../contexts/ThemeContext';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 export function RegisterScreen({ navigation }) {
   const { register } = useAuth();
+  const { colors, isDarkMode } = useTheme();
+  const { t, isHindi } = useLanguage();
+
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [mobile, setMobile] = useState('');
@@ -28,33 +33,35 @@ export function RegisterScreen({ navigation }) {
 
   const handleRegister = async () => {
     if (!name.trim() || !email.trim() || !password) {
-      setErrorMsg('कृपया सभी आवश्यक फ़ील्ड भरें।');
+      setErrorMsg(isHindi ? 'कृपया सभी आवश्यक फ़ील्ड भरें।' : 'Please fill all required fields.');
       return;
     }
     if (mobile && mobile.replace(/\D/g, '').length !== 10) {
-      setErrorMsg('कृपया 10 अंकों का मान्य मोबाइल नंबर दर्ज करें।');
+      setErrorMsg(isHindi ? 'कृपया 10 अंकों का मान्य मोबाइल नंबर दर्ज करें।' : 'Please enter a valid 10-digit mobile number.');
       return;
     }
     if (password.length < 6) {
-      setErrorMsg('पासवर्ड कम से कम 6 अक्षरों का होना चाहिए।');
+      setErrorMsg(isHindi ? 'पासवर्ड कम से कम 6 अक्षरों का होना चाहिए।' : 'Password must be at least 6 characters.');
       return;
     }
     if (password !== confirmPassword) {
-      setErrorMsg('दोनों पासवर्ड मेल नहीं खाते।');
+      setErrorMsg(isHindi ? 'दोनों पासवर्ड मेल नहीं खाते।' : 'Passwords do not match.');
       return;
     }
 
     setErrorMsg('');
     setIsSubmitting(true);
     try {
-      await register(email, password, name, mobile);
+      await register(email.trim(), password, name.trim(), mobile.trim());
       Alert.alert(
-        'पंजीकरण सफल (Submitted for Approval)',
-        'आपका सर्वेक्षक खाता सफलतापूर्वक बना दिया गया है!\n\nव्यवस्थापक (Admin) द्वारा खाता स्वीकृत (Approve) और गाँव आवंटित किए जाने के बाद आप सर्वेक्षण दर्ज कर सकेंगे।',
-        [{ text: 'ठीक है (OK)' }]
+        isHindi ? 'पंजीकरण सफल (Submitted for Approval)' : 'Registration Submitted for Approval',
+        isHindi
+          ? 'आपका सर्वेक्षक खाता सफलतापूर्वक बना दिया गया है!\n\nव्यवस्थापक (Admin) द्वारा खाता स्वीकृत और गाँव आवंटित किए जाने के बाद आप सर्वेक्षण दर्ज कर सकेंगे।'
+          : 'Your surveyor account has been created!\n\nYou will be able to access census features once an Administrator approves your account and assigns a village.',
+        [{ text: isHindi ? 'ठीक है (OK)' : 'OK' }]
       );
     } catch (err) {
-      setErrorMsg(err.message || 'पंजीकरण विफल। कृपया पुनः प्रयास करें।');
+      setErrorMsg(err.message || (isHindi ? 'पंजीकरण विफल। कृपया पुनः प्रयास करें।' : 'Registration failed. Please try again.'));
     } finally {
       setIsSubmitting(false);
     }
@@ -62,16 +69,16 @@ export function RegisterScreen({ navigation }) {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         {/* Top Header */}
-        <View style={styles.topBar}>
+        <View style={[styles.topBar, { backgroundColor: isDarkMode ? '#022C22' : colors.primary }]}>
           <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={22} color={COLORS.surface} />
+            <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Surveyor Registration</Text>
+          <Text style={styles.headerTitle}>{t('registerTitle', 'Surveyor Registration')}</Text>
           <View style={{ width: 40 }} />
         </View>
 
@@ -83,27 +90,33 @@ export function RegisterScreen({ navigation }) {
               resizeMode="contain"
             />
             <View>
-              <Text style={styles.heading}>New Surveyor Registration</Text>
-              <Text style={styles.subheading}>पंचायत क्षेत्र सर्वेक्षक आधिकारिक खाता</Text>
+              <Text style={[styles.heading, { color: colors.textPrimary }]}>
+                {t('registerTitle', 'New Surveyor Registration')}
+              </Text>
+              <Text style={[styles.subheading, { color: colors.textSecondary }]}>
+                {t('registerSub', 'पंचायत क्षेत्र सर्वेक्षक आधिकारिक खाता')}
+              </Text>
             </View>
           </View>
 
           {Boolean(errorMsg) && (
-            <View style={styles.errorBox}>
-              <Ionicons name="alert-circle" size={18} color={COLORS.danger} />
+            <View style={[styles.errorBox, { backgroundColor: colors.dangerLight || '#FEE2E2', borderColor: '#FCA5A5' }]}>
+              <Ionicons name="alert-circle" size={18} color="#DC2626" />
               <Text style={styles.errorText}>{errorMsg}</Text>
             </View>
           )}
 
           {/* Full Name */}
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Full Name (पूरा नाम) *</Text>
-            <View style={styles.inputWrapper}>
-              <Ionicons name="person-outline" size={20} color={COLORS.textMuted} />
+            <Text style={[styles.inputLabel, { color: colors.textPrimary }]}>
+              {t('fullName', 'Full Name (पूरा नाम)')} *
+            </Text>
+            <View style={[styles.inputWrapper, { backgroundColor: colors.surfaceSubtle, borderColor: colors.cardBorder }]}>
+              <Ionicons name="person-outline" size={20} color={colors.textMuted} />
               <TextInput
-                style={styles.textInput}
-                placeholder="उदा. नरेश कुमार"
-                placeholderTextColor={COLORS.textMuted}
+                style={[styles.textInput, { color: colors.textPrimary }]}
+                placeholder={isHindi ? 'उदा. नरेश कुमार' : 'e.g. Naresh Kumar'}
+                placeholderTextColor={colors.textMuted}
                 value={name}
                 onChangeText={setName}
               />
@@ -112,13 +125,15 @@ export function RegisterScreen({ navigation }) {
 
           {/* Email */}
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Official Email (ईमेल आईडी) *</Text>
-            <View style={styles.inputWrapper}>
-              <Ionicons name="mail-outline" size={20} color={COLORS.textMuted} />
+            <Text style={[styles.inputLabel, { color: colors.textPrimary }]}>
+              {t('officialEmail', 'Official Email (ईमेल आईडी)')} *
+            </Text>
+            <View style={[styles.inputWrapper, { backgroundColor: colors.surfaceSubtle, borderColor: colors.cardBorder }]}>
+              <Ionicons name="mail-outline" size={20} color={colors.textMuted} />
               <TextInput
-                style={styles.textInput}
+                style={[styles.textInput, { color: colors.textPrimary }]}
                 placeholder="name@villagepulse.gov.in"
-                placeholderTextColor={COLORS.textMuted}
+                placeholderTextColor={colors.textMuted}
                 value={email}
                 onChangeText={setEmail}
                 keyboardType="email-address"
@@ -127,32 +142,35 @@ export function RegisterScreen({ navigation }) {
             </View>
           </View>
 
-          {/* Mobile Number */}
+          {/* Mobile */}
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Mobile Number (मोबाइल नंबर - 10 अंक) *</Text>
-            <View style={styles.inputWrapper}>
-              <Text style={styles.countryCode}>+91</Text>
+            <Text style={[styles.inputLabel, { color: colors.textPrimary }]}>
+              {t('mobileNumber', 'Mobile Number (मोबाइल नंबर)')}
+            </Text>
+            <View style={[styles.inputWrapper, { backgroundColor: colors.surfaceSubtle, borderColor: colors.cardBorder }]}>
+              <Ionicons name="call-outline" size={20} color={colors.textMuted} />
               <TextInput
-                style={styles.textInput}
-                placeholder="98XXXXXXXX"
-                placeholderTextColor={COLORS.textMuted}
+                style={[styles.textInput, { color: colors.textPrimary }]}
+                placeholder="9876543210"
+                placeholderTextColor={colors.textMuted}
                 value={mobile}
                 onChangeText={(v) => setMobile(v.replace(/\D/g, '').slice(0, 10))}
                 keyboardType="phone-pad"
-                maxLength={10}
               />
             </View>
           </View>
 
           {/* Password */}
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Password (पासवर्ड) *</Text>
-            <View style={styles.inputWrapper}>
-              <Ionicons name="lock-closed-outline" size={20} color={COLORS.textMuted} />
+            <Text style={[styles.inputLabel, { color: colors.textPrimary }]}>
+              {t('password', 'Password (पासवर्ड)')} *
+            </Text>
+            <View style={[styles.inputWrapper, { backgroundColor: colors.surfaceSubtle, borderColor: colors.cardBorder }]}>
+              <Ionicons name="lock-closed-outline" size={20} color={colors.textMuted} />
               <TextInput
-                style={styles.textInput}
-                placeholder="कम से कम 6 अक्षर"
-                placeholderTextColor={COLORS.textMuted}
+                style={[styles.textInput, { color: colors.textPrimary }]}
+                placeholder="••••••••"
+                placeholderTextColor={colors.textMuted}
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry
@@ -162,13 +180,15 @@ export function RegisterScreen({ navigation }) {
 
           {/* Confirm Password */}
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Confirm Password (पासवर्ड पुनः दर्ज करें) *</Text>
-            <View style={styles.inputWrapper}>
-              <Ionicons name="lock-closed-outline" size={20} color={COLORS.textMuted} />
+            <Text style={[styles.inputLabel, { color: colors.textPrimary }]}>
+              {t('confirmPassword', 'Confirm Password (पासवर्ड की पुष्टि करें)')} *
+            </Text>
+            <View style={[styles.inputWrapper, { backgroundColor: colors.surfaceSubtle, borderColor: colors.cardBorder }]}>
+              <Ionicons name="shield-checkmark-outline" size={20} color={colors.textMuted} />
               <TextInput
-                style={styles.textInput}
-                placeholder="पासवर्ड की पुष्टि करें"
-                placeholderTextColor={COLORS.textMuted}
+                style={[styles.textInput, { color: colors.textPrimary }]}
+                placeholder="••••••••"
+                placeholderTextColor={colors.textMuted}
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
                 secureTextEntry
@@ -176,38 +196,33 @@ export function RegisterScreen({ navigation }) {
             </View>
           </View>
 
-          <View style={styles.approvalNote}>
-            <Ionicons name="information-circle-outline" size={18} color={COLORS.info} />
-            <Text style={styles.approvalNoteText}>
-              पंजीकरण के बाद व्यवस्थापक (Admin) द्वारा सत्यापन के पश्चात आपका खाता सक्रिय होगा तथा सर्वेक्षण हेतु गाँव आवंटित किया जाएगा।
-            </Text>
-          </View>
-
-          {/* Submit Button */}
+          {/* Submit */}
           <TouchableOpacity
-            style={[styles.submitBtn, SHADOWS.md]}
+            style={[styles.submitBtn, { backgroundColor: colors.primary }, SHADOWS.sm, isSubmitting && { opacity: 0.7 }]}
             onPress={handleRegister}
             disabled={isSubmitting}
             activeOpacity={0.8}
           >
             {isSubmitting ? (
-              <ActivityIndicator color={COLORS.surface} />
+              <ActivityIndicator color="#FFFFFF" />
             ) : (
-              <>
-                <Text style={styles.submitBtnText}>पंजीकरण करें (Create Account)</Text>
-                <Ionicons name="arrow-forward" size={18} color={COLORS.surface} />
-              </>
+              <Text style={styles.submitBtnText}>
+                {t('registerSubmitBtn', 'पंजीकरण अनुरोध भेजें (Register)')}
+              </Text>
             )}
           </TouchableOpacity>
 
-          {/* Already have an account */}
+          {/* Switch to Login */}
           <TouchableOpacity
             style={styles.loginLink}
             onPress={() => navigation.navigate('Login')}
             activeOpacity={0.7}
           >
-            <Text style={styles.loginLinkText}>
-              Already registered? <Text style={styles.loginLinkBold}>Login here (लॉगिन करें)</Text>
+            <Text style={[styles.loginLinkText, { color: colors.textSecondary }]}>
+              {t('alreadyHaveAccount', 'Already registered?')}{' '}
+              <Text style={[styles.loginLinkBold, { color: colors.primary }]}>
+                {t('loginBtn', 'Login here')}
+              </Text>
             </Text>
           </TouchableOpacity>
         </View>
@@ -219,7 +234,6 @@ export function RegisterScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
   },
   scrollContent: {
     flexGrow: 1,
@@ -229,23 +243,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: COLORS.primary,
-    paddingTop: 50,
+    paddingTop: Platform.OS === 'ios' ? 48 : 38,
     paddingBottom: 16,
     paddingHorizontal: 16,
   },
   backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '700',
-    color: COLORS.surface,
+    color: '#FFFFFF',
   },
   content: {
     padding: 20,
@@ -257,35 +270,33 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   logoImage: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.4)',
   },
   heading: {
-    fontSize: 19,
+    fontSize: 18,
     fontWeight: '800',
-    color: COLORS.textPrimary,
   },
   subheading: {
     fontSize: 12,
-    color: COLORS.textMuted,
     marginTop: 2,
   },
   errorBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FEE2E2',
+    padding: 10,
+    borderRadius: SIZES.radiusMd,
     borderWidth: 1,
-    borderColor: '#FCA5A5',
-    padding: 12,
-    borderRadius: 12,
     marginBottom: 16,
     gap: 8,
   },
   errorText: {
     flex: 1,
-    color: COLORS.danger,
-    fontSize: 13,
+    fontSize: 12,
+    color: '#B91C1C',
     fontWeight: '500',
   },
   inputGroup: {
@@ -293,74 +304,44 @@ const styles = StyleSheet.create({
   },
   inputLabel: {
     fontSize: 13,
-    fontWeight: '700',
-    color: COLORS.textPrimary,
+    fontWeight: '600',
     marginBottom: 6,
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.surface,
-    borderRadius: 14,
+    borderRadius: SIZES.radiusMd,
     borderWidth: 1,
-    borderColor: COLORS.border,
-    paddingHorizontal: 14,
-    height: 50,
+    paddingHorizontal: 12,
+    height: 48,
     gap: 10,
-    ...SHADOWS.sm,
-  },
-  countryCode: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: COLORS.textPrimary,
   },
   textInput: {
     flex: 1,
     fontSize: 14,
-    color: COLORS.textPrimary,
-  },
-  approvalNote: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: '#EFF6FF',
-    borderWidth: 1,
-    borderColor: '#BFDBFE',
-    padding: 12,
-    borderRadius: 12,
-    marginVertical: 10,
-    gap: 8,
-  },
-  approvalNoteText: {
-    flex: 1,
-    fontSize: 12,
-    color: '#1E40AF',
-    lineHeight: 17,
   },
   submitBtn: {
-    flexDirection: 'row',
+    paddingVertical: 14,
+    borderRadius: SIZES.radiusMd,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.primary,
-    height: 52,
-    borderRadius: 14,
-    marginTop: 10,
-    gap: 8,
+    marginTop: 8,
   },
   submitBtnText: {
-    color: COLORS.surface,
+    color: '#FFFFFF',
     fontSize: 15,
     fontWeight: '700',
   },
   loginLink: {
     alignItems: 'center',
-    paddingVertical: 18,
+    justifyContent: 'center',
+    paddingVertical: 14,
+    marginTop: 8,
   },
   loginLinkText: {
-    fontSize: 14,
-    color: COLORS.textSecondary,
+    fontSize: 13,
   },
   loginLinkBold: {
-    color: COLORS.primary,
-    fontWeight: '800',
+    fontWeight: '700',
   },
 });

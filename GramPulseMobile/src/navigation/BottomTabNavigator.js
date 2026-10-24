@@ -2,7 +2,9 @@ import React from 'react';
 import { View, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { COLORS, SHADOWS, SIZES } from '../constants/theme';
+import { SHADOWS, SIZES } from '../constants/theme';
+import { useTheme } from '../contexts/ThemeContext';
+import { useLanguage } from '../contexts/LanguageContext';
 import { DashboardScreen } from '../screens/dashboard/DashboardScreen';
 import { FamiliesListScreen } from '../screens/families/FamiliesListScreen';
 import { NewSurveyScreen } from '../screens/survey/NewSurveyScreen';
@@ -12,14 +14,14 @@ import { ProfileScreen } from '../screens/profile/ProfileScreen';
 const Tab = createBottomTabNavigator();
 
 // Custom Center Elevated FAB for "New Survey"
-function CustomTabBarButton({ children, onPress }) {
+function CustomTabBarButton({ children, onPress, surfaceColor, primaryColor }) {
   return (
     <TouchableOpacity
       style={styles.fabContainer}
       onPress={onPress}
       activeOpacity={0.85}
     >
-      <View style={[styles.fabButton, SHADOWS.fab]}>
+      <View style={[styles.fabButton, { backgroundColor: primaryColor, borderColor: surfaceColor }, SHADOWS.fab]}>
         {children}
       </View>
     </TouchableOpacity>
@@ -27,14 +29,23 @@ function CustomTabBarButton({ children, onPress }) {
 }
 
 export function BottomTabNavigator() {
+  const { colors, isDarkMode } = useTheme();
+  const { t } = useLanguage();
+
   return (
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
         tabBarShowLabel: true,
-        tabBarActiveTintColor: COLORS.primary,
-        tabBarInactiveTintColor: COLORS.textMuted,
-        tabBarStyle: styles.tabBar,
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textMuted,
+        tabBarStyle: [
+          styles.tabBar,
+          {
+            backgroundColor: colors.surface,
+            borderTopColor: colors.cardBorder,
+          },
+        ],
         tabBarLabelStyle: styles.tabBarLabel,
       }}
     >
@@ -42,7 +53,7 @@ export function BottomTabNavigator() {
         name="DashboardTab"
         component={DashboardScreen}
         options={{
-          tabBarLabel: 'Home',
+          tabBarLabel: t('navHome', 'Home'),
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
               name={focused ? 'home' : 'home-outline'}
@@ -57,7 +68,7 @@ export function BottomTabNavigator() {
         name="FamiliesTab"
         component={FamiliesListScreen}
         options={{
-          tabBarLabel: 'Families',
+          tabBarLabel: t('navFamilies', 'Families'),
           tabBarIcon: ({ color, focused }) => (
             <MaterialCommunityIcons
               name={focused ? 'home-group' : 'home-group'}
@@ -74,8 +85,12 @@ export function BottomTabNavigator() {
         options={{
           tabBarLabel: '',
           tabBarButton: (props) => (
-            <CustomTabBarButton {...props}>
-              <Ionicons name="add" size={28} color={COLORS.surface} />
+            <CustomTabBarButton
+              {...props}
+              surfaceColor={colors.surface}
+              primaryColor={colors.primary}
+            >
+              <Ionicons name="add" size={28} color="#FFFFFF" />
             </CustomTabBarButton>
           ),
         }}
@@ -85,7 +100,7 @@ export function BottomTabNavigator() {
         name="Analytics"
         component={AnalyticsScreen}
         options={{
-          tabBarLabel: 'Analytics',
+          tabBarLabel: t('navAnalytics', 'Analytics'),
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
               name={focused ? 'pie-chart' : 'pie-chart-outline'}
@@ -100,7 +115,7 @@ export function BottomTabNavigator() {
         name="Profile"
         component={ProfileScreen}
         options={{
-          tabBarLabel: 'Profile',
+          tabBarLabel: t('navProfile', 'Profile'),
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
               name={focused ? 'person' : 'person-outline'}
@@ -120,9 +135,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: COLORS.surface,
     borderTopWidth: 1,
-    borderTopColor: COLORS.cardBorder,
     height: Platform.OS === 'ios' ? 84 : 64,
     paddingBottom: Platform.OS === 'ios' ? 24 : 8,
     paddingTop: 8,
@@ -141,10 +154,8 @@ const styles = StyleSheet.create({
     width: 54,
     height: 54,
     borderRadius: 27,
-    backgroundColor: COLORS.primary,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 3,
-    borderColor: COLORS.surface,
   },
 });
