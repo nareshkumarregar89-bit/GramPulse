@@ -1,6 +1,6 @@
 {
   "name": "villagepulse-mobile",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "VillagePulse Mobile Application built with React Native & Expo",
   "main": "index.js",
   "scripts": {

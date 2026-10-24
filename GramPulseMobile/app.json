@@ -2,7 +2,7 @@
   "expo": {
     "name": "VillagePulse",
     "slug": "villagepulse",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -19,7 +19,7 @@
         "backgroundColor": "#059669"
       },
       "package": "com.villagepulse.mobile",
-      "versionCode": 3,
+      "versionCode": 4,
       "permissions": [
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION"
@@ -38,7 +38,7 @@
       "checkAutomatically": "ON_LOAD",
       "fallbackToCacheTimeout": 3000
     },
-    "runtimeVersion": "1.0.2",
+    "runtimeVersion": "1.0.3",
     "plugins": [
       "expo-font"
     ]
