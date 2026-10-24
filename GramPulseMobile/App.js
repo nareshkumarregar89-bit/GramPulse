@@ -9,6 +9,8 @@ import { DataProvider } from './src/contexts/DataContext';
 import { AppNavigator } from './src/navigation/AppNavigator';
 import { UpdateModal } from './src/components/UpdateModal';
 
+import { ErrorBoundary } from './src/components/ErrorBoundary';
+
 function AppContent() {
   const { isDarkMode, colors } = useTheme();
 
@@ -36,15 +38,17 @@ function AppContent() {
 export default function App() {
   return (
     <SafeAreaProvider>
-      <LanguageProvider>
-        <ThemeProvider>
-          <AuthProvider>
-            <DataProvider>
-              <AppContent />
-            </DataProvider>
-          </AuthProvider>
-        </ThemeProvider>
-      </LanguageProvider>
+      <ErrorBoundary>
+        <LanguageProvider>
+          <ThemeProvider>
+            <AuthProvider>
+              <DataProvider>
+                <AppContent />
+              </DataProvider>
+            </AuthProvider>
+          </ThemeProvider>
+        </LanguageProvider>
+      </ErrorBoundary>
     </SafeAreaProvider>
   );
 }

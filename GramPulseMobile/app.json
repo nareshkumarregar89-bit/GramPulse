@@ -19,7 +19,7 @@
         "backgroundColor": "#059669"
       },
       "package": "com.villagepulse.mobile",
-      "versionCode": 4,
+      "versionCode": 5,
       "permissions": [
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION"
@@ -36,7 +36,7 @@
     "updates": {
       "url": "https://u.expo.dev/6e9ba8cf-d5c2-454c-a411-47e47839915d",
       "checkAutomatically": "ON_LOAD",
-      "fallbackToCacheTimeout": 3000
+      "fallbackToCacheTimeout": 0
     },
     "runtimeVersion": "1.0.3",
     "plugins": [

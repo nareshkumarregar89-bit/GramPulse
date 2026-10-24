@@ -88,16 +88,21 @@ export function DataProvider({ children }) {
           } catch (e) {}
         }
         if (cachedFamilies) {
-          const parsed = JSON.parse(cachedFamilies);
-          if (Array.isArray(parsed) && parsed.length >= initialFamilies.length) {
-            setFamilies(parsed);
-          } else {
-            const map = new Map();
-            initialFamilies.forEach((f) => map.set(f.id, f));
-            (parsed || []).forEach((f) => map.set(f.id, f));
-            const merged = Array.from(map.values());
-            setFamilies(merged);
-            AsyncStorage.setItem(STORAGE_KEY_FAMILIES, JSON.stringify(merged)).catch(() => {});
+          try {
+            const parsed = JSON.parse(cachedFamilies);
+            const validParsed = Array.isArray(parsed) ? parsed.filter((f) => f && f.id) : [];
+            if (validParsed.length >= initialFamilies.length) {
+              setFamilies(validParsed);
+            } else {
+              const map = new Map();
+              initialFamilies.forEach((f) => f && f.id && map.set(f.id, f));
+              validParsed.forEach((f) => f && f.id && map.set(f.id, f));
+              const merged = Array.from(map.values());
+              setFamilies(merged);
+              AsyncStorage.setItem(STORAGE_KEY_FAMILIES, JSON.stringify(merged)).catch(() => {});
+            }
+          } catch (pe) {
+            setFamilies(initialFamilies);
           }
         } else {
           setFamilies(initialFamilies);
