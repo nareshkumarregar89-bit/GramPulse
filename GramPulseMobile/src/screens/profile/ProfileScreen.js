@@ -39,33 +39,52 @@ export function ProfileScreen({ navigation }) {
     }
   };
 
+  const [isCheckingUpdate, setIsCheckingUpdate] = React.useState(false);
+
   const handleCheckAppUpdates = async () => {
+    setIsCheckingUpdate(true);
     try {
       if (!Updates.isEnabled) {
-        Alert.alert('नवीनतम संस्करण (Latest Version)', 'ऐप पहले से ही नवीनतम संस्करण पर चल रहा है।');
+        setIsCheckingUpdate(false);
+        Alert.alert(
+          'अपडेट स्थिति (Update Status)',
+          'OTA लाइव अपडेट केवल स्थापित APK बिल्ड में सक्रिय होता है। वर्तमान में ऐप लोकल डेवलपमेंट मोड में है।'
+        );
         return;
       }
       const check = await Updates.checkForUpdateAsync();
+      setIsCheckingUpdate(false);
       if (check.isAvailable) {
         Alert.alert(
-          'नया अपडेट उपलब्ध है! (Update Found)',
-          'क्या आप अभी नया अपडेट डाउनलोड करके लागू करना चाहते हैं?',
+          '🚀 नया अपडेट उपलब्ध है! (Update Found)',
+          'VillagePulse का नया क्लाउड अपडेट उपलब्ध है। क्या आप इसे तुरंत डाउनलोड करके लागू करना चाहते हैं?',
           [
-            { text: 'बाद में (Cancel)', style: 'cancel' },
+            { text: 'बाद में (Later)', style: 'cancel' },
             {
               text: 'अपडेट करें (Update Now)',
               onPress: async () => {
-                await Updates.fetchUpdateAsync();
-                await Updates.reloadAsync();
+                try {
+                  await Updates.fetchUpdateAsync();
+                  await Updates.reloadAsync();
+                } catch (err) {
+                  Alert.alert('अपडेट त्रुटि', 'अपडेट डाउनलोड नहीं हो सका: ' + err.message);
+                }
               }
             }
           ]
         );
       } else {
-        Alert.alert('कोई अपडेट नहीं (Up to date)', 'आप पहले से ही नवीनतम अपडेट का उपयोग कर रहे हैं।');
+        Alert.alert(
+          '✅ नवीनतम संस्करण (Up to date)',
+          `आपका ऐप पहले से ही नवीनतम संस्करण पर है।\n\n• चैनल: ${Updates.channel || 'preview'}\n• रनटाइम: ${Updates.runtimeVersion || '1.0.x'}\n• अपडेट ID: ${Updates.updateId ? Updates.updateId.slice(0, 8) : 'Embedded Base'}`
+        );
       }
     } catch (e) {
-      Alert.alert('अपडेट स्थिति', 'वर्तमान संस्करण सक्रिय है।');
+      setIsCheckingUpdate(false);
+      Alert.alert(
+        'अपडेट जांच सूचना (Update Notice)',
+        'सर्वर से जांच विफल: ' + (e?.message || 'कृपया इंटरनेट कनेक्शन जांचें')
+      );
     }
   };
 
@@ -306,15 +325,32 @@ export function ProfileScreen({ navigation }) {
           <Text style={styles.aboutText}>
             VillagePulse is a modern rural census and household intelligence system built for Indian Panchayats. Designed for offline resilience, live cloud synchronization, and field surveys.
           </Text>
-          <Text style={styles.versionText}>Version 1.0.1 (OTA Auto-Update Enabled)</Text>
+          <View style={{ marginTop: 10, padding: 10, backgroundColor: COLORS.background, borderRadius: SIZES.radiusSm, borderWidth: 1, borderColor: COLORS.cardBorder }}>
+            <Text style={{ fontSize: 12, fontWeight: '700', color: COLORS.textPrimary }}>
+              VillagePulse Mobile • v1.0.2
+            </Text>
+            <Text style={{ fontSize: 11, color: COLORS.textMuted, marginTop: 2 }}>
+              Channel: {Updates.channel || 'preview'} | Runtime: {Updates.runtimeVersion || '1.0.x'}
+            </Text>
+            <Text style={{ fontSize: 10, color: COLORS.textMuted, marginTop: 1 }}>
+              OTA Build: {Updates.updateId ? Updates.updateId.slice(0, 12) + '...' : 'Embedded Base'}
+            </Text>
+          </View>
 
           <TouchableOpacity
-            style={styles.checkUpdateBtn}
+            style={[styles.checkUpdateBtn, isCheckingUpdate && { opacity: 0.7 }]}
             onPress={handleCheckAppUpdates}
+            disabled={isCheckingUpdate}
             activeOpacity={0.8}
           >
-            <Ionicons name="sparkles" size={16} color={COLORS.primary} />
-            <Text style={styles.checkUpdateBtnText}>Check for App Updates (अपडेट जांचें)</Text>
+            {isCheckingUpdate ? (
+              <ActivityIndicator size="small" color={COLORS.primary} />
+            ) : (
+              <>
+                <Ionicons name="sparkles" size={16} color={COLORS.primary} />
+                <Text style={styles.checkUpdateBtnText}>Check for App Updates (अपडेट जांचें)</Text>
+              </>
+            )}
           </TouchableOpacity>
         </View>
 
