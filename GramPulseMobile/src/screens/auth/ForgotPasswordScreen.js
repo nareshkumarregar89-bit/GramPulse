@@ -122,7 +122,7 @@ export function ForgotPasswordScreen({ navigation }) {
             <Ionicons name="arrow-back" size={24} color={COLORS.surface} />
           </TouchableOpacity>
           <Image
-            source={require('../../assets/logo.png')}
+            source={require('../../../assets/logo.png')}
             style={styles.logoImage}
             resizeMode="contain"
           />

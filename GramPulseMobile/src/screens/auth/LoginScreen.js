@@ -49,7 +49,7 @@ export function LoginScreen({ navigation }) {
         {/* Top Brand Banner with Official Logo */}
         <View style={styles.heroSection}>
           <Image
-            source={require('../../assets/logo.png')}
+            source={require('../../../assets/logo.png')}
             style={styles.logoImage}
             resizeMode="contain"
           />
