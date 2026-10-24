@@ -1,6 +1,6 @@
 {
-  "name": "grampulse-functions",
-  "description": "Firebase Cloud Functions for GramPulse System Administration",
+  "name": "villagepulse-functions",
+  "description": "Firebase Cloud Functions for VillagePulse System Administration",
   "scripts": {
     "serve": "firebase emulators:start --only functions",
     "shell": "firebase functions:shell",

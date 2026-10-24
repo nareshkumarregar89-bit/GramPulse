@@ -40,7 +40,7 @@ function extractAge(rawAge) {
 
 async function main() {
   console.log('==================================================');
-  console.log('  GramPulse Survey JSON Importer');
+  console.log('  VillagePulse Survey JSON Importer');
   console.log('==================================================\n');
 
   const targetPath = process.argv[2] || path.resolve(process.cwd(), 'VillagePulse_Survey_Nested.json');
@@ -52,7 +52,7 @@ async function main() {
     console.log('\n[!] निर्देश:');
     console.log('1. कृपया Gemini से 142 परिवारों का JSON डेटा कॉपी करें।');
     console.log('2. उसे इस प्रोजेक्ट फोल्डर में "VillagePulse_Survey_Nested.json" नाम से सेव करें।');
-    console.log('3. या फिर आप सीधे GramPulse वेबसाइट में "Import" बटन पर क्लिक करके JSON फाइल अपलोड या सीधे पेस्ट कर सकते हैं!\n');
+    console.log('3. या फिर आप सीधे VillagePulse वेबसाइट में "Import" बटन पर क्लिक करके JSON फाइल अपलोड या सीधे पेस्ट कर सकते हैं!\n');
     process.exit(1);
   }
 
@@ -67,7 +67,7 @@ async function main() {
     }
   } else {
     console.log('[!] Tip: For Firestore writes, you can either:');
-    console.log('    1. (Best & Easiest) Import directly in the GramPulse Web App via the "Import" button.');
+    console.log('    1. (Best & Easiest) Import directly in the VillagePulse Web App via the "Import" button.');
     console.log('    2. Or provide your admin login: node import_json_data.mjs [file] [email] [password]\n');
   }
 

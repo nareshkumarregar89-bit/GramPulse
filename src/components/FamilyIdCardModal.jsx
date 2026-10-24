@@ -437,7 +437,7 @@ export function FamilyIdCardModal({ family, isOpen, onClose }) {
                       डिजिटल सत्यापन क्यूआर कोड
                     </p>
                     <span className="text-[8px] text-green-700 bg-green-50 px-2 py-0.5 rounded-full font-bold mt-1">
-                      VERIFIED BY GRAMPULSE
+                      VERIFIED BY VILLAGEPULSE
                     </span>
                   </div>
                 </div>

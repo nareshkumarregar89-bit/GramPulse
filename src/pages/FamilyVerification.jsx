@@ -126,7 +126,7 @@ export function FamilyVerification() {
           ग्राम पंचायत प्रशासन • राजस्थान
         </h1>
         <p className="text-xs text-gray-600">
-          GRAMPULSE DIGITAL VILLAGE IDENTITY VERIFICATION
+          VILLAGEPULSE DIGITAL VILLAGE IDENTITY VERIFICATION
         </p>
       </div>
 
@@ -266,7 +266,7 @@ export function FamilyVerification() {
       </div>
 
       <div className="mt-4 text-center text-xs text-gray-500">
-        © {new Date().getFullYear()} GramPulse Village Survey System • डिजिटल इंडिया
+        © {new Date().getFullYear()} VillagePulse Village Survey System • डिजिटल इंडिया
       </div>
     </div>
   );

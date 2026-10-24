@@ -1,0 +1,452 @@
+import React from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Alert,
+  ActivityIndicator,
+} from 'react-native';
+import {
+  Ionicons,
+  MaterialCommunityIcons,
+  Feather,
+} from '@expo/vector-icons';
+import * as Updates from 'expo-updates';
+import { COLORS, SHADOWS, SIZES } from '../../constants/theme';
+import { useAuth } from '../../contexts/AuthContext';
+import { useData } from '../../contexts/DataContext';
+import { Header } from '../../components/Header';
+
+export function ProfileScreen({ navigation }) {
+  const { currentUser, userProfile, userRole, isAdmin, assignedVillages, logout, loginDemoAdmin, loginDemoSurveyor } = useAuth();
+  const { families, isOnline, syncStatus, refreshData } = useData();
+  const [isSyncing, setIsSyncing] = React.useState(false);
+
+  const handleManualSync = async () => {
+    setIsSyncing(true);
+    const result = await refreshData();
+    setIsSyncing(false);
+    if (result?.success) {
+      Alert.alert('सिंक सफल (Sync Successful)', `क्लाउड से कुल ${result.count} परिवारों का डेटा सफलतापूर्वक लोड हो गया है।`);
+    } else {
+      Alert.alert('सिंक स्थिति (Sync Status)', `डेटा सिंक स्थिति: ${result?.error || 'ऑफ़लाइन कैश डेटा लोड है'}`);
+    }
+  };
+
+  const handleCheckAppUpdates = async () => {
+    try {
+      if (!Updates.isEnabled) {
+        Alert.alert('नवीनतम संस्करण (Latest Version)', 'ऐप पहले से ही नवीनतम संस्करण पर चल रहा है।');
+        return;
+      }
+      const check = await Updates.checkForUpdateAsync();
+      if (check.isAvailable) {
+        Alert.alert(
+          'नया अपडेट उपलब्ध है! (Update Found)',
+          'क्या आप अभी नया अपडेट डाउनलोड करके लागू करना चाहते हैं?',
+          [
+            { text: 'बाद में (Cancel)', style: 'cancel' },
+            {
+              text: 'अपडेट करें (Update Now)',
+              onPress: async () => {
+                await Updates.fetchUpdateAsync();
+                await Updates.reloadAsync();
+              }
+            }
+          ]
+        );
+      } else {
+        Alert.alert('कोई अपडेट नहीं (Up to date)', 'आप पहले से ही नवीनतम अपडेट का उपयोग कर रहे हैं।');
+      }
+    } catch (e) {
+      Alert.alert('अपडेट स्थिति', 'वर्तमान संस्करण सक्रिय है।');
+    }
+  };
+
+  const handleLogout = () => {
+    Alert.alert('Sign Out', 'Are you sure you want to log out of VillagePulse?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Log Out',
+        style: 'destructive',
+        onPress: async () => {
+          await logout();
+        },
+      },
+    ]);
+  };
+
+  return (
+    <View style={styles.container}>
+      <Header title="Surveyor Profile" showVillagePicker={false} />
+
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        {/* User Card */}
+        <View style={[styles.profileCard, SHADOWS.md]}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>
+              {(userProfile?.name || currentUser?.displayName || 'S').charAt(0).toUpperCase()}
+            </Text>
+          </View>
+
+          <Text style={styles.userName}>
+            {userProfile?.name || currentUser?.displayName || 'Panchayat Staff'}
+          </Text>
+          <Text style={styles.userEmail}>
+            {currentUser?.email || 'surveyor@villagepulse.gov.in'}
+          </Text>
+
+          <View style={[styles.roleBadge, isAdmin ? styles.roleAdmin : styles.roleSurveyor]}>
+            <MaterialCommunityIcons
+              name={isAdmin ? 'shield-crown' : 'badge-account-outline'}
+              size={16}
+              color={isAdmin ? '#B45309' : COLORS.primary}
+            />
+            <Text style={[styles.roleText, isAdmin ? styles.roleTextAdmin : styles.roleTextSurveyor]}>
+              {isAdmin ? 'Super Administrator' : 'Panchayat Field Surveyor'}
+            </Text>
+          </View>
+        </View>
+
+        {/* Assigned Villages Section */}
+        <View style={[styles.sectionCard, SHADOWS.sm]}>
+          <View style={styles.sectionHeaderRow}>
+            <Ionicons name="location" size={20} color={COLORS.primary} />
+            <Text style={styles.sectionTitle}>Assigned Villages (आवंटित गाँव)</Text>
+          </View>
+
+          <View style={styles.villagesRow}>
+            {Array.from(new Set(assignedVillages || ['समोड़ी (Samodi)'])).map((v) => (
+              <View key={v} style={styles.villageBadge}>
+                <Ionicons name="checkmark-circle" size={16} color={COLORS.primary} />
+                <Text style={styles.villageBadgeText}>{v}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        {/* Cloud & Cache Status */}
+        <View style={[styles.sectionCard, SHADOWS.sm]}>
+          <View style={styles.sectionHeaderRow}>
+            <MaterialCommunityIcons name="cloud-sync" size={20} color={COLORS.info} />
+            <Text style={styles.sectionTitle}>Data & Sync Status</Text>
+          </View>
+
+          <View style={styles.statusRow}>
+            <Text style={styles.statusLabel}>Firestore Backend:</Text>
+            <View style={styles.onlineBadge}>
+              <View style={[styles.onlineDot, { backgroundColor: isOnline ? COLORS.success : COLORS.warning }]} />
+              <Text style={styles.onlineText}>{syncStatus || (isOnline ? 'Connected' : 'Offline Cache')}</Text>
+            </View>
+          </View>
+
+          <View style={styles.statusRow}>
+            <Text style={styles.statusLabel}>Loaded Family Records:</Text>
+            <Text style={styles.statusVal}>{families.length} Records</Text>
+          </View>
+
+          <View style={styles.statusRow}>
+            <Text style={styles.statusLabel}>Auto-Save Mode:</Text>
+            <Text style={styles.statusVal}>Enabled (Instant)</Text>
+          </View>
+
+          <TouchableOpacity 
+            style={[styles.syncNowBtn, isSyncing && { opacity: 0.7 }]}
+            onPress={handleManualSync}
+            disabled={isSyncing}
+            activeOpacity={0.8}
+          >
+            {isSyncing ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <>
+                <Ionicons name="cloud-download-outline" size={18} color="#FFFFFF" />
+                <Text style={styles.syncNowBtnText}>Sync with Cloud (सिंक करें)</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+
+        {/* Quick Role Switcher for Demo / Testing */}
+        <View style={[styles.sectionCard, SHADOWS.sm]}>
+          <View style={styles.sectionHeaderRow}>
+            <MaterialCommunityIcons name="account-switch" size={20} color={COLORS.accent} />
+            <Text style={styles.sectionTitle}>Role Testing Shortcuts</Text>
+          </View>
+          <Text style={styles.roleSubtext}>
+            Quickly toggle permissions to test Admin or Surveyor views
+          </Text>
+
+          <View style={styles.testBtnRow}>
+            <TouchableOpacity style={styles.testBtn} onPress={loginDemoAdmin} activeOpacity={0.8}>
+              <Text style={styles.testBtnText}>Switch to Admin</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.testBtnSec} onPress={loginDemoSurveyor} activeOpacity={0.8}>
+              <Text style={styles.testBtnSecText}>Switch to Surveyor</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* App Info & About */}
+        <View style={[styles.sectionCard, SHADOWS.sm]}>
+          <View style={styles.sectionHeaderRow}>
+            <Ionicons name="information-circle-outline" size={20} color={COLORS.textSecondary} />
+            <Text style={styles.sectionTitle}>About VillagePulse</Text>
+          </View>
+          <Text style={styles.aboutText}>
+            VillagePulse is a modern rural census and household intelligence system built for Indian Panchayats. Designed for offline resilience, live cloud synchronization, and field surveys.
+          </Text>
+          <Text style={styles.versionText}>Version 1.0.1 (OTA Auto-Update Enabled)</Text>
+
+          <TouchableOpacity
+            style={styles.checkUpdateBtn}
+            onPress={handleCheckAppUpdates}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="sparkles" size={16} color={COLORS.primary} />
+            <Text style={styles.checkUpdateBtnText}>Check for App Updates (अपडेट जांचें)</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Logout Button */}
+        <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} activeOpacity={0.8}>
+          <Ionicons name="log-out-outline" size={20} color={COLORS.danger} />
+          <Text style={styles.logoutText}>Log Out from Account</Text>
+        </TouchableOpacity>
+      </ScrollView>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
+  scrollContent: {
+    padding: SIZES.lg,
+    paddingBottom: 90,
+  },
+  profileCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: SIZES.radiusLg,
+    padding: 24,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.cardBorder,
+    marginTop: -10,
+    marginBottom: 16,
+  },
+  avatar: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: COLORS.primarySubtle,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+    borderWidth: 2,
+    borderColor: COLORS.primaryLight,
+  },
+  avatarText: {
+    fontSize: 26,
+    fontWeight: '800',
+    color: COLORS.primary,
+  },
+  userName: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: COLORS.textPrimary,
+  },
+  userEmail: {
+    fontSize: 13,
+    color: COLORS.textMuted,
+    marginTop: 2,
+  },
+  roleBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 5,
+    paddingHorizontal: 12,
+    borderRadius: SIZES.radiusFull,
+    gap: 6,
+    marginTop: 12,
+  },
+  roleAdmin: {
+    backgroundColor: COLORS.accentLight,
+  },
+  roleSurveyor: {
+    backgroundColor: COLORS.primarySubtle,
+  },
+  roleText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  roleTextAdmin: {
+    color: '#B45309',
+  },
+  roleTextSurveyor: {
+    color: COLORS.primary,
+  },
+  sectionCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: SIZES.radiusMd,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: COLORS.cardBorder,
+    marginBottom: 16,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+  },
+  sectionTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: COLORS.textPrimary,
+  },
+  villagesRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  villageBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: COLORS.primarySubtle,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: SIZES.radiusFull,
+  },
+  villageBadgeText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: COLORS.primaryDark,
+  },
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 6,
+  },
+  statusLabel: {
+    fontSize: 13,
+    color: COLORS.textSecondary,
+  },
+  statusVal: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: COLORS.textPrimary,
+  },
+  onlineBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  onlineDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  onlineText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: COLORS.textPrimary,
+  },
+  roleSubtext: {
+    fontSize: 12,
+    color: COLORS.textMuted,
+    marginBottom: 10,
+  },
+  testBtnRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  testBtn: {
+    flex: 1,
+    backgroundColor: COLORS.accentLight,
+    paddingVertical: 10,
+    borderRadius: SIZES.radiusMd,
+    alignItems: 'center',
+  },
+  testBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#B45309',
+  },
+  testBtnSec: {
+    flex: 1,
+    backgroundColor: COLORS.primarySubtle,
+    paddingVertical: 10,
+    borderRadius: SIZES.radiusMd,
+    alignItems: 'center',
+  },
+  testBtnSecText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: COLORS.primary,
+  },
+  aboutText: {
+    fontSize: 13,
+    color: COLORS.textSecondary,
+    lineHeight: 18,
+  },
+  versionText: {
+    fontSize: 11,
+    color: COLORS.textMuted,
+    marginTop: 8,
+  },
+  logoutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.dangerLight,
+    paddingVertical: 14,
+    borderRadius: SIZES.radiusMd,
+    gap: 8,
+    marginTop: 6,
+  },
+  logoutText: {
+    color: COLORS.danger,
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  syncNowBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.primary,
+    paddingVertical: 12,
+    borderRadius: SIZES.radiusMd,
+    gap: 8,
+    marginTop: 14,
+  },
+  syncNowBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  checkUpdateBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.primarySubtle,
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+    paddingVertical: 10,
+    borderRadius: SIZES.radiusMd,
+    gap: 8,
+    marginTop: 12,
+    width: '100%',
+  },
+  checkUpdateBtnText: {
+    color: COLORS.primary,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+});
