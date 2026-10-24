@@ -17,7 +17,7 @@ import { FamilyCard } from '../../components/FamilyCard';
 
 export function DashboardScreen({ navigation }) {
   const { stats, filteredFamilies, selectedVillage, loading, refreshData } = useData();
-  const { currentUser, userProfile, isAdmin } = useAuth();
+  const { currentUser, userProfile, isAdmin, isPending, isUnassigned } = useAuth();
   const [refreshing, setRefreshing] = React.useState(false);
 
   const onRefresh = React.useCallback(async () => {
@@ -41,6 +41,29 @@ export function DashboardScreen({ navigation }) {
         contentContainerStyle={styles.scrollContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />}
       >
+        {/* Pending Approval / Unassigned Village Notice Banner */}
+        {isPending ? (
+          <View style={styles.warningBanner}>
+            <MaterialCommunityIcons name="clock-alert-outline" size={24} color="#D97706" />
+            <View style={styles.warningBannerTextWrap}>
+              <Text style={styles.warningBannerTitle}>खाता सत्यापन लंबित (Approval Pending)</Text>
+              <Text style={styles.warningBannerDesc}>
+                आपका खाता अभी व्यवस्थापक (Admin) की स्वीकृति की प्रतीक्षा कर रहा है। व्यवस्थापक द्वारा स्वीकृति और गाँव आवंटन के बाद आपको डेटा दिखाई देगा।
+              </Text>
+            </View>
+          </View>
+        ) : isUnassigned && !isAdmin ? (
+          <View style={[styles.warningBanner, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}>
+            <MaterialCommunityIcons name="map-marker-alert-outline" size={24} color="#2563EB" />
+            <View style={styles.warningBannerTextWrap}>
+              <Text style={[styles.warningBannerTitle, { color: '#1E40AF' }]}>गाँव आवंटन प्रतीक्षित (Allocation Pending)</Text>
+              <Text style={[styles.warningBannerDesc, { color: '#1E3A8A' }]}>
+                आपको अभी तक कोई गाँव (समोड़ी या कोटड़ी) आवंटित नहीं किया गया है। कृपया व्यवस्थापक (Admin) से गाँव आवंटन हेतु संपर्क करें।
+              </Text>
+            </View>
+          </View>
+        ) : null}
+
         {/* Welcome Greeting Banner */}
         <View style={styles.bannerCard}>
           <View style={styles.bannerLeft}>
@@ -128,6 +151,18 @@ export function DashboardScreen({ navigation }) {
           </TouchableOpacity>
 
           <TouchableOpacity
+            style={[styles.actionCard, { backgroundColor: '#F0FDF4' }]}
+            onPress={() => navigation.navigate('DataPrint')}
+            activeOpacity={0.8}
+          >
+            <View style={[styles.actionIconBox, { backgroundColor: '#16A34A' }]}>
+              <Ionicons name="print-outline" size={22} color={COLORS.surface} />
+            </View>
+            <Text style={styles.actionTitle}>Data Print</Text>
+            <Text style={styles.actionSub}>पीडीएफ व डॉसियर</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
             style={[styles.actionCard, { backgroundColor: COLORS.infoLight }]}
             onPress={() => navigation.navigate('Search')}
             activeOpacity={0.8}
@@ -137,18 +172,6 @@ export function DashboardScreen({ navigation }) {
             </View>
             <Text style={styles.actionTitle}>Search Data</Text>
             <Text style={styles.actionSub}>आईडी / नाम से खोजें</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.actionCard, { backgroundColor: COLORS.accentLight }]}
-            onPress={() => navigation.navigate('Analytics')}
-            activeOpacity={0.8}
-          >
-            <View style={[styles.actionIconBox, { backgroundColor: COLORS.accent }]}>
-              <MaterialCommunityIcons name="chart-pie" size={22} color={COLORS.surface} />
-            </View>
-            <Text style={styles.actionTitle}>Demographics</Text>
-            <Text style={styles.actionSub}>जाति व मोहल्ला आँकड़े</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -163,6 +186,28 @@ export function DashboardScreen({ navigation }) {
             <Text style={styles.actionSub}>परिवार सूची देखें</Text>
           </TouchableOpacity>
         </View>
+
+        {/* Admin Control Banner (If Admin) */}
+        {isAdmin && (
+          <View style={{ paddingHorizontal: SIZES.lg, marginTop: 12 }}>
+            <TouchableOpacity
+              style={styles.adminActionCard}
+              onPress={() => navigation.navigate('AdminUserManagement')}
+              activeOpacity={0.85}
+            >
+              <View style={styles.adminActionLeft}>
+                <View style={styles.adminActionIcon}>
+                  <MaterialCommunityIcons name="shield-account" size={24} color="#4F46E5" />
+                </View>
+                <View>
+                  <Text style={styles.adminActionTitle}>Admin Control Panel (प्रबंधन)</Text>
+                  <Text style={styles.adminActionSub}>नए सर्वेक्षकों को अनुमति दें एवं गाँव आवंटित करें</Text>
+                </View>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#4F46E5" />
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* Caste Breakdown Horizontal Bar */}
         <View style={styles.sectionHeader}>
@@ -405,5 +450,65 @@ const styles = StyleSheet.create({
     color: COLORS.surface,
     fontSize: 13,
     fontWeight: '700',
+  },
+  warningBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    borderRadius: SIZES.radiusMd,
+    padding: 14,
+    marginHorizontal: SIZES.lg,
+    marginBottom: 14,
+    gap: 12,
+  },
+  warningBannerTextWrap: {
+    flex: 1,
+  },
+  warningBannerTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#92400E',
+  },
+  warningBannerDesc: {
+    fontSize: 11,
+    color: '#B45309',
+    marginTop: 2,
+    lineHeight: 16,
+  },
+  adminActionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#EEF2FF',
+    borderWidth: 1.5,
+    borderColor: '#C7D2FE',
+    borderRadius: SIZES.radiusMd,
+    padding: 14,
+  },
+  adminActionLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  adminActionIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#E0E7FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  adminActionTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#3730A3',
+  },
+  adminActionSub: {
+    fontSize: 11,
+    color: '#6366F1',
+    marginTop: 2,
   },
 });

@@ -132,6 +132,7 @@ export function Settings() {
         'Member Age': member.age,
         'Member Gender': member.gender,
         'Member Relation': member.relation,
+        'Member Mobile': member.mobile || '',
         'Member Aadhaar Number': member.aadhaarNumber || '',
         'Member Occupation': member.occupation || '',
         'Member Education': member.education || '',

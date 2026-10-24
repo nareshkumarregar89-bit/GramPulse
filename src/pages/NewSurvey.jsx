@@ -44,6 +44,7 @@ const emptyMember = {
   age: '',
   gender: 'Male',
   relation: '',
+  mobile: '',
   aadhaarNumber: '',
   occupation: '',
   education: '',
@@ -761,6 +762,7 @@ export function NewSurvey() {
                     <InputField label={t('age')} type="number" value={member.age} onChange={(v) => updateMember(index, 'age', v)} />
                     <SelectField label={t('gender')} value={member.gender} onChange={(v) => updateMember(index, 'gender', v)} options={['Male', 'Female', 'Other']} />
                     <InputField label={t('relation')} value={member.relation} onChange={(v) => updateMember(index, 'relation', v)} />
+                    <InputField label={language === 'hi' ? 'सदस्य मोबाइल (वैकल्पिक)' : 'Member Mobile (Optional)'} type="tel" maxLength={10} value={member.mobile || ''} onChange={(v) => updateMember(index, 'mobile', v.replace(/\D/g, '').slice(0, 10))} placeholder="98XXXXXXXX" />
                     <InputField label={t('aadhaar')} value={member.aadhaarNumber} onChange={(v) => updateMember(index, 'aadhaarNumber', v)} />
                     <InputField label={t('occupation')} value={member.occupation} onChange={(v) => updateMember(index, 'occupation', v)} />
                     <InputField label={t('member_education')} value={member.education} onChange={(v) => updateMember(index, 'education', v)} />

@@ -64,6 +64,7 @@ export function NewSurveyScreen({ navigation }) {
       age: '',
       education: 'Secondary',
       occupation: 'Agriculture',
+      mobile: '',
       aadhaarNumber: '',
     },
   ]);
@@ -80,6 +81,7 @@ export function NewSurveyScreen({ navigation }) {
         age: '',
         education: 'Primary',
         occupation: 'Homemaker',
+        mobile: '',
         aadhaarNumber: '',
       },
     ]);
@@ -540,6 +542,16 @@ export function NewSurveyScreen({ navigation }) {
                     />
                   </View>
                 </View>
+
+                <TextInput
+                  style={styles.input}
+                  placeholder="Member Mobile (सदस्य का मोबाइल नंबर - 10 अंक)"
+                  placeholderTextColor={COLORS.textMuted}
+                  value={member.mobile}
+                  onChangeText={(val) => updateMember(index, 'mobile', val.replace(/\D/g, '').slice(0, 10))}
+                  keyboardType="phone-pad"
+                  maxLength={10}
+                />
               </View>
             ))}
 

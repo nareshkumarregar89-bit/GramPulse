@@ -32,6 +32,7 @@ export function EditSurveyScreen({ route, navigation }) {
   const [rationCard, setRationCard] = useState('');
   const [bplStatus, setBplStatus] = useState('APL');
   const [monthlyIncome, setMonthlyIncome] = useState('');
+  const [members, setMembers] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -47,6 +48,21 @@ export function EditSurveyScreen({ route, navigation }) {
       setRationCard(family.rationCardNumber || family.rationCard || '');
       setBplStatus(family.bplStatus || 'APL');
       setMonthlyIncome(family.monthlyIncome || '');
+      setMembers(
+        Array.isArray(family.members) && family.members.length > 0
+          ? family.members.map((m, i) => ({
+              id: m.id || String(i + 1),
+              name: m.name || m.nameHindi || m.nameEnglish || '',
+              gender: m.gender || 'Male',
+              relation: m.relation || 'Member',
+              age: String(m.age || ''),
+              mobile: m.mobile || '',
+              occupation: m.occupation || '',
+              education: m.education || '',
+              aadhaarNumber: m.aadhaarNumber || '',
+            }))
+          : []
+      );
     }
   }, [family]);
 
@@ -60,6 +76,35 @@ export function EditSurveyScreen({ route, navigation }) {
       </View>
     );
   }
+
+  const addMemberRow = () => {
+    setMembers([
+      ...members,
+      {
+        id: String(Date.now()),
+        name: '',
+        gender: 'Male',
+        relation: 'Member',
+        age: '',
+        mobile: '',
+        occupation: '',
+        education: '',
+        aadhaarNumber: '',
+      },
+    ]);
+  };
+
+  const updateMemberField = (index, field, value) => {
+    setMembers((prev) => {
+      const copy = [...prev];
+      copy[index] = { ...copy[index], [field]: value };
+      return copy;
+    });
+  };
+
+  const removeMemberRow = (index) => {
+    setMembers((prev) => prev.filter((_, i) => i !== index));
+  };
 
   const handleUpdate = async () => {
     setIsSaving(true);
@@ -83,6 +128,13 @@ export function EditSurveyScreen({ route, navigation }) {
         rationCardNumber: rationCard.trim(),
         bplStatus,
         monthlyIncome: monthlyIncome.trim(),
+        members: members.map((m) => ({
+          ...m,
+          name: m.name.trim(),
+          mobile: m.mobile.trim(),
+          age: Number(m.age) || 0,
+        })),
+        totalMembers: members.length,
       });
 
       Alert.alert('Updated', 'Household survey updated successfully!', [
@@ -178,6 +230,66 @@ export function EditSurveyScreen({ route, navigation }) {
             keyboardType="numeric"
           />
 
+          {/* Family Members Section */}
+          <View style={styles.membersSectionHeader}>
+            <Text style={styles.sectionHeading}>Family Members ({members.length})</Text>
+            <TouchableOpacity style={styles.addMemberBtn} onPress={addMemberRow}>
+              <Ionicons name="add-circle" size={18} color={COLORS.primary} />
+              <Text style={styles.addMemberBtnText}>Add Member</Text>
+            </TouchableOpacity>
+          </View>
+
+          {members.map((member, index) => (
+            <View key={member.id || index} style={styles.memberBox}>
+              <View style={styles.memberBoxHeader}>
+                <Text style={styles.memberBoxIndex}>Member #{index + 1}</Text>
+                <TouchableOpacity onPress={() => removeMemberRow(index)}>
+                  <Ionicons name="trash-outline" size={18} color={COLORS.danger} />
+                </TouchableOpacity>
+              </View>
+
+              <Text style={styles.fieldLabel}>Member Full Name</Text>
+              <TextInput
+                style={styles.input}
+                value={member.name}
+                onChangeText={(val) => updateMemberField(index, 'name', val)}
+                placeholder="Full Name"
+              />
+
+              <View style={styles.row}>
+                <View style={{ flex: 1, marginRight: 8 }}>
+                  <Text style={styles.fieldLabel}>Relation</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={member.relation}
+                    onChangeText={(val) => updateMemberField(index, 'relation', val)}
+                    placeholder="Relation"
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.fieldLabel}>Age</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={String(member.age)}
+                    onChangeText={(val) => updateMemberField(index, 'age', val)}
+                    placeholder="Age"
+                    keyboardType="number-pad"
+                  />
+                </View>
+              </View>
+
+              <Text style={styles.fieldLabel}>Mobile Number (मोबाईल नंबर)</Text>
+              <TextInput
+                style={styles.input}
+                value={member.mobile}
+                onChangeText={(val) => updateMemberField(index, 'mobile', val.replace(/\D/g, '').slice(0, 10))}
+                placeholder="10-digit mobile number"
+                keyboardType="phone-pad"
+                maxLength={10}
+              />
+            </View>
+          ))}
+
           <TouchableOpacity
             style={[styles.saveBtn, SHADOWS.sm]}
             onPress={handleUpdate}
@@ -269,6 +381,53 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: 15,
     color: COLORS.textPrimary,
+  },
+  membersSectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 20,
+    marginBottom: 10,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.cardBorder,
+  },
+  sectionHeading: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: COLORS.textPrimary,
+  },
+  addMemberBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  addMemberBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: COLORS.primary,
+  },
+  memberBox: {
+    backgroundColor: COLORS.surfaceSubtle,
+    borderRadius: SIZES.radiusMd,
+    padding: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: COLORS.cardBorder,
+  },
+  memberBoxHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  memberBoxIndex: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: COLORS.primary,
+  },
+  row: {
+    flexDirection: 'row',
   },
   saveBtn: {
     backgroundColor: COLORS.primary,

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, StatusBar, Image } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, SHADOWS, SIZES } from '../constants/theme';
 import { useData } from '../contexts/DataContext';
@@ -16,9 +16,11 @@ export function Header({ title, showVillagePicker = true, rightAction, onSearchP
       {/* Brand & Title */}
       <View style={styles.topRow}>
         <View style={styles.brandRow}>
-          <View style={styles.logoBadge}>
-            <MaterialCommunityIcons name="home-group" size={20} color={COLORS.surface} />
-          </View>
+          <Image
+            source={require('../../assets/logo.png')}
+            style={styles.logoImage}
+            resizeMode="contain"
+          />
           <View>
             <Text style={styles.appName}>VillagePulse</Text>
             <Text style={styles.appSub}>विलेज पल्स • Rural Survey</Text>
@@ -87,13 +89,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
   },
-  logoBadge: {
+  logoImage: {
     width: 36,
     height: 36,
-    borderRadius: 10,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderRadius: 18,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.4)',
   },
   appName: {
     fontSize: 18,

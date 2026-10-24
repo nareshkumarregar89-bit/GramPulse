@@ -9,14 +9,15 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
+  Image,
   Alert
 } from 'react-native';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SHADOWS, SIZES } from '../../constants/theme';
 import { useAuth } from '../../contexts/AuthContext';
 
 export function LoginScreen({ navigation }) {
-  const { login, loginDemoAdmin, loginDemoSurveyor, authError } = useAuth();
+  const { login, authError } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -25,7 +26,7 @@ export function LoginScreen({ navigation }) {
 
   const handleLogin = async () => {
     if (!email.trim() || !password) {
-      setErrorMsg('Please enter both email and password.');
+      setErrorMsg('कृपया ईमेल और पासवर्ड दोनों दर्ज करें।');
       return;
     }
     setErrorMsg('');
@@ -33,7 +34,7 @@ export function LoginScreen({ navigation }) {
     try {
       await login(email, password);
     } catch (err) {
-      setErrorMsg(err.message || 'Login failed. Please check your credentials.');
+      setErrorMsg(err.message || 'लॉगिन विफल। कृपया अपनी क्रेडेंशियल जांचें।');
     } finally {
       setIsSubmitting(false);
     }
@@ -45,22 +46,24 @@ export function LoginScreen({ navigation }) {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-        {/* Top Brand Banner */}
+        {/* Top Brand Banner with Official Logo */}
         <View style={styles.heroSection}>
-          <View style={styles.iconCircle}>
-            <MaterialCommunityIcons name="home-city" size={42} color={COLORS.surface} />
-          </View>
+          <Image
+            source={require('../../assets/logo.png')}
+            style={styles.logoImage}
+            resizeMode="contain"
+          />
           <Text style={styles.heroTitle}>VillagePulse</Text>
           <Text style={styles.heroSubtitle}>विलेज पल्स • Rural Census & Family Dossier</Text>
           <View style={styles.govBadge}>
-            <Text style={styles.govBadgeText}>Panchayat Survey System</Text>
+            <Text style={styles.govBadgeText}>Official Panchayat Survey Portal</Text>
           </View>
         </View>
 
         {/* Login Card */}
         <View style={[styles.card, SHADOWS.md]}>
           <Text style={styles.cardHeader}>Surveyor & Admin Login</Text>
-          <Text style={styles.cardSub}>Sign in to access and record village surveys</Text>
+          <Text style={styles.cardSub}>अपने आधिकारिक खाते से लॉगिन करें</Text>
 
           {Boolean(errorMsg || authError) && (
             <View style={styles.errorBox}>
@@ -71,7 +74,7 @@ export function LoginScreen({ navigation }) {
 
           {/* Email Input */}
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Official Email (ईमेल)</Text>
+            <Text style={styles.inputLabel}>Official Email (आधिकारिक ईमेल)</Text>
             <View style={styles.inputWrapper}>
               <Ionicons name="mail-outline" size={20} color={COLORS.textMuted} />
               <TextInput
@@ -109,6 +112,15 @@ export function LoginScreen({ navigation }) {
             </View>
           </View>
 
+          {/* Forgot Password Link */}
+          <TouchableOpacity
+            style={styles.forgotBtn}
+            onPress={() => navigation.navigate('ForgotPassword')}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.forgotBtnText}>Forgot Password? (पासवर्ड भूल गए?)</Text>
+          </TouchableOpacity>
+
           {/* Submit Button */}
           <TouchableOpacity
             style={[styles.submitBtn, SHADOWS.sm]}
@@ -120,48 +132,36 @@ export function LoginScreen({ navigation }) {
               <ActivityIndicator color={COLORS.surface} />
             ) : (
               <>
-                <Text style={styles.submitBtnText}>Login to Dashboard</Text>
+                <Text style={styles.submitBtnText}>Login to Dashboard (लॉगिन करें)</Text>
                 <Ionicons name="arrow-forward" size={18} color={COLORS.surface} />
               </>
             )}
           </TouchableOpacity>
 
-          {/* Demo Shortcuts */}
+          {/* Divider */}
           <View style={styles.dividerRow}>
             <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>QUICK DEMO ACCESS</Text>
+            <Text style={styles.dividerText}>OR</Text>
             <View style={styles.dividerLine} />
-          </View>
-
-          <View style={styles.demoButtonsRow}>
-            <TouchableOpacity
-              style={styles.demoBtnAdmin}
-              onPress={loginDemoAdmin}
-              activeOpacity={0.8}
-            >
-              <MaterialCommunityIcons name="shield-crown" size={18} color={COLORS.accent} />
-              <Text style={styles.demoBtnAdminText}>Demo Admin</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.demoBtnSurveyor}
-              onPress={loginDemoSurveyor}
-              activeOpacity={0.8}
-            >
-              <MaterialCommunityIcons name="clipboard-account" size={18} color={COLORS.primary} />
-              <Text style={styles.demoBtnSurveyorText}>Demo Surveyor</Text>
-            </TouchableOpacity>
           </View>
 
           {/* Switch to Register */}
           <TouchableOpacity
             style={styles.registerLink}
             onPress={() => navigation.navigate('Register')}
+            activeOpacity={0.7}
           >
             <Text style={styles.registerLinkText}>
-              New Surveyor? <Text style={styles.registerLinkBold}>Create an Account</Text>
+              New Surveyor? <Text style={styles.registerLinkBold}>Register for Approval (साइन अप)</Text>
             </Text>
           </TouchableOpacity>
+
+          <View style={styles.securityNotice}>
+            <Ionicons name="shield-checkmark-outline" size={14} color={COLORS.textMuted} />
+            <Text style={styles.securityNoticeText}>
+              Security & Audit Enabled • End-to-End Encrypted Survey Access
+            </Text>
+          </View>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -179,21 +179,20 @@ const styles = StyleSheet.create({
   },
   heroSection: {
     backgroundColor: COLORS.primary,
-    paddingTop: 60,
-    paddingBottom: 40,
+    paddingTop: 55,
+    paddingBottom: 35,
     alignItems: 'center',
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30,
     paddingHorizontal: 20,
   },
-  iconCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 24,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
+  logoImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    marginBottom: 10,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.4)',
   },
   heroTitle: {
     fontSize: 28,
@@ -211,22 +210,20 @@ const styles = StyleSheet.create({
     marginTop: 10,
     backgroundColor: 'rgba(0, 0, 0, 0.25)',
     paddingVertical: 4,
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
     borderRadius: SIZES.radiusFull,
   },
   govBadgeText: {
     fontSize: 11,
     color: COLORS.surface,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   card: {
     backgroundColor: COLORS.surface,
-    borderRadius: SIZES.radiusLg,
-    marginHorizontal: 20,
+    borderRadius: 24,
+    marginHorizontal: SIZES.lg,
     marginTop: -20,
     padding: 24,
-    borderWidth: 1,
-    borderColor: COLORS.cardBorder,
   },
   cardHeader: {
     fontSize: 20,
@@ -236,121 +233,94 @@ const styles = StyleSheet.create({
   cardSub: {
     fontSize: 13,
     color: COLORS.textMuted,
-    marginTop: 2,
+    marginTop: 4,
     marginBottom: 18,
   },
   errorBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.dangerLight,
-    padding: 10,
-    borderRadius: SIZES.radiusSm,
+    backgroundColor: '#FEE2E2',
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 16,
     gap: 8,
-    marginBottom: 14,
   },
   errorText: {
-    fontSize: 12,
-    color: COLORS.danger,
     flex: 1,
+    color: COLORS.danger,
+    fontSize: 13,
+    fontWeight: '500',
   },
   inputGroup: {
     marginBottom: 14,
   },
   inputLabel: {
     fontSize: 13,
-    fontWeight: '600',
-    color: COLORS.textSecondary,
+    fontWeight: '700',
+    color: COLORS.textPrimary,
     marginBottom: 6,
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: COLORS.cardBorder,
-    borderRadius: SIZES.radiusMd,
-    paddingHorizontal: 12,
-    backgroundColor: COLORS.surface,
+    backgroundColor: COLORS.background,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    paddingHorizontal: 14,
+    height: 50,
     gap: 10,
-    height: 48,
   },
   textInput: {
     flex: 1,
-    fontSize: 15,
+    fontSize: 14,
     color: COLORS.textPrimary,
   },
+  forgotBtn: {
+    alignSelf: 'flex-end',
+    paddingVertical: 6,
+    marginBottom: 16,
+  },
+  forgotBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: COLORS.primary,
+  },
   submitBtn: {
-    backgroundColor: COLORS.primary,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    height: 50,
-    borderRadius: SIZES.radiusMd,
-    marginTop: 10,
+    backgroundColor: COLORS.primary,
+    height: 52,
+    borderRadius: 14,
     gap: 8,
   },
   submitBtnText: {
     color: COLORS.surface,
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
   },
   dividerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 20,
-    gap: 10,
+    marginVertical: 18,
   },
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: COLORS.cardBorder,
+    backgroundColor: COLORS.border,
   },
   dividerText: {
+    marginHorizontal: 12,
     fontSize: 11,
     fontWeight: '700',
     color: COLORS.textMuted,
-    letterSpacing: 0.5,
-  },
-  demoButtonsRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  demoBtnAdmin: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: SIZES.radiusMd,
-    backgroundColor: COLORS.accentLight,
-    gap: 6,
-    borderWidth: 1,
-    borderColor: '#FDE68A',
-  },
-  demoBtnAdminText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#B45309',
-  },
-  demoBtnSurveyor: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: SIZES.radiusMd,
-    backgroundColor: COLORS.primarySubtle,
-    gap: 6,
-    borderWidth: 1,
-    borderColor: COLORS.primaryLight,
-  },
-  demoBtnSurveyorText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: COLORS.primary,
   },
   registerLink: {
-    marginTop: 20,
     alignItems: 'center',
+    paddingVertical: 10,
   },
   registerLinkText: {
     fontSize: 14,
@@ -358,6 +328,18 @@ const styles = StyleSheet.create({
   },
   registerLinkBold: {
     color: COLORS.primary,
-    fontWeight: '700',
+    fontWeight: '800',
+  },
+  securityNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 14,
+    gap: 6,
+  },
+  securityNoticeText: {
+    fontSize: 11,
+    color: COLORS.textMuted,
+    textAlign: 'center',
   },
 });

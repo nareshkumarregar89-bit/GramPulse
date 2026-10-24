@@ -259,6 +259,7 @@ export function PrintDocument({
                         <th className="border border-gray-800 px-1.5 py-1 text-center w-14">{language === 'hi' ? 'लिंग' : 'Gender'}</th>
                         <th className="border border-gray-800 px-2 py-1 text-left">{language === 'hi' ? 'शिक्षा' : 'Education'}</th>
                         <th className="border border-gray-800 px-2 py-1 text-left">{language === 'hi' ? 'व्यवसाय' : 'Occupation'}</th>
+                        <th className="border border-gray-800 px-2 py-1 text-left">{language === 'hi' ? 'मोबाइल' : 'Mobile'}</th>
                         <th className="border border-gray-800 px-2 py-1 text-left">{language === 'hi' ? 'आधार संख्या' : 'Aadhaar No'}</th>
                       </tr>
                     </thead>
@@ -277,6 +278,7 @@ export function PrintDocument({
                           <td className="border border-gray-800 px-1.5 py-1 text-center">{m.gender || '-'}</td>
                           <td className="border border-gray-800 px-2 py-1 text-gray-800">{m.education || '-'}</td>
                           <td className="border border-gray-800 px-2 py-1 text-gray-800">{m.occupation || '-'}</td>
+                          <td className="border border-gray-800 px-2 py-1 font-mono">{m.mobile || '-'}</td>
                           <td className="border border-gray-800 px-2 py-1 font-mono">{m.aadhaarNumber || '-'}</td>
                         </tr>
                       ))}

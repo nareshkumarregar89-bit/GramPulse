@@ -85,6 +85,12 @@ export function FamilyDetailScreen({ route, navigation }) {
         </TouchableOpacity>
         <Text style={styles.appBarTitle}>Family Dossier</Text>
         <View style={styles.appBarActions}>
+          <TouchableOpacity
+            style={styles.iconBtn}
+            onPress={() => navigation.navigate('DataPrint', { familyId: family.id })}
+          >
+            <Ionicons name="print-outline" size={20} color={COLORS.surface} />
+          </TouchableOpacity>
           <TouchableOpacity style={styles.iconBtn} onPress={handleShare}>
             <Ionicons name="share-social-outline" size={20} color={COLORS.surface} />
           </TouchableOpacity>
@@ -156,6 +162,16 @@ export function FamilyDetailScreen({ route, navigation }) {
               <Text style={styles.callActionBarText}>Call {family.mobile}</Text>
             </TouchableOpacity>
           )}
+
+          {/* Print Dossier Quick Action */}
+          <TouchableOpacity
+            style={styles.printActionBar}
+            onPress={() => navigation.navigate('DataPrint', { familyId: family.id })}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="document-text-outline" size={18} color={COLORS.primary} />
+            <Text style={styles.printActionBarText}>Print Detailed Dossier (पीडीएफ / डॉसियर)</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Government Identity Documents */}
@@ -313,6 +329,16 @@ export function FamilyDetailScreen({ route, navigation }) {
                     <Ionicons name="heart-outline" size={13} color={COLORS.textSecondary} />
                     <Text style={styles.memberMetaText}>{member.maritalStatus}</Text>
                   </View>
+                ) : null}
+                {member.mobile ? (
+                  <TouchableOpacity
+                    style={[styles.memberMetaBadge, { backgroundColor: '#E8F5E9', borderColor: '#C8E6C9', borderWidth: 1 }]}
+                    onPress={() => Linking.openURL(`tel:${member.mobile}`)}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="call" size={13} color={COLORS.primary} />
+                    <Text style={[styles.memberMetaText, { color: COLORS.primary, fontWeight: '700' }]}>{member.mobile}</Text>
+                  </TouchableOpacity>
                 ) : null}
               </View>
 
@@ -501,6 +527,23 @@ const styles = StyleSheet.create({
   callActionBarText: {
     color: COLORS.surface,
     fontSize: 15,
+    fontWeight: '700',
+  },
+  printActionBar: {
+    backgroundColor: COLORS.primarySubtle,
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 11,
+    borderRadius: SIZES.radiusMd,
+    marginTop: 10,
+    gap: 8,
+  },
+  printActionBarText: {
+    color: COLORS.primary,
+    fontSize: 14,
     fontWeight: '700',
   },
   sectionHeader: {

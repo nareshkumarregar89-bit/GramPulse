@@ -5,11 +5,14 @@ import { useAuth } from '../contexts/AuthContext';
 import { COLORS } from '../constants/theme';
 import { LoginScreen } from '../screens/auth/LoginScreen';
 import { RegisterScreen } from '../screens/auth/RegisterScreen';
+import { ForgotPasswordScreen } from '../screens/auth/ForgotPasswordScreen';
 import { BottomTabNavigator } from './BottomTabNavigator';
 import { FamilyDetailScreen } from '../screens/families/FamilyDetailScreen';
 import { EditSurveyScreen } from '../screens/survey/EditSurveyScreen';
 import { SearchScreen } from '../screens/search/SearchScreen';
 import { NewSurveyScreen } from '../screens/survey/NewSurveyScreen';
+import { DataPrintScreen } from '../screens/print/DataPrintScreen';
+import { AdminUserManagementScreen } from '../screens/admin/AdminUserManagementScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -50,12 +53,27 @@ export function AppNavigator() {
             component={NewSurveyScreen}
             options={{ presentation: 'modal' }}
           />
+          <Stack.Screen
+            name="DataPrint"
+            component={DataPrintScreen}
+            options={{ animation: 'slide_from_bottom' }}
+          />
+          <Stack.Screen
+            name="AdminUserManagement"
+            component={AdminUserManagementScreen}
+            options={{ animation: 'slide_from_right' }}
+          />
         </>
       ) : (
         // Auth Stack
         <>
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="Register" component={RegisterScreen} />
+          <Stack.Screen
+            name="ForgotPassword"
+            component={ForgotPasswordScreen}
+            options={{ animation: 'slide_from_right' }}
+          />
         </>
       )}
     </Stack.Navigator>

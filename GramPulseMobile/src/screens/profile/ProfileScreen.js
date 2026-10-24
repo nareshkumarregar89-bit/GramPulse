@@ -169,25 +169,47 @@ export function ProfileScreen({ navigation }) {
           </TouchableOpacity>
         </View>
 
-        {/* Quick Role Switcher for Demo / Testing */}
+        {/* Data Print & Reports */}
         <View style={[styles.sectionCard, SHADOWS.sm]}>
           <View style={styles.sectionHeaderRow}>
-            <MaterialCommunityIcons name="account-switch" size={20} color={COLORS.accent} />
-            <Text style={styles.sectionTitle}>Role Testing Shortcuts</Text>
+            <Ionicons name="print-outline" size={20} color={COLORS.primary} />
+            <Text style={styles.sectionTitle}>Data Print & PDF Reports (डेटा प्रिंट)</Text>
           </View>
           <Text style={styles.roleSubtext}>
-            Quickly toggle permissions to test Admin or Surveyor views
+            गाँववार सर्वेक्षण रिकॉर्ड्स एवं परिवारों के विस्तृत डॉसियर को पीडीएफ में डाउनलोड या प्रिंट करें
           </Text>
 
-          <View style={styles.testBtnRow}>
-            <TouchableOpacity style={styles.testBtn} onPress={loginDemoAdmin} activeOpacity={0.8}>
-              <Text style={styles.testBtnText}>Switch to Admin</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.testBtnSec} onPress={loginDemoSurveyor} activeOpacity={0.8}>
-              <Text style={styles.testBtnSecText}>Switch to Surveyor</Text>
+          <TouchableOpacity
+            style={styles.actionCardBtn}
+            onPress={() => navigation.navigate('DataPrint')}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="document-text-outline" size={18} color="#FFFFFF" />
+            <Text style={styles.actionCardBtnText}>Open Print Roster (डेटा प्रिंट खोलें)</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Admin Control Panel (Admins Only) */}
+        {isAdmin && (
+          <View style={[styles.sectionCard, SHADOWS.sm, { borderColor: '#C7D2FE', borderWidth: 1.5 }]}>
+            <View style={styles.sectionHeaderRow}>
+              <MaterialCommunityIcons name="shield-account" size={20} color="#4F46E5" />
+              <Text style={[styles.sectionTitle, { color: '#312E81' }]}>Admin Control Panel (प्रबंधन)</Text>
+            </View>
+            <Text style={styles.roleSubtext}>
+              नए सर्वेक्षकों को स्वीकृत करें, गाँव आवंटित करें, और खातों का प्रबंधन करें
+            </Text>
+
+            <TouchableOpacity
+              style={[styles.actionCardBtn, { backgroundColor: '#4F46E5' }]}
+              onPress={() => navigation.navigate('AdminUserManagement')}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="people-outline" size={18} color="#FFFFFF" />
+              <Text style={styles.actionCardBtnText}>User & Surveyor Control (यूज़र प्रबंधन)</Text>
             </TouchableOpacity>
           </View>
-        </View>
+        )}
 
         {/* App Info & About */}
         <View style={[styles.sectionCard, SHADOWS.sm]}>
@@ -447,6 +469,21 @@ const styles = StyleSheet.create({
   checkUpdateBtnText: {
     color: COLORS.primary,
     fontSize: 13,
+    fontWeight: '700',
+  },
+  actionCardBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.primary,
+    paddingVertical: 12,
+    borderRadius: SIZES.radiusMd,
+    gap: 8,
+    marginTop: 6,
+  },
+  actionCardBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14,
     fontWeight: '700',
   },
 });

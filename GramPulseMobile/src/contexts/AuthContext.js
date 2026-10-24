@@ -4,9 +4,18 @@ import {
   createUserWithEmailAndPassword, 
   signOut, 
   onAuthStateChanged,
-  updateProfile 
+  updateProfile,
+  sendPasswordResetEmail
 } from 'firebase/auth';
-import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
+import { 
+  doc, 
+  getDoc, 
+  setDoc, 
+  updateDoc, 
+  deleteDoc, 
+  collection, 
+  onSnapshot 
+} from 'firebase/firestore';
 import { auth, db } from '../config/firebase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -18,12 +27,16 @@ export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
   const [userRole, setUserRole] = useState('surveyor'); // 'admin' | 'surveyor'
-  const [assignedVillages, setAssignedVillages] = useState(['समोड़ी (Samodi)', 'कोटड़ी (Kotdi)']);
+  const [assignedVillages, setAssignedVillages] = useState([]);
+  const [allUsers, setAllUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState('');
 
   // Check super admin status
   const isAdmin = currentUser?.uid === SUPER_ADMIN_UID || userRole === 'admin' || userProfile?.role === 'admin';
+  const isPending = userProfile?.status === 'pending';
+  const isInactive = userProfile?.status === 'inactive';
+  const isUnassigned = !isAdmin && (!assignedVillages || assignedVillages.length === 0);
 
   useEffect(() => {
     let unsubscribeDoc = null;
@@ -43,7 +56,7 @@ export function AuthProvider({ children }) {
           setAssignedVillages(['समोड़ी (Samodi)', 'कोटड़ी (Kotdi)']);
         }
 
-        // Listen to Firestore User Document
+        // Listen to Firestore User Document in real-time
         try {
           const userDocRef = doc(db, 'users', user.uid);
           unsubscribeDoc = onSnapshot(userDocRef, (snapshot) => {
@@ -55,18 +68,25 @@ export function AuthProvider({ children }) {
               
               if (role === 'admin') {
                 setAssignedVillages(['समोड़ी (Samodi)', 'कोटड़ी (Kotdi)']);
-              } else if (data.assignedVillages && data.assignedVillages.length > 0) {
+              } else if (Array.isArray(data.assignedVillages)) {
                 setAssignedVillages(data.assignedVillages);
+              } else if (data.assignedVillage) {
+                setAssignedVillages([data.assignedVillage]);
+              } else {
+                setAssignedVillages([]);
               }
             } else {
-              // Create user profile document if not exists
+              // Create user profile document if missing
               const isSuper = user.uid === SUPER_ADMIN_UID;
               const newProf = {
                 uid: user.uid,
                 email: user.email,
                 name: user.displayName || user.email?.split('@')[0] || 'Surveyor',
                 role: isSuper ? 'admin' : 'surveyor',
-                assignedVillages: isSuper ? ['समोड़ी (Samodi)', 'कोटड़ी (Kotdi)'] : ['समोड़ी (Samodi)'],
+                status: isSuper ? 'active' : 'pending',
+                assignmentStatus: isSuper ? 'Assigned' : 'Unassigned',
+                assignedVillages: isSuper ? ['समोड़ी (Samodi)', 'कोटड़ी (Kotdi)'] : [],
+                assignedVillageIds: isSuper ? ['samodi', 'kotdi'] : [],
                 createdAt: new Date().toISOString()
               };
               setDoc(userDocRef, newProf).catch(console.error);
@@ -76,7 +96,6 @@ export function AuthProvider({ children }) {
             }
           }, (err) => {
             console.log('User snapshot notice:', err.message);
-            // Fallback for offline
             setUserProfile({
               uid: user.uid,
               email: user.email,
@@ -91,7 +110,7 @@ export function AuthProvider({ children }) {
         setCurrentUser(null);
         setUserProfile(null);
         setUserRole('surveyor');
-        setAssignedVillages(['समोड़ी (Samodi)']);
+        setAssignedVillages([]);
       }
       setLoading(false);
     });
@@ -102,6 +121,22 @@ export function AuthProvider({ children }) {
     };
   }, []);
 
+  // Listen to all users for Admin
+  useEffect(() => {
+    if (!isAdmin) {
+      setAllUsers([]);
+      return;
+    }
+    const unsub = onSnapshot(collection(db, 'users'), (snap) => {
+      const uList = [];
+      snap.forEach((d) => uList.push({ ...d.data(), uid: d.id }));
+      setAllUsers(uList);
+    }, (err) => {
+      console.log('AllUsers snapshot note:', err.message);
+    });
+    return () => unsub();
+  }, [isAdmin]);
+
   // Login
   const login = async (email, password) => {
     setAuthError('');
@@ -111,36 +146,41 @@ export function AuthProvider({ children }) {
     } catch (err) {
       let msg = err.message;
       if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password') {
-        msg = 'Invalid email or password.';
+        msg = 'अमान्य ईमेल या पासवर्ड। कृपया पुनः प्रयास करें।';
       } else if (err.code === 'auth/user-not-found') {
-        msg = 'No user account found with this email.';
+        msg = 'इस ईमेल से कोई खाता नहीं मिला। कृपया पहले साइन अप करें।';
       } else if (err.code === 'auth/invalid-email') {
-        msg = 'Please enter a valid email address.';
+        msg = 'कृपया मान्य ईमेल आईडी दर्ज करें।';
       }
       setAuthError(msg);
       throw new Error(msg);
     }
   };
 
-  // Register
-  const register = async (email, password, displayName, selectedVillage = 'समोड़ी (Samodi)') => {
+  // Register - creates unassigned surveyor requiring admin approval
+  const register = async (email, password, displayName, mobileNumber = '') => {
     setAuthError('');
     try {
       const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
       if (displayName) {
         await updateProfile(cred.user, { displayName });
       }
-      // Create user doc
+      // Create user doc in Firestore matching web schema
       const userRef = doc(db, 'users', cred.user.uid);
-      await setDoc(userRef, {
+      const newProfile = {
         uid: cred.user.uid,
         email: cred.user.email,
-        name: displayName || cred.user.email?.split('@')[0],
+        name: displayName || cred.user.email?.split('@')[0] || 'Surveyor',
+        mobile: mobileNumber || '',
         role: 'surveyor',
-        status: 'active',
-        assignedVillages: [selectedVillage],
+        status: 'pending', // Requires admin approval
+        assignmentStatus: 'Unassigned', // Requires admin village assignment
+        assignedVillages: [],
+        assignedVillageIds: [],
+        assignedVillageId: null,
         createdAt: new Date().toISOString()
-      });
+      };
+      await setDoc(userRef, newProfile);
       return cred.user;
     } catch (err) {
       setAuthError(err.message);
@@ -148,37 +188,89 @@ export function AuthProvider({ children }) {
     }
   };
 
-  // Demo Login (Shortcut for testing)
-  const loginDemoAdmin = () => {
-    setCurrentUser({
-      uid: SUPER_ADMIN_UID,
-      email: 'admin@villagepulse.gov.in',
-      displayName: 'Super Administrator'
-    });
-    setUserRole('admin');
-    setUserProfile({
-      uid: SUPER_ADMIN_UID,
-      name: 'Super Administrator',
-      role: 'admin',
-      email: 'admin@villagepulse.gov.in'
-    });
-    setAssignedVillages(['समोड़ी (Samodi)', 'कोटड़ी (Kotdi)']);
+  // Password Reset Email
+  const sendPasswordReset = async (email) => {
+    setAuthError('');
+    try {
+      await sendPasswordResetEmail(auth, email.trim());
+      return { success: true };
+    } catch (err) {
+      let msg = err.message;
+      if (err.code === 'auth/user-not-found') {
+        msg = 'इस ईमेल से कोई खाता पंजीकृत नहीं है।';
+      } else if (err.code === 'auth/invalid-email') {
+        msg = 'कृपया सही ईमेल दर्ज करें।';
+      }
+      setAuthError(msg);
+      throw new Error(msg);
+    }
   };
 
-  const loginDemoSurveyor = () => {
-    setCurrentUser({
-      uid: 'demo-surveyor-101',
-      email: 'surveyor.samodi@villagepulse.gov.in',
-      displayName: 'Field Surveyor'
-    });
-    setUserRole('surveyor');
-    setUserProfile({
-      uid: 'demo-surveyor-101',
-      name: 'Field Surveyor',
-      role: 'surveyor',
-      email: 'surveyor.samodi@villagepulse.gov.in'
-    });
-    setAssignedVillages(['समोड़ी (Samodi)']);
+  // Admin Actions: Approve Surveyor
+  const approveUser = async (uid) => {
+    try {
+      const userRef = doc(db, 'users', uid);
+      await updateDoc(userRef, {
+        status: 'active',
+        approvedAt: new Date().toISOString(),
+        approvedBy: currentUser?.uid || ''
+      });
+      return true;
+    } catch (err) {
+      console.error('Approve user error:', err);
+      throw err;
+    }
+  };
+
+  // Admin Actions: Assign Village to Surveyor
+  const assignVillageToUser = async (uid, villageName, villageId) => {
+    try {
+      const vId = villageId || (String(villageName).toLowerCase().includes('kotdi') || String(villageName).includes('कोट') ? 'kotdi' : 'samodi');
+      const vName = villageName || (vId === 'kotdi' ? 'कोटड़ी (Kotdi)' : 'समोड़ी (Samodi)');
+      
+      const userRef = doc(db, 'users', uid);
+      await updateDoc(userRef, {
+        assignedVillages: [vName],
+        assignedVillageIds: [vId],
+        assignedVillageId: vId,
+        assignmentStatus: 'Assigned',
+        status: 'active',
+        assignedAt: new Date().toISOString(),
+        assignedBy: currentUser?.uid || ''
+      });
+      return true;
+    } catch (err) {
+      console.error('Assign village error:', err);
+      throw err;
+    }
+  };
+
+  // Admin Actions: Toggle User Active/Inactive
+  const toggleUserStatus = async (uid, currentStatus) => {
+    try {
+      const nextStatus = currentStatus === 'active' ? 'inactive' : 'active';
+      const userRef = doc(db, 'users', uid);
+      await updateDoc(userRef, {
+        status: nextStatus,
+        updatedAt: new Date().toISOString()
+      });
+      return nextStatus;
+    } catch (err) {
+      console.error('Toggle status error:', err);
+      throw err;
+    }
+  };
+
+  // Admin Actions: Delete User Profile
+  const deleteUser = async (uid) => {
+    try {
+      const userRef = doc(db, 'users', uid);
+      await deleteDoc(userRef);
+      return true;
+    } catch (err) {
+      console.error('Delete user error:', err);
+      throw err;
+    }
   };
 
   // Sign out
@@ -190,6 +282,7 @@ export function AuthProvider({ children }) {
       setCurrentUser(null);
       setUserProfile(null);
       setUserRole('surveyor');
+      setAssignedVillages([]);
     } catch (err) {
       console.log('Logout notice:', err);
       setCurrentUser(null);
@@ -203,13 +296,20 @@ export function AuthProvider({ children }) {
         userProfile,
         userRole,
         isAdmin,
+        isPending,
+        isInactive,
+        isUnassigned,
         assignedVillages,
+        allUsers,
         loading,
         authError,
         login,
         register,
-        loginDemoAdmin,
-        loginDemoSurveyor,
+        sendPasswordReset,
+        approveUser,
+        assignVillageToUser,
+        toggleUserStatus,
+        deleteUser,
         logout
       }}
     >

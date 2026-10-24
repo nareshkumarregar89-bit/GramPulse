@@ -228,6 +228,19 @@ export function FamilyProfile() {
                 <ProfileItem label="Marital Status" value={member.maritalStatus} />
                 <ProfileItem label="Aadhaar" value={member.aadhaarNumber} className="md:col-span-2" />
                 <ProfileItem label="Occupation" value={member.occupation} className="md:col-span-2" />
+                {member.mobile ? (
+                  <div className="col-span-2 md:col-span-4 flex items-center justify-between px-3 py-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 mt-1">
+                    <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                      {language === 'hi' ? 'सदस्य मोबाइल:' : 'Member Mobile:'} <span className="font-bold text-emerald-700 dark:text-emerald-300">{member.mobile}</span>
+                    </span>
+                    <a 
+                      href={`tel:${member.mobile}`} 
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-xs"
+                    >
+                      <span>{language === 'hi' ? 'कॉल करें' : 'Call'}</span>
+                    </a>
+                  </div>
+                ) : null}
               </div>
             </div>
           ))}
