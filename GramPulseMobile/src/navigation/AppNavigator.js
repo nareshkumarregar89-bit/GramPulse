@@ -13,6 +13,8 @@ import { SearchScreen } from '../screens/search/SearchScreen';
 import { NewSurveyScreen } from '../screens/survey/NewSurveyScreen';
 import { DataPrintScreen } from '../screens/print/DataPrintScreen';
 import { AdminUserManagementScreen } from '../screens/admin/AdminUserManagementScreen';
+import { QrScannerScreen } from '../screens/qr/QrScannerScreen';
+import { DeletedRecordsScreen } from '../screens/admin/DeletedRecordsScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -61,6 +63,16 @@ export function AppNavigator() {
           <Stack.Screen
             name="AdminUserManagement"
             component={AdminUserManagementScreen}
+            options={{ animation: 'slide_from_right' }}
+          />
+          <Stack.Screen
+            name="QrScanner"
+            component={QrScannerScreen}
+            options={{ animation: 'fade_from_bottom' }}
+          />
+          <Stack.Screen
+            name="DeletedRecords"
+            component={DeletedRecordsScreen}
             options={{ animation: 'slide_from_right' }}
           />
         </>

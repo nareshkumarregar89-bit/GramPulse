@@ -13,7 +13,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { initialFamilies } from '../constants/initialData';
-import { initialVillages, villagesList, resolveVillageId } from '../constants/villages';
+import { initialVillages, villagesList, resolveVillageId, getCleanUniqueAssignedVillages } from '../constants/villages';
 import { castes as casteList } from '../constants/castes';
 import { mohallas as mohallaList } from '../constants/mohallas';
 import { useAuth } from './AuthContext';
@@ -22,11 +22,36 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const DataContext = createContext();
 
 const STORAGE_KEY_FAMILIES = '@villagepulse_families';
+const STORAGE_KEY_DELETED = '@villagepulse_deleted_families';
 const STORAGE_KEY_VILLAGE = '@villagepulse_selected_village';
 
 export function DataProvider({ children }) {
-  const { currentUser, isAdmin, assignedVillages, loading: authLoading } = useAuth();
-  const [families, setFamilies] = useState(initialFamilies);
+  const { 
+    currentUser, 
+    userProfile, 
+    isAdmin, 
+    isPending, 
+    isUnassigned, 
+    assignedVillages, 
+    loading: authLoading 
+  } = useAuth();
+
+  const cleanAssignedVillages = useMemo(() => {
+    return getCleanUniqueAssignedVillages(userProfile?.assignedVillages || assignedVillages);
+  }, [userProfile?.assignedVillages, assignedVillages]);
+
+  const hasAccess = useMemo(() => {
+    if (!currentUser) return false;
+    if (isAdmin) return true;
+    if (isPending) return false;
+    if (userProfile?.status === 'pending' || userProfile?.status === 'inactive') return false;
+    if (cleanAssignedVillages.length === 0) return false;
+    return true;
+  }, [currentUser, isAdmin, isPending, userProfile?.status, cleanAssignedVillages]);
+
+  // Initial state is empty for unassigned/pending, only initialized when authorized
+  const [families, setFamilies] = useState([]);
+  const [deletedFamilies, setDeletedFamilies] = useState([]);
   const [selectedVillage, setSelectedVillage] = useState('समोड़ी (Samodi)');
   const [villages] = useState(initialVillages);
   const [castes] = useState(casteList);
@@ -35,20 +60,38 @@ export function DataProvider({ children }) {
   const [isOnline, setIsOnline] = useState(false);
   const [syncStatus, setSyncStatus] = useState('Connecting...');
 
-  // Load cached village & families from AsyncStorage, auto-upgrading if fewer than baseline
+  // Auto-set selected village to surveyor's assigned village on login
+  useEffect(() => {
+    if (!isAdmin && cleanAssignedVillages.length > 0) {
+      setSelectedVillage(cleanAssignedVillages[0]);
+    }
+  }, [isAdmin, cleanAssignedVillages]);
+
+  // Load cached village & families from AsyncStorage (only if authorized)
   useEffect(() => {
     async function loadCache() {
       try {
         const cachedVillage = await AsyncStorage.getItem(STORAGE_KEY_VILLAGE);
         if (cachedVillage) setSelectedVillage(cachedVillage);
 
+        if (!hasAccess && !isAdmin) {
+          setFamilies([]);
+          setLoading(false);
+          return;
+        }
+
         const cachedFamilies = await AsyncStorage.getItem(STORAGE_KEY_FAMILIES);
+        const cachedDeleted = await AsyncStorage.getItem(STORAGE_KEY_DELETED);
+        if (cachedDeleted) {
+          try {
+            setDeletedFamilies(JSON.parse(cachedDeleted) || []);
+          } catch (e) {}
+        }
         if (cachedFamilies) {
           const parsed = JSON.parse(cachedFamilies);
           if (Array.isArray(parsed) && parsed.length >= initialFamilies.length) {
             setFamilies(parsed);
           } else {
-            // Auto-upgrade stale/partial cache with full baseline dataset
             const map = new Map();
             initialFamilies.forEach((f) => map.set(f.id, f));
             (parsed || []).forEach((f) => map.set(f.id, f));
@@ -65,7 +108,34 @@ export function DataProvider({ children }) {
       }
     }
     loadCache();
-  }, []);
+  }, [hasAccess, isAdmin]);
+
+  // Listen to Firestore 'deletedFamilies' for Admins (Recycle Bin)
+  useEffect(() => {
+    if (!currentUser || !isAdmin) {
+      setDeletedFamilies([]);
+      return;
+    }
+
+    try {
+      const qDel = collection(db, 'deletedFamilies');
+      const unsubDel = onSnapshot(
+        qDel,
+        (snapshot) => {
+          const list = [];
+          snapshot.forEach((d) => list.push({ id: d.id, ...d.data() }));
+          setDeletedFamilies(list);
+          AsyncStorage.setItem(STORAGE_KEY_DELETED, JSON.stringify(list)).catch(() => {});
+        },
+        (err) => {
+          console.log('Deleted families listener notice:', err.message);
+        }
+      );
+      return () => unsubDel();
+    } catch (e) {
+      console.log('Error setting up deletedFamilies listener:', e);
+    }
+  }, [currentUser, isAdmin]);
 
   // Listen to Firestore 'families' in real-time when user is authenticated
   useEffect(() => {
@@ -80,6 +150,19 @@ export function DataProvider({ children }) {
       setLoading(false);
       setIsOnline(false);
       setSyncStatus('Offline (Not Logged In)');
+      return;
+    }
+
+    // Strict security: Unassigned or pending surveyors CANNOT query or view census data
+    if (!hasAccess) {
+      setFamilies([]);
+      setLoading(false);
+      setIsOnline(true);
+      setSyncStatus(
+        isPending
+          ? 'Approval Pending (स्वीकृति प्रतीक्षित)'
+          : 'Village Allocation Pending (गाँव आवंटन प्रतीक्षित)'
+      );
       return;
     }
 
@@ -248,18 +331,39 @@ export function DataProvider({ children }) {
     AsyncStorage.setItem(STORAGE_KEY_VILLAGE, villageName).catch(() => {});
   };
 
-  // Filtered families based on selected village & user permissions
   const filteredFamilies = useMemo(() => {
+    if (!hasAccess) return [];
+
     return families.filter((f) => {
+      // Surveyor: enforce assigned villages
+      if (!isAdmin) {
+        const famVillage = f.village || f.villageId || '';
+        const famId = resolveVillageId(famVillage);
+        const inAssigned = cleanAssignedVillages.some((av) => resolveVillageId(av) === famId);
+        if (!inAssigned) return false;
+      }
+
       if (!selectedVillage || selectedVillage === 'All' || selectedVillage.includes('All')) return true;
       const targetId = resolveVillageId(selectedVillage);
       const famId = resolveVillageId(f.villageId || f.village);
       return famId === targetId;
     });
-  }, [families, selectedVillage]);
+  }, [families, selectedVillage, hasAccess, isAdmin, cleanAssignedVillages]);
 
   // Key performance indicators (KPIs)
   const stats = useMemo(() => {
+    if (!hasAccess) {
+      return {
+        totalFamilies: 0,
+        totalPopulation: 0,
+        maleCount: 0,
+        femaleCount: 0,
+        bplCount: 0,
+        casteMap: {},
+        mohallaMap: {}
+      };
+    }
+
     const totalFamilies = filteredFamilies.length;
     let totalPopulation = 0;
     let maleCount = 0;
@@ -305,7 +409,7 @@ export function DataProvider({ children }) {
       casteMap,
       mohallaMap
     };
-  }, [filteredFamilies]);
+  }, [filteredFamilies, hasAccess]);
 
   // Add Family Survey
   const addFamily = async (familyData) => {
@@ -358,14 +462,76 @@ export function DataProvider({ children }) {
     }
   };
 
-  // Delete Family Record
+  // Soft Delete Family Record (Move to Deleted Records / Recycle Bin)
   const deleteFamily = async (id) => {
+    const target = families.find((f) => f.id === id);
+    if (!target) return;
+
+    const deletedRecord = {
+      ...target,
+      deletedAt: new Date().toISOString(),
+      deletedBy: currentUser?.displayName || currentUser?.email || 'Field Surveyor',
+      isDeleted: true,
+    };
+
+    // Update local states immediately
     setFamilies((prev) => prev.filter((f) => f.id !== id));
+    setDeletedFamilies((prev) => [deletedRecord, ...prev.filter((f) => f.id !== id)]);
+
     try {
+      // 1. Write to deletedFamilies collection
+      const delDocRef = doc(db, 'deletedFamilies', id);
+      await setDoc(delDocRef, deletedRecord);
+
+      // 2. Remove from active families collection
       const docRef = doc(db, 'families', id);
       await deleteDoc(docRef);
+
+      // Update storage
+      await AsyncStorage.setItem(STORAGE_KEY_FAMILIES, JSON.stringify(families.filter((f) => f.id !== id)));
     } catch (err) {
-      console.log('Deleted locally:', err.message);
+      console.log('Soft delete notice:', err.message);
+    }
+  };
+
+  // Restore Family Record from Recycle Bin
+  const restoreFamily = async (id) => {
+    const target = deletedFamilies.find((f) => f.id === id);
+    if (!target) return;
+
+    const { deletedAt, deletedBy, isDeleted, ...cleanRecord } = target;
+    const restoredRecord = {
+      ...cleanRecord,
+      restoredAt: new Date().toISOString(),
+      restoredBy: currentUser?.displayName || currentUser?.email || 'Admin',
+      updatedAt: new Date().toISOString(),
+    };
+
+    // Update local states immediately
+    setDeletedFamilies((prev) => prev.filter((f) => f.id !== id));
+    setFamilies((prev) => [restoredRecord, ...prev]);
+
+    try {
+      // 1. Write back to active families collection
+      const docRef = doc(db, 'families', id);
+      await setDoc(docRef, restoredRecord);
+
+      // 2. Remove from deletedFamilies collection
+      const delDocRef = doc(db, 'deletedFamilies', id);
+      await deleteDoc(delDocRef);
+    } catch (err) {
+      console.log('Restore error:', err.message);
+    }
+  };
+
+  // Permanently Delete Record
+  const permanentlyDeleteFamily = async (id) => {
+    setDeletedFamilies((prev) => prev.filter((f) => f.id !== id));
+    try {
+      const delDocRef = doc(db, 'deletedFamilies', id);
+      await deleteDoc(delDocRef);
+    } catch (err) {
+      console.log('Permanent delete error:', err.message);
     }
   };
 
@@ -388,12 +554,17 @@ export function DataProvider({ children }) {
         loading,
         isOnline,
         syncStatus,
+        hasAccess,
+        cleanAssignedVillages,
         refreshData,
         syncData: refreshData,
         changeSelectedVillage,
         addFamily,
         updateFamily,
         deleteFamily,
+        deletedFamilies,
+        restoreFamily,
+        permanentlyDeleteFamily,
         getFamilyById,
       }}
     >

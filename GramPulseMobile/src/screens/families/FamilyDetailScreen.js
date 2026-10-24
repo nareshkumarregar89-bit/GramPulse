@@ -18,11 +18,15 @@ import {
 import { COLORS, SHADOWS, SIZES } from '../../constants/theme';
 import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTheme } from '../../contexts/ThemeContext';
+import { FamilyIdCardModal } from '../../components/FamilyIdCardModal';
 
 export function FamilyDetailScreen({ route, navigation }) {
   const { id } = route.params || {};
   const { getFamilyById, deleteFamily } = useData();
   const { isAdmin } = useAuth();
+  const { colors, isDarkMode } = useTheme();
+  const [idCardModalVisible, setIdCardModalVisible] = React.useState(false);
 
   const family = getFamilyById(id);
 
@@ -60,12 +64,12 @@ export function FamilyDetailScreen({ route, navigation }) {
 
   const handleDelete = () => {
     Alert.alert(
-      'Delete Family Record',
-      `Are you sure you want to permanently delete record ${family.id}? This action cannot be undone.`,
+      'रिकॉर्ड रीसायकल बिन में भेजें (Soft Delete)',
+      `क्या आप परिवार ${family.id} का रिकॉर्ड रीसायकल बिन (Deleted Records) में भेजना चाहते हैं?\n\nआप इसे एडमिन पैनल से बाद में कभी भी पुनर्स्थापित (Restore) कर सकते हैं।`,
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: 'रद्द करें', style: 'cancel' },
         {
-          text: 'Delete',
+          text: 'रीसायकल बिन में भेजें',
           style: 'destructive',
           onPress: async () => {
             await deleteFamily(family.id);
@@ -85,6 +89,13 @@ export function FamilyDetailScreen({ route, navigation }) {
         </TouchableOpacity>
         <Text style={styles.appBarTitle}>Family Dossier</Text>
         <View style={styles.appBarActions}>
+          <TouchableOpacity
+            style={styles.iconBtn}
+            onPress={() => setIdCardModalVisible(true)}
+            accessibilityLabel="Digital ID Card"
+          >
+            <MaterialCommunityIcons name="qrcode" size={20} color={COLORS.surface} />
+          </TouchableOpacity>
           <TouchableOpacity
             style={styles.iconBtn}
             onPress={() => navigation.navigate('DataPrint', { familyId: family.id })}
@@ -162,6 +173,18 @@ export function FamilyDetailScreen({ route, navigation }) {
               <Text style={styles.callActionBarText}>Call {family.mobile}</Text>
             </TouchableOpacity>
           )}
+
+          {/* Digital Family ID Card with QR Action */}
+          <TouchableOpacity
+            style={[styles.idCardActionBtn, { backgroundColor: isDarkMode ? '#064E3B' : colors.primaryLight }]}
+            onPress={() => setIdCardModalVisible(true)}
+            activeOpacity={0.8}
+          >
+            <MaterialCommunityIcons name="badge-account-horizontal" size={20} color={isDarkMode ? '#34D399' : colors.primaryDark} />
+            <Text style={[styles.idCardActionText, { color: isDarkMode ? '#34D399' : colors.primaryDark }]}>
+              डिजिटल पहचान पत्र व QR कोड (Digital ID Card)
+            </Text>
+          </TouchableOpacity>
 
           {/* Print Dossier Quick Action */}
           <TouchableOpacity
@@ -375,6 +398,13 @@ export function FamilyDetailScreen({ route, navigation }) {
           </TouchableOpacity>
         )}
       </ScrollView>
+
+      {/* Digital Family ID Card Modal */}
+      <FamilyIdCardModal
+        visible={idCardModalVisible}
+        onClose={() => setIdCardModalVisible(false)}
+        family={family}
+      />
     </View>
   );
 }
@@ -540,6 +570,19 @@ const styles = StyleSheet.create({
     borderRadius: SIZES.radiusMd,
     marginTop: 10,
     gap: 8,
+  },
+  idCardActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: SIZES.radiusMd,
+    marginTop: 12,
+    gap: 8,
+  },
+  idCardActionText: {
+    fontSize: 14,
+    fontWeight: '700',
   },
   printActionBarText: {
     color: COLORS.primary,

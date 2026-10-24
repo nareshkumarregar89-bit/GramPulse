@@ -37,3 +37,21 @@ export const getVillageDisplayName = (vId) => {
   const norm = resolveVillageId(vId);
   return norm === 'kotdi' ? 'कोटड़ी (Kotdi)' : 'समोड़ी (Samodi)';
 };
+
+export const getCleanUniqueAssignedVillages = (assignedVillages) => {
+  if (!assignedVillages || !Array.isArray(assignedVillages) || assignedVillages.length === 0) {
+    return [];
+  }
+  const uniqueIds = new Set();
+  assignedVillages.forEach((v) => {
+    if (v && typeof v === 'string') {
+      const lower = v.toLowerCase();
+      if (lower.includes('kotdi') || v.includes('कोट')) {
+        uniqueIds.add('kotdi');
+      } else if (lower.includes('samodi') || v.includes('समो') || v.includes('समौ')) {
+        uniqueIds.add('samodi');
+      }
+    }
+  });
+  return Array.from(uniqueIds).map((id) => getVillageDisplayName(id));
+};

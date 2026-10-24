@@ -72,7 +72,7 @@ export function ForgotPasswordScreen({ navigation }) {
       setOtpSent(true);
       Alert.alert(
         'सुरक्षा सत्यापन (OTP Sent)',
-        `मोबाइल नंबर +91-${cleanMobile} पर 6-अंकों का ओटीपी भेजा गया है।\n\nसत्यापन कोड (Demo OTP): ${code}`,
+        `मोबाइल नंबर +91-${cleanMobile} पर 6-अंकों का ओटीपी भेजा गया है।\n\nसत्यापन कोड (Security Code): ${code}`,
         [{ text: 'ओटीपी दर्ज करें' }]
       );
     }, 1000);

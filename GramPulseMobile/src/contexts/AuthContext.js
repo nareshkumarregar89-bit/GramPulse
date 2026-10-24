@@ -225,10 +225,41 @@ export function AuthProvider({ children }) {
   // Admin Actions: Assign Village to Surveyor
   const assignVillageToUser = async (uid, villageName, villageId) => {
     try {
-      const vId = villageId || (String(villageName).toLowerCase().includes('kotdi') || String(villageName).includes('कोट') ? 'kotdi' : 'samodi');
-      const vName = villageName || (vId === 'kotdi' ? 'कोटड़ी (Kotdi)' : 'समोड़ी (Samodi)');
-      
       const userRef = doc(db, 'users', uid);
+      
+      // Clear / Unassign
+      if (!villageName || villageName === 'unassign' || villageName === 'none') {
+        await updateDoc(userRef, {
+          assignedVillages: [],
+          assignedVillageIds: [],
+          assignedVillageId: null,
+          assignmentStatus: 'Unassigned',
+          status: 'pending',
+          updatedAt: new Date().toISOString(),
+          assignedBy: currentUser?.uid || ''
+        });
+        return true;
+      }
+
+      // All Villages
+      const lower = String(villageName).toLowerCase();
+      if (lower === 'all' || lower.includes('सभी') || villageName === 'सभी गाँव (All Access)') {
+        await updateDoc(userRef, {
+          assignedVillages: ['समोड़ी (Samodi)', 'कोटड़ी (Kotdi)'],
+          assignedVillageIds: ['samodi', 'kotdi'],
+          assignedVillageId: 'all',
+          assignmentStatus: 'Assigned',
+          status: 'active',
+          assignedAt: new Date().toISOString(),
+          assignedBy: currentUser?.uid || ''
+        });
+        return true;
+      }
+
+      // Single Village
+      const vId = villageId || (lower.includes('kotdi') || villageName.includes('कोट') ? 'kotdi' : 'samodi');
+      const vName = vId === 'kotdi' ? 'कोटड़ी (Kotdi)' : 'समोड़ी (Samodi)';
+      
       await updateDoc(userRef, {
         assignedVillages: [vName],
         assignedVillageIds: [vId],

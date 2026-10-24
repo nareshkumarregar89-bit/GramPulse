@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,9 +8,10 @@ import {
   TextInput,
   ActivityIndicator,
   Alert,
-  Platform
+  Platform,
+  Image
 } from 'react-native';
-import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { COLORS, SHADOWS, SIZES } from '../../constants/theme';
 import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -27,9 +28,11 @@ export function DataPrintScreen({ navigation, route }) {
   const [selectedCaste, setSelectedCaste] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [printFormat, setPrintFormat] = useState('dossier'); // 'dossier' | 'table'
+  const [viewMode, setViewMode] = useState('select'); // 'select' | 'preview'
   const [isGenerating, setIsGenerating] = useState(false);
+  const [selectedIds, setSelectedIds] = useState(new Set());
 
-  // Filtered families for print
+  // Filtered families matching the filter criteria
   const printableFamilies = useMemo(() => {
     if (initialFamilyId) {
       return families.filter((f) => String(f.id) === String(initialFamilyId));
@@ -70,10 +73,38 @@ export function DataPrintScreen({ navigation, route }) {
     });
   }, [families, selectedVillage, selectedMohalla, selectedCaste, searchQuery, initialFamilyId]);
 
-  // Total population in printable subset
-  const totalPopulation = useMemo(() => {
-    return printableFamilies.reduce((acc, f) => acc + (f.members?.length || 1), 0);
+  // Sync selectedIds with printable families by default
+  useEffect(() => {
+    setSelectedIds(new Set(printableFamilies.map((f) => f.id)));
   }, [printableFamilies]);
+
+  // Actual families that will be included in the print / PDF
+  const familiesToPrint = useMemo(() => {
+    return printableFamilies.filter((f) => selectedIds.has(f.id));
+  }, [printableFamilies, selectedIds]);
+
+  // Total population for selected subset
+  const totalPopulationToPrint = useMemo(() => {
+    return familiesToPrint.reduce((acc, f) => acc + (f.members?.length || 1), 0);
+  }, [familiesToPrint]);
+
+  // Selection Toggles
+  const toggleSelectFamily = (id) => {
+    setSelectedIds((prev) => {
+      const copy = new Set(prev);
+      if (copy.has(id)) copy.delete(id);
+      else copy.add(id);
+      return copy;
+    });
+  };
+
+  const selectAll = () => {
+    setSelectedIds(new Set(printableFamilies.map((f) => f.id)));
+  };
+
+  const deselectAll = () => {
+    setSelectedIds(new Set());
+  };
 
   // Generate HTML for Print / PDF Export
   const generatePrintHTML = () => {
@@ -88,9 +119,8 @@ export function DataPrintScreen({ navigation, route }) {
 
     if (printFormat === 'table') {
       // Summary Table Roster
-      const tableRows = printableFamilies
+      const tableRows = familiesToPrint
         .map((f, idx) => {
-          const membersList = (f.members || []).map((m) => `${m.nameHindi || m.name || ''} (${m.relation || ''})`).join(', ');
           return `
             <tr>
               <td style="border: 1px solid #333; padding: 6px; text-align: center; font-weight: bold;">${idx + 1}</td>
@@ -118,38 +148,39 @@ export function DataPrintScreen({ navigation, route }) {
           <meta charset="utf-8">
           <title>VillagePulse - Survey Table Roster</title>
           <style>
-            body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; margin: 20px; color: #111; }
-            .header { text-align: center; border-bottom: 2px solid #166534; padding-bottom: 12px; margin-bottom: 16px; }
-            .header h1 { margin: 0; color: #166534; font-size: 22px; }
-            .header h2 { margin: 4px 0; font-size: 14px; color: #444; }
-            .meta { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 12px; }
+            body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; margin: 16px; color: #111; }
+            .header { text-align: center; border-bottom: 2px solid #166534; padding-bottom: 8px; margin-bottom: 12px; }
+            .header h1 { margin: 0; color: #166534; font-size: 18px; }
+            .header h2 { margin: 3px 0; font-size: 12px; color: #4b5563; }
+            .meta-bar { display: flex; justify-content: space-between; font-size: 11px; color: #6b7280; margin-bottom: 10px; }
             table { width: 100%; border-collapse: collapse; font-size: 11px; }
-            th { background-color: #f0fdf4; border: 1px solid #333; padding: 6px; font-weight: bold; }
-            .footer { margin-top: 24px; display: flex; justify-content: space-between; font-size: 11px; border-top: 1px solid #ddd; padding-top: 12px; }
+            th { background-color: #166534; color: #ffffff; border: 1px solid #333; padding: 6px 4px; text-align: left; }
+            tr:nth-child(even) { background-color: #f9fafb; }
+            .footer { margin-top: 16px; text-align: right; font-size: 10px; color: #6b7280; border-top: 1px solid #ddd; padding-top: 6px; }
           </style>
         </head>
         <body>
           <div class="header">
-            <h1>ग्राम पंचायत परिवार सर्वेक्षण तालिका (VillagePulse Roster)</h1>
-            <h2>Government of Rajasthan • Rural Digital Census Dossier</h2>
+            <h1>ग्राम पंचायत डिजिटल सर्वेक्षण रोस्टर (Village Census Roster)</h1>
+            <h2>राजस्थान सरकार • ग्राम स्तर जनगणना विवरण • VillagePulse Official</h2>
           </div>
-          <div class="meta">
-            <div><strong>गाँव:</strong> ${selectedVillage} | <strong>कुल परिवार:</strong> ${printableFamilies.length} | <strong>कुल जनसंख्या:</strong> ${totalPopulation}</div>
-            <div><strong>प्रिंट दिनांक:</strong> ${printedAt}</div>
+          <div class="meta-bar">
+            <span><strong>चयनित परिवार:</strong> ${familiesToPrint.length} | <strong>कुल जनसंख्या:</strong> ${totalPopulationToPrint}</span>
+            <span><strong>सर्वेक्षक:</strong> ${surveyorName} | <strong>दिनांक:</strong> ${printedAt}</span>
           </div>
           <table>
             <thead>
               <tr>
-                <th style="width: 25px;">#</th>
-                <th style="width: 70px;">ID</th>
+                <th style="text-align: center; width: 30px;">क्र.</th>
+                <th style="width: 70px;">आईडी</th>
                 <th>मुखिया का नाम</th>
                 <th>पिता/पति</th>
                 <th>गाँव</th>
                 <th>मोहल्ला</th>
                 <th>जाति</th>
-                <th>श्रेणी</th>
+                <th style="text-align: center;">श्रेणी</th>
                 <th>मोबाइल</th>
-                <th style="width: 35px;">सदस्य</th>
+                <th style="text-align: center;">सदस्य</th>
               </tr>
             </thead>
             <tbody>
@@ -157,86 +188,73 @@ export function DataPrintScreen({ navigation, route }) {
             </tbody>
           </table>
           <div class="footer">
-            <div>प्रमाणित किया जाता है कि उपरोक्त डेटा अधिकृत पंचायत सर्वेक्षण रिकॉर्ड से संकलित है।</div>
-            <div><strong>हस्ताक्षर अधिकृत सर्वेक्षक:</strong> ${surveyorName}</div>
+            Generated via VillagePulse Panchayat Intelligence System • Digital Records
           </div>
         </body>
         </html>
       `;
     }
 
-    // Detailed Individual Dossier Cards
-    const dossierCards = printableFamilies
+    // Full Detailed Dossier Format
+    const dossierCards = familiesToPrint
       .map((f, idx) => {
         const membersRows = (f.members || [])
           .map((m, mIdx) => `
             <tr>
-              <td style="border: 1px solid #444; padding: 4px; text-align: center;">${mIdx + 1}</td>
-              <td style="border: 1px solid #444; padding: 4px; font-weight: bold;">
-                ${m.nameHindi || m.nameEnglish || m.name || '-'}
-                ${m.nameEnglish && m.nameHindi ? `<span style="font-size: 9px; color: #555;"> (${m.nameEnglish})</span>` : ''}
-              </td>
-              <td style="border: 1px solid #444; padding: 4px;">${m.relation || '-'}</td>
-              <td style="border: 1px solid #444; padding: 4px; text-align: center;">${m.age || '-'}</td>
-              <td style="border: 1px solid #444; padding: 4px; text-align: center;">${m.gender || '-'}</td>
-              <td style="border: 1px solid #444; padding: 4px;">${m.education || '-'}</td>
-              <td style="border: 1px solid #444; padding: 4px;">${m.occupation || '-'}</td>
-              <td style="border: 1px solid #444; padding: 4px; font-family: monospace;">${m.mobile || '-'}</td>
-              <td style="border: 1px solid #444; padding: 4px; font-family: monospace;">${m.aadhaarNumber || '-'}</td>
+              <td style="border: 1px solid #ddd; padding: 4px; text-align: center;">${mIdx + 1}</td>
+              <td style="border: 1px solid #ddd; padding: 4px; font-weight: 600;">${m.nameHindi || m.name || m.nameEnglish || '-'}</td>
+              <td style="border: 1px solid #ddd; padding: 4px;">${m.relation || '-'}</td>
+              <td style="border: 1px solid #ddd; padding: 4px; text-align: center;">${m.age || '-'}</td>
+              <td style="border: 1px solid #ddd; padding: 4px; text-align: center;">${m.gender || '-'}</td>
+              <td style="border: 1px solid #ddd; padding: 4px;">${m.mobile || '-'}</td>
+              <td style="border: 1px solid #ddd; padding: 4px;">${m.education || '-'}</td>
+              <td style="border: 1px solid #ddd; padding: 4px;">${m.occupation || '-'}</td>
             </tr>
           `)
           .join('');
 
         return `
-          <div style="border: 2px solid #166534; border-radius: 8px; padding: 14px; margin-bottom: 24px; page-break-inside: avoid; background-color: #fff;">
-            <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 10px;">
+          <div style="page-break-inside: avoid; border: 1.5px solid #166534; border-radius: 8px; padding: 12px; margin-bottom: 16px; background-color: #ffffff;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1.5px solid #e2e8f0; padding-bottom: 6px; margin-bottom: 8px;">
               <div>
-                <span style="background-color: #166534; color: #fff; padding: 3px 8px; border-radius: 4px; font-size: 12px; font-weight: bold;">
-                  ${f.id}
-                </span>
-                <span style="font-size: 16px; font-weight: bold; margin-left: 8px; color: #111;">
-                  ${f.familyHeadNameHindi || f.familyHeadName || ''}
-                </span>
-                <span style="font-size: 13px; color: #555;">
-                  (${f.familyHeadNameEnglish || ''})
-                </span>
+                <span style="background-color: #166534; color: white; padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 11px;">#${idx + 1} • ${f.id}</span>
+                <span style="background-color: #f1f5f9; color: #334155; padding: 2px 8px; border-radius: 4px; font-size: 11px; margin-left: 6px;">गाँव: ${f.village || ''}</span>
               </div>
-              <div style="font-size: 12px; font-weight: bold; color: ${f.bplStatus === 'BPL' ? '#dc2626' : '#166534'};">
-                ${f.bplStatus || 'Non-BPL'} • ${f.caste || 'Caste'}
+              <div>
+                <span style="background-color: ${f.bplStatus === 'BPL' ? '#fee2e2' : '#f0fdf4'}; color: ${f.bplStatus === 'BPL' ? '#b91c1c' : '#15803d'}; padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 11px;">
+                  ${f.bplStatus || 'APL'}
+                </span>
+                <span style="background-color: #eff6ff; color: #1d4ed8; padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 11px; margin-left: 4px;">
+                  ${f.caste || '-'}
+                </span>
               </div>
             </div>
 
-            <table style="width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 10px;">
-              <tr>
-                <td style="padding: 4px; width: 25%;"><strong>पिता/पति:</strong> ${f.fatherNameHindi || f.fatherName || '-'}</td>
-                <td style="padding: 4px; width: 25%;"><strong>गाँव:</strong> ${f.village || ''}</td>
-                <td style="padding: 4px; width: 25%;"><strong>मोहल्ला:</strong> ${f.mohalla || '-'}</td>
-                <td style="padding: 4px; width: 25%;"><strong>मकान सं.:</strong> ${f.houseNumber || '-'}</td>
-              </tr>
-              <tr>
-                <td style="padding: 4px;"><strong>मोबाइल:</strong> ${f.mobile || '-'}</td>
-                <td style="padding: 4px;"><strong>जन आधार:</strong> ${f.janAadhaarNumber || f.janAadhaar || '-'}</td>
-                <td style="padding: 4px;"><strong>राशन कार्ड:</strong> ${f.rationCardNumber || f.rationCard || '-'}</td>
-                <td style="padding: 4px;"><strong>मासिक आय:</strong> ₹${f.monthlyIncome || '-'}</td>
-              </tr>
-            </table>
-
-            <div style="background-color: #f8fafc; border: 1px solid #cbd5e1; padding: 4px 8px; font-weight: bold; font-size: 11px; margin-bottom: 4px;">
-              परिवार के सदस्य (${f.members?.length || 1} सदस्य)
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 12px; margin-bottom: 8px;">
+              <div><strong>परिवार मुखिया:</strong> ${f.familyHeadNameHindi || f.familyHeadName || ''} (${f.familyHeadNameEnglish || ''})</div>
+              <div><strong>पिता/पति का नाम:</strong> ${f.fatherNameHindi || f.fatherName || '-'}</div>
+              <div><strong>मोहल्ला:</strong> ${f.mohalla || '-'}</div>
+              <div><strong>मकान संख्या:</strong> ${f.houseNumber || '-'}</div>
+              <div><strong>मोबाइल नंबर:</strong> <span style="font-family: monospace; font-weight: bold;">${f.mobile || '-'}</span></div>
+              <div><strong>मासिक आय:</strong> ₹${f.monthlyIncome || '-'}</div>
+              <div><strong>जन आधार नंबर:</strong> <span style="font-family: monospace;">${f.janAadhaarNumber || f.janAadhaar || '-'}</span></div>
+              <div><strong>राशन कार्ड:</strong> <span style="font-family: monospace;">${f.rationCardNumber || f.rationCard || '-'}</span></div>
             </div>
 
+            <div style="font-size: 11px; font-weight: bold; color: #166534; margin-top: 8px; margin-bottom: 4px;">
+              परिवार के सदस्य (${(f.members || []).length} सदस्य):
+            </div>
             <table style="width: 100%; border-collapse: collapse; font-size: 10px;">
               <thead>
-                <tr style="background-color: #e2e8f0;">
-                  <th style="border: 1px solid #444; padding: 4px; width: 20px;">#</th>
-                  <th style="border: 1px solid #444; padding: 4px;">सदस्य का नाम</th>
-                  <th style="border: 1px solid #444; padding: 4px;">संबंध</th>
-                  <th style="border: 1px solid #444; padding: 4px; width: 30px;">आयु</th>
-                  <th style="border: 1px solid #444; padding: 4px; width: 35px;">लिंग</th>
-                  <th style="border: 1px solid #444; padding: 4px;">शिक्षा</th>
-                  <th style="border: 1px solid #444; padding: 4px;">व्यवसाय</th>
-                  <th style="border: 1px solid #444; padding: 4px;">मोबाइल</th>
-                  <th style="border: 1px solid #444; padding: 4px;">आधार</th>
+                <tr style="background-color: #f8fafc;">
+                  <th style="border: 1px solid #ddd; padding: 4px; text-align: center; width: 25px;">क्र.</th>
+                  <th style="border: 1px solid #ddd; padding: 4px; text-align: left;">सदस्य का नाम</th>
+                  <th style="border: 1px solid #ddd; padding: 4px; text-align: left;">सम्बन्ध</th>
+                  <th style="border: 1px solid #ddd; padding: 4px; text-align: center; width: 35px;">उम्र</th>
+                  <th style="border: 1px solid #ddd; padding: 4px; text-align: center; width: 45px;">लिंग</th>
+                  <th style="border: 1px solid #ddd; padding: 4px; text-align: left;">मोबाइल नंबर</th>
+                  <th style="border: 1px solid #ddd; padding: 4px; text-align: left;">शिक्षा</th>
+                  <th style="border: 1px solid #ddd; padding: 4px; text-align: left;">व्यवसाय</th>
                 </tr>
               </thead>
               <tbody>
@@ -267,7 +285,7 @@ export function DataPrintScreen({ navigation, route }) {
           <h1>डिजिटल ग्रामीण परिवार सर्वेक्षण डॉसियर (VillagePulse Dossier)</h1>
           <h2>ग्राम पंचायत • राजस्थान सरकार • Digital Census & Household Dossier</h2>
           <div class="meta">
-            प्रदर्शित परिवार: <strong>${printableFamilies.length}</strong> | कुल जनसंख्या: <strong>${totalPopulation}</strong> | प्रिंट तिथि: <strong>${printedAt}</strong>
+            चयनित परिवार: <strong>${familiesToPrint.length}</strong> | कुल जनसंख्या: <strong>${totalPopulationToPrint}</strong> | प्रिंट तिथि: <strong>${printedAt}</strong>
           </div>
         </div>
         ${dossierCards}
@@ -278,21 +296,19 @@ export function DataPrintScreen({ navigation, route }) {
 
   // Trigger Print or Share PDF
   const handlePrintOrExport = async () => {
-    if (printableFamilies.length === 0) {
-      Alert.alert('कोई डेटा नहीं', 'प्रिंट करने के लिए कम से कम 1 परिवार होना चाहिए।');
+    if (familiesToPrint.length === 0) {
+      Alert.alert('कोई परिवार चयनित नहीं', 'प्रिंट करने के लिए कृपया कम से कम 1 परिवार का चयन करें।');
       return;
     }
 
     setIsGenerating(true);
     try {
       const html = generatePrintHTML();
-      // Generate PDF File
       const { uri } = await Print.printToFileAsync({
         html,
         base64: false
       });
 
-      // Share or open print preview
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(uri, {
           UTI: '.pdf',
@@ -324,7 +340,7 @@ export function DataPrintScreen({ navigation, route }) {
         <TouchableOpacity
           style={styles.printTopBtn}
           onPress={handlePrintOrExport}
-          disabled={isGenerating}
+          disabled={isGenerating || familiesToPrint.length === 0}
           activeOpacity={0.8}
         >
           {isGenerating ? (
@@ -332,6 +348,37 @@ export function DataPrintScreen({ navigation, route }) {
           ) : (
             <Ionicons name="print-outline" size={20} color={COLORS.surface} />
           )}
+        </TouchableOpacity>
+      </View>
+
+      {/* Main View Mode Tabs: Select Families vs Live Print Preview */}
+      <View style={styles.viewModeTabs}>
+        <TouchableOpacity
+          style={[styles.viewModeTab, viewMode === 'select' && styles.viewModeTabActive]}
+          onPress={() => setViewMode('select')}
+        >
+          <Ionicons
+            name="checkbox-outline"
+            size={16}
+            color={viewMode === 'select' ? COLORS.primary : COLORS.textMuted}
+          />
+          <Text style={[styles.viewModeTabText, viewMode === 'select' && styles.viewModeTabTextActive]}>
+            परिवार चयन ({familiesToPrint.length})
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.viewModeTab, viewMode === 'preview' && styles.viewModeTabActive]}
+          onPress={() => setViewMode('preview')}
+        >
+          <Ionicons
+            name="eye-outline"
+            size={16}
+            color={viewMode === 'preview' ? COLORS.primary : COLORS.textMuted}
+          />
+          <Text style={[styles.viewModeTabText, viewMode === 'preview' && styles.viewModeTabTextActive]}>
+            दस्तावेज़ पूर्वावलोकन (Preview)
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -370,151 +417,354 @@ export function DataPrintScreen({ navigation, route }) {
           </View>
         </View>
 
-        {/* Filter Controls (Shown when not printing a single family) */}
-        {!initialFamilyId && (
-          <View style={[styles.card, SHADOWS.sm]}>
-            <Text style={styles.sectionTitle}>फ़िल्टर एवं खोज (Filters & Search)</Text>
+        {/* ----------------- TAB 1: SELECT FAMILIES ----------------- */}
+        {viewMode === 'select' && (
+          <>
+            {/* Filter Controls */}
+            {!initialFamilyId && (
+              <View style={[styles.card, SHADOWS.sm]}>
+                <Text style={styles.sectionTitle}>फ़िल्टर एवं खोज (Filters & Search)</Text>
 
-            {/* Village Filter */}
-            <Text style={styles.filterLabel}>गाँव चुनें (Village):</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pillScroll}>
-              {['All', ...villagesList].map((v) => {
-                const isSelected = selectedVillage === v;
-                return (
-                  <TouchableOpacity
-                    key={v}
-                    style={[styles.pill, isSelected && styles.pillActive]}
-                    onPress={() => setSelectedVillage(v)}
-                  >
-                    <Text style={[styles.pillText, isSelected && styles.pillTextActive]}>
-                      {v === 'All' ? 'सभी गाँव (All)' : v}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
+                {/* Village Filter */}
+                <Text style={styles.filterLabel}>गाँव चुनें (Village):</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pillScroll}>
+                  {['All', ...villagesList].map((v) => {
+                    const isSelected = selectedVillage === v;
+                    return (
+                      <TouchableOpacity
+                        key={v}
+                        style={[styles.pill, isSelected && styles.pillActive]}
+                        onPress={() => setSelectedVillage(v)}
+                      >
+                        <Text style={[styles.pillText, isSelected && styles.pillTextActive]}>
+                          {v === 'All' ? 'सभी गाँव (All)' : v}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
 
-            {/* Mohalla Filter */}
-            <Text style={styles.filterLabel}>मोहल्ला चुनें (Mohalla):</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pillScroll}>
-              {['All', ...mohallas].map((m) => {
-                const isSelected = selectedMohalla === m;
-                return (
-                  <TouchableOpacity
-                    key={m}
-                    style={[styles.pill, isSelected && styles.pillActive]}
-                    onPress={() => setSelectedMohalla(m)}
-                  >
-                    <Text style={[styles.pillText, isSelected && styles.pillTextActive]}>
-                      {m}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
+                {/* Mohalla Filter */}
+                <Text style={styles.filterLabel}>मोहल्ला चुनें (Mohalla):</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pillScroll}>
+                  {['All', ...mohallas].map((m) => {
+                    const isSelected = selectedMohalla === m;
+                    return (
+                      <TouchableOpacity
+                        key={m}
+                        style={[styles.pill, isSelected && styles.pillActive]}
+                        onPress={() => setSelectedMohalla(m)}
+                      >
+                        <Text style={[styles.pillText, isSelected && styles.pillTextActive]}>
+                          {m === 'All' ? 'सभी मोहल्ले' : m}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
 
-            {/* Caste Filter */}
-            <Text style={styles.filterLabel}>जाति चुनें (Caste):</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pillScroll}>
-              {['All', ...castes].map((c) => {
-                const isSelected = selectedCaste === c;
-                return (
-                  <TouchableOpacity
-                    key={c}
-                    style={[styles.pill, isSelected && styles.pillActive]}
-                    onPress={() => setSelectedCaste(c)}
-                  >
-                    <Text style={[styles.pillText, isSelected && styles.pillTextActive]}>
-                      {c}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
+                {/* Caste Filter */}
+                <Text style={styles.filterLabel}>जाति चुनें (Caste):</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pillScroll}>
+                  {['All', ...castes].map((c) => {
+                    const isSelected = selectedCaste === c;
+                    return (
+                      <TouchableOpacity
+                        key={c}
+                        style={[styles.pill, isSelected && styles.pillActive]}
+                        onPress={() => setSelectedCaste(c)}
+                      >
+                        <Text style={[styles.pillText, isSelected && styles.pillTextActive]}>
+                          {c === 'All' ? 'सभी जातियां' : c}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
 
-            {/* Search Input */}
-            <Text style={styles.filterLabel}>नाम, पिता का नाम या ID से खोजें:</Text>
-            <View style={styles.searchBox}>
-              <Ionicons name="search" size={18} color={COLORS.textMuted} />
-              <TextInput
-                style={styles.searchInput}
-                placeholder="उदा. FAM-0001 या मोहन लाल..."
-                placeholderTextColor={COLORS.textMuted}
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-              />
-              {Boolean(searchQuery) && (
-                <TouchableOpacity onPress={() => setSearchQuery('')}>
-                  <Ionicons name="close-circle" size={18} color={COLORS.textMuted} />
+                {/* Search Text Input */}
+                <Text style={styles.filterLabel}>खोजें (Search by Name, Father, ID, Mobile):</Text>
+                <View style={styles.searchBox}>
+                  <Ionicons name="search" size={18} color={COLORS.textMuted} />
+                  <TextInput
+                    style={styles.searchInput}
+                    placeholder="उदा. FAM-0001 या मोहन लाल या मोबाइल..."
+                    placeholderTextColor={COLORS.textMuted}
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                  />
+                  {Boolean(searchQuery) && (
+                    <TouchableOpacity onPress={() => setSearchQuery('')}>
+                      <Ionicons name="close-circle" size={18} color={COLORS.textMuted} />
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+            )}
+
+            {/* Selection Toolbar: Select All, Deselect All, Count */}
+            <View style={styles.selectionToolbar}>
+              <View style={styles.selectionCountBadge}>
+                <Ionicons name="checkmark-done-circle" size={16} color={COLORS.primary} />
+                <Text style={styles.selectionCountText}>
+                  चयनित: <Text style={{ fontWeight: '800', color: COLORS.primary }}>{familiesToPrint.length}</Text> / {printableFamilies.length}
+                </Text>
+              </View>
+
+              <View style={styles.selectionBtnsGroup}>
+                <TouchableOpacity style={styles.selectToggleBtn} onPress={selectAll}>
+                  <Text style={styles.selectToggleBtnText}>सभी चुनें</Text>
                 </TouchableOpacity>
+                <TouchableOpacity style={styles.selectToggleBtnSecondary} onPress={deselectAll}>
+                  <Text style={styles.selectToggleBtnSecondaryText}>हटाएं</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Checkable Family Items List */}
+            <View style={[styles.card, SHADOWS.sm]}>
+              <Text style={styles.sectionTitle}>
+                प्रिंट हेतु परिवार चुनें (Tap to Select/Deselect)
+              </Text>
+
+              {printableFamilies.map((f) => {
+                const isChecked = selectedIds.has(f.id);
+                return (
+                  <TouchableOpacity
+                    key={f.id}
+                    style={[styles.selectableRow, isChecked && styles.selectableRowChecked]}
+                    onPress={() => toggleSelectFamily(f.id)}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons
+                      name={isChecked ? 'checkbox' : 'square-outline'}
+                      size={22}
+                      color={isChecked ? COLORS.primary : COLORS.textMuted}
+                    />
+
+                    <View style={styles.selectableInfo}>
+                      <View style={styles.selectableTopLine}>
+                        <Text style={styles.selectableId}>{f.id}</Text>
+                        <Text style={styles.selectableHeadName}>
+                          {f.familyHeadNameHindi || f.familyHeadNameEnglish || f.familyHeadName}
+                        </Text>
+                      </View>
+                      <Text style={styles.selectableSubLine}>
+                        पिता: {f.fatherNameHindi || f.fatherName || '-'} • {f.village || ''} • {f.mohalla || ''}
+                      </Text>
+                      <View style={styles.selectableBadgeRow}>
+                        <Text style={styles.selectableBadge}>{f.caste || 'Caste'}</Text>
+                        <Text style={[styles.selectableBadge, { backgroundColor: f.bplStatus === 'BPL' ? '#FEE2E2' : '#F0FDF4', color: f.bplStatus === 'BPL' ? '#B91C1C' : '#15803D' }]}>
+                          {f.bplStatus || 'APL'}
+                        </Text>
+                        <Text style={styles.selectableBadge}>
+                          {f.members?.length || 1} सदस्य
+                        </Text>
+                        {Boolean(f.mobile) && (
+                          <Text style={[styles.selectableBadge, { fontFamily: 'monospace' }]}>
+                            📞 {f.mobile}
+                          </Text>
+                        )}
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+
+              {printableFamilies.length === 0 && (
+                <View style={styles.emptyBox}>
+                  <Ionicons name="search" size={40} color={COLORS.textMuted} />
+                  <Text style={styles.emptyTitle}>कोई परिवार नहीं मिला</Text>
+                  <Text style={styles.emptySub}>फ़िल्टर रीसेट करें</Text>
+                </View>
               )}
             </View>
-          </View>
+          </>
         )}
 
-        {/* Printable Summary Banner */}
-        <View style={styles.summaryBanner}>
-          <View style={styles.summaryLeft}>
-            <Text style={styles.summaryTitle}>तैयार रिकॉर्ड्स (Ready to Print)</Text>
-            <Text style={styles.summarySubtitle}>
-              {printableFamilies.length} परिवार • {totalPopulation} कुल जनसंख्या
-            </Text>
-          </View>
-
-          <TouchableOpacity
-            style={styles.printActionBtn}
-            onPress={handlePrintOrExport}
-            disabled={isGenerating}
-            activeOpacity={0.8}
-          >
-            {isGenerating ? (
-              <ActivityIndicator color="#FFFFFF" />
-            ) : (
-              <>
-                <Ionicons name="print" size={18} color="#FFFFFF" />
-                <Text style={styles.printActionBtnText}>PDF / प्रिंट</Text>
-              </>
-            )}
-          </TouchableOpacity>
-        </View>
-
-        {/* Preview List of Included Families */}
-        <View style={styles.previewSection}>
-          <Text style={styles.previewHeaderTitle}>शामिल परिवारों की सूची (Preview List)</Text>
-          {printableFamilies.slice(0, 15).map((f) => (
-            <View key={f.id} style={styles.previewItem}>
-              <View style={styles.previewItemLeft}>
-                <Text style={styles.previewItemId}>{f.id}</Text>
-                <View>
-                  <Text style={styles.previewItemName}>
-                    {f.familyHeadNameHindi || f.familyHeadNameEnglish || f.familyHeadName}
+        {/* ----------------- TAB 2: LIVE PRINT PREVIEW ----------------- */}
+        {viewMode === 'preview' && (
+          <View style={styles.previewContainer}>
+            {/* Live Paper Document Frame */}
+            <View style={[styles.paperSheet, SHADOWS.md]}>
+              {/* Document Official Header */}
+              <View style={styles.docHeader}>
+                <Image
+                  source={require('../../../assets/logo.png')}
+                  style={styles.docLogo}
+                  resizeMode="contain"
+                />
+                <Text style={styles.docMainTitle}>
+                  {printFormat === 'table'
+                    ? 'ग्राम पंचायत डिजिटल सर्वेक्षण रोस्टर'
+                    : 'डिजिटल ग्रामीण परिवार सर्वेक्षण डॉसियर'}
+                </Text>
+                <Text style={styles.docSubTitle}>
+                  ग्राम पंचायत • राजस्थान सरकार • Official Census Dossier
+                </Text>
+                <View style={styles.docDivider} />
+                <View style={styles.docMetaRow}>
+                  <Text style={styles.docMetaText}>
+                    चयनित परिवार: <Text style={{ fontWeight: '800' }}>{familiesToPrint.length}</Text>
                   </Text>
-                  <Text style={styles.previewItemMeta}>
-                    {f.village || ''} • {f.mohalla || ''} • {f.members?.length || 1} सदस्य
+                  <Text style={styles.docMetaText}>
+                    कुल जनसंख्या: <Text style={{ fontWeight: '800' }}>{totalPopulationToPrint}</Text>
+                  </Text>
+                  <Text style={styles.docMetaText}>
+                    प्रारूप: {printFormat === 'table' ? 'रोस्टर तालिका' : 'विस्तृत डॉसियर'}
                   </Text>
                 </View>
               </View>
-              <View style={styles.previewItemRight}>
-                <Text style={styles.previewItemBadge}>{f.caste || 'Caste'}</Text>
-              </View>
-            </View>
-          ))}
 
-          {printableFamilies.length > 15 && (
-            <Text style={styles.moreText}>
-              + {printableFamilies.length - 15} और परिवार प्रिंट दस्तावेज में शामिल हैं
-            </Text>
-          )}
+              {/* Dossier Preview Cards */}
+              {printFormat === 'dossier' && (
+                <View style={{ gap: 14 }}>
+                  {familiesToPrint.slice(0, 10).map((f, idx) => (
+                    <View key={f.id} style={styles.docDossierCard}>
+                      <View style={styles.docCardTop}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <Text style={styles.docCardIdBadge}>#{idx + 1} • {f.id}</Text>
+                          <Text style={styles.docCardVillage}>{f.village || ''}</Text>
+                        </View>
+                        <View style={{ flexDirection: 'row', gap: 4 }}>
+                          <Text style={[styles.docBplBadge, { backgroundColor: f.bplStatus === 'BPL' ? '#FEE2E2' : '#F0FDF4', color: f.bplStatus === 'BPL' ? '#B91C1C' : '#15803D' }]}>
+                            {f.bplStatus || 'APL'}
+                          </Text>
+                          <Text style={styles.docCasteBadge}>{f.caste || '-'}</Text>
+                        </View>
+                      </View>
 
-          {printableFamilies.length === 0 && (
-            <View style={styles.emptyBox}>
-              <Ionicons name="search" size={40} color={COLORS.textMuted} />
-              <Text style={styles.emptyTitle}>कोई परिवार नहीं मिला</Text>
-              <Text style={styles.emptySub}>फ़िल्टर रीसेट करें</Text>
+                      <Text style={styles.docHeadTitle}>
+                        {f.familyHeadNameHindi || f.familyHeadName || ''} {f.familyHeadNameEnglish ? `(${f.familyHeadNameEnglish})` : ''}
+                      </Text>
+
+                      <View style={styles.docGrid}>
+                        <Text style={styles.docGridItem}><strong>पिता/पति:</strong> {f.fatherNameHindi || f.fatherName || '-'}</Text>
+                        <Text style={styles.docGridItem}><strong>मोहल्ला:</strong> {f.mohalla || '-'}</Text>
+                        <Text style={styles.docGridItem}><strong>मकान नं.:</strong> {f.houseNumber || '-'}</Text>
+                        <Text style={styles.docGridItem}><strong>मोबाइल:</strong> {f.mobile || '-'}</Text>
+                        <Text style={styles.docGridItem}><strong>जन आधार:</strong> {f.janAadhaarNumber || f.janAadhaar || '-'}</Text>
+                        <Text style={styles.docGridItem}><strong>राशन कार्ड:</strong> {f.rationCardNumber || f.rationCard || '-'}</Text>
+                      </View>
+
+                      {/* Members Sub-Table */}
+                      <Text style={styles.docMembersHeading}>
+                        परिवार के सदस्य ({f.members?.length || 1} सदस्य):
+                      </Text>
+                      <View style={styles.docTableWrap}>
+                        <View style={styles.docTableHeaderRow}>
+                          <Text style={[styles.docTh, { width: 30, textAlign: 'center' }]}>क्र.</Text>
+                          <Text style={[styles.docTh, { flex: 2 }]}>सदस्य नाम</Text>
+                          <Text style={[styles.docTh, { flex: 1.2 }]}>सम्बन्ध</Text>
+                          <Text style={[styles.docTh, { width: 35, textAlign: 'center' }]}>उम्र</Text>
+                          <Text style={[styles.docTh, { width: 45, textAlign: 'center' }]}>लिंग</Text>
+                          <Text style={[styles.docTh, { flex: 1.5 }]}>मोबाइल नं.</Text>
+                        </View>
+                        {(f.members || []).map((m, mIdx) => (
+                          <View key={m.id || mIdx} style={styles.docTableRow}>
+                            <Text style={[styles.docTd, { width: 30, textAlign: 'center' }]}>{mIdx + 1}</Text>
+                            <Text style={[styles.docTd, { flex: 2, fontWeight: '700' }]}>{m.nameHindi || m.name || m.nameEnglish || '-'}</Text>
+                            <Text style={[styles.docTd, { flex: 1.2 }]}>{m.relation || '-'}</Text>
+                            <Text style={[styles.docTd, { width: 35, textAlign: 'center' }]}>{m.age || '-'}</Text>
+                            <Text style={[styles.docTd, { width: 45, textAlign: 'center' }]}>{m.gender || '-'}</Text>
+                            <Text style={[styles.docTd, { flex: 1.5, fontFamily: 'monospace' }]}>{m.mobile || '-'}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    </View>
+                  ))}
+
+                  {familiesToPrint.length > 10 && (
+                    <Text style={styles.previewMoreNote}>
+                      + {familiesToPrint.length - 10} और चयनित परिवार प्रिंट दस्तावेज में शामिल हैं
+                    </Text>
+                  )}
+                </View>
+              )}
+
+              {/* Table Roster Preview */}
+              {printFormat === 'table' && (
+                <View style={styles.docTableWrap}>
+                  <View style={styles.docTableHeaderRow}>
+                    <Text style={[styles.docTh, { width: 30, textAlign: 'center' }]}>क्र.</Text>
+                    <Text style={[styles.docTh, { width: 60 }]}>आईडी</Text>
+                    <Text style={[styles.docTh, { flex: 2 }]}>मुखिया का नाम</Text>
+                    <Text style={[styles.docTh, { flex: 1.5 }]}>पिता/पति</Text>
+                    <Text style={[styles.docTh, { flex: 1 }]}>गाँव</Text>
+                    <Text style={[styles.docTh, { flex: 1.2 }]}>मोबाइल</Text>
+                    <Text style={[styles.docTh, { width: 40, textAlign: 'center' }]}>सदस्य</Text>
+                  </View>
+                  {familiesToPrint.slice(0, 20).map((f, idx) => (
+                    <View key={f.id} style={styles.docTableRow}>
+                      <Text style={[styles.docTd, { width: 30, textAlign: 'center' }]}>{idx + 1}</Text>
+                      <Text style={[styles.docTd, { width: 60, fontWeight: '800', color: COLORS.primary }]}>{f.id}</Text>
+                      <Text style={[styles.docTd, { flex: 2, fontWeight: '700' }]}>
+                        {f.familyHeadNameHindi || f.familyHeadName || ''}
+                      </Text>
+                      <Text style={[styles.docTd, { flex: 1.5 }]}>{f.fatherNameHindi || f.fatherName || '-'}</Text>
+                      <Text style={[styles.docTd, { flex: 1 }]}>{f.village || ''}</Text>
+                      <Text style={[styles.docTd, { flex: 1.2, fontFamily: 'monospace' }]}>{f.mobile || '-'}</Text>
+                      <Text style={[styles.docTd, { width: 40, textAlign: 'center', fontWeight: '800' }]}>
+                        {f.members?.length || 1}
+                      </Text>
+                    </View>
+                  ))}
+                  {familiesToPrint.length > 20 && (
+                    <Text style={styles.previewMoreNote}>
+                      + {familiesToPrint.length - 20} और रिकॉर्ड्स प्रिंट तालिका में शामिल हैं
+                    </Text>
+                  )}
+                </View>
+              )}
+
+              {familiesToPrint.length === 0 && (
+                <View style={styles.emptyBox}>
+                  <Ionicons name="alert-circle-outline" size={44} color="#D97706" />
+                  <Text style={styles.emptyTitle}>कोई परिवार चयनित नहीं है</Text>
+                  <Text style={styles.emptySub}>
+                    'परिवार चयन' टैब पर जाएं और जिन परिवारों को प्रिंट करना है उन्हें चेक करें।
+                  </Text>
+                </View>
+              )}
             </View>
-          )}
-        </View>
+
+            <View style={styles.previewTipBox}>
+              <Ionicons name="information-circle" size={18} color={COLORS.primary} />
+              <Text style={styles.previewTipText}>
+                यह दस्तावेज़ का मोबाइल पूर्वावलोकन है। PDF डाउनलोड करने या सीधे प्रिंटर पर भेजने के लिए नीचे 'PDF / प्रिंट करें' बटन दबाएं।
+              </Text>
+            </View>
+          </View>
+        )}
       </ScrollView>
+
+      {/* Floating Bottom Sticky Bar */}
+      <View style={styles.bottomBar}>
+        <View style={styles.bottomBarLeft}>
+          <Text style={styles.bottomBarCount}>
+            {familiesToPrint.length} परिवार चयनित
+          </Text>
+          <Text style={styles.bottomBarSub}>
+            {totalPopulationToPrint} कुल जनसंख्या
+          </Text>
+        </View>
+
+        <TouchableOpacity
+          style={[styles.bottomBarPrintBtn, (isGenerating || familiesToPrint.length === 0) && { opacity: 0.6 }]}
+          onPress={handlePrintOrExport}
+          disabled={isGenerating || familiesToPrint.length === 0}
+          activeOpacity={0.8}
+        >
+          {isGenerating ? (
+            <ActivityIndicator size="small" color="#FFFFFF" />
+          ) : (
+            <>
+              <Ionicons name="print" size={18} color="#FFFFFF" />
+              <Text style={styles.bottomBarPrintBtnText}>PDF / प्रिंट करें</Text>
+            </>
+          )}
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -562,9 +812,40 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  viewModeTabs: {
+    flexDirection: 'row',
+    backgroundColor: '#E2E8F0',
+    marginHorizontal: 16,
+    marginTop: 12,
+    borderRadius: 12,
+    padding: 3,
+    gap: 4,
+  },
+  viewModeTab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: 10,
+    gap: 6,
+  },
+  viewModeTabActive: {
+    backgroundColor: COLORS.surface,
+    ...SHADOWS.sm,
+  },
+  viewModeTabText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: COLORS.textMuted,
+  },
+  viewModeTabTextActive: {
+    color: COLORS.primary,
+    fontWeight: '800',
+  },
   scrollContent: {
     padding: 16,
-    paddingBottom: 40,
+    paddingBottom: 100,
   },
   card: {
     backgroundColor: COLORS.surface,
@@ -659,107 +940,329 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: COLORS.textPrimary,
   },
-  summaryBanner: {
+  selectionToolbar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#1E293B',
-    borderRadius: 18,
-    padding: 16,
-    marginBottom: 16,
-    ...SHADOWS.md,
-  },
-  summaryLeft: {
-    flex: 1,
-  },
-  summaryTitle: {
-    color: '#94A3B8',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  summarySubtitle: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '800',
-    marginTop: 2,
-  },
-  printActionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.primary,
-    paddingVertical: 10,
-    paddingHorizontal: 18,
-    borderRadius: 12,
-    gap: 6,
-  },
-  printActionBtnText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '800',
-  },
-  previewSection: {
     backgroundColor: COLORS.surface,
-    borderRadius: 20,
-    padding: 16,
+    borderRadius: 16,
+    padding: 12,
+    marginBottom: 12,
     borderWidth: 1,
     borderColor: COLORS.border,
+    ...SHADOWS.sm,
   },
-  previewHeaderTitle: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: COLORS.textPrimary,
-    marginBottom: 12,
-  },
-  previewItem: {
+  selectionCountBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 10,
+    gap: 6,
+  },
+  selectionCountText: {
+    fontSize: 13,
+    color: COLORS.textPrimary,
+  },
+  selectionBtnsGroup: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  selectToggleBtn: {
+    backgroundColor: COLORS.primarySubtle,
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+  },
+  selectToggleBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: COLORS.primary,
+  },
+  selectToggleBtnSecondary: {
+    backgroundColor: '#F1F5F9',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+  },
+  selectToggleBtnSecondaryText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: COLORS.textMuted,
+  },
+  selectableRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderColor: '#F1F5F9',
   },
-  previewItemLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
+  selectableRowChecked: {
+    backgroundColor: '#F0FDF4',
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    marginHorizontal: -8,
+  },
+  selectableInfo: {
     flex: 1,
   },
-  previewItemId: {
+  selectableTopLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  selectableId: {
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: '800',
     color: COLORS.primary,
     backgroundColor: '#E8F5E9',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 6,
   },
-  previewItemName: {
-    fontSize: 13,
+  selectableHeadName: {
+    fontSize: 14,
     fontWeight: '700',
     color: COLORS.textPrimary,
+    flex: 1,
   },
-  previewItemMeta: {
+  selectableSubLine: {
     fontSize: 11,
     color: COLORS.textMuted,
-    marginTop: 2,
+    marginTop: 3,
   },
-  previewItemRight: {},
-  previewItemBadge: {
-    fontSize: 11,
+  selectableBadgeRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 6,
+  },
+  selectableBadge: {
+    fontSize: 10,
     color: COLORS.textSecondary,
     backgroundColor: COLORS.background,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
     borderWidth: 1,
     borderColor: COLORS.border,
   },
-  moreText: {
-    fontSize: 12,
-    color: COLORS.textMuted,
+  previewContainer: {
+    gap: 12,
+  },
+  paperSheet: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+  },
+  docHeader: {
+    alignItems: 'center',
+    borderBottomWidth: 2,
+    borderBottomColor: '#166534',
+    paddingBottom: 12,
+    marginBottom: 14,
+  },
+  docLogo: {
+    width: 52,
+    height: 52,
+    marginBottom: 6,
+  },
+  docMainTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#166534',
     textAlign: 'center',
-    marginTop: 12,
+  },
+  docSubTitle: {
+    fontSize: 10,
+    color: '#64748B',
+    marginTop: 2,
+    textAlign: 'center',
+  },
+  docDivider: {
+    width: '100%',
+    height: 1,
+    backgroundColor: '#E2E8F0',
+    marginVertical: 8,
+  },
+  docMetaRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  docMetaText: {
+    fontSize: 10,
+    color: '#475569',
+  },
+  docDossierCard: {
+    borderWidth: 1.5,
+    borderColor: '#166534',
+    borderRadius: 12,
+    padding: 12,
+    backgroundColor: '#FAFAF9',
+  },
+  docCardTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+    paddingBottom: 6,
+    marginBottom: 8,
+  },
+  docCardIdBadge: {
+    backgroundColor: '#166534',
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '800',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  docCardVillage: {
+    fontSize: 11,
     fontWeight: '600',
+    color: '#334155',
+  },
+  docBplBadge: {
+    fontSize: 10,
+    fontWeight: '800',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  docCasteBadge: {
+    backgroundColor: '#EFF6FF',
+    color: '#1D4ED8',
+    fontSize: 10,
+    fontWeight: '800',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  docHeadTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#0F172A',
+    marginBottom: 6,
+  },
+  docGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    backgroundColor: '#FFFFFF',
+    padding: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  docGridItem: {
+    fontSize: 10,
+    color: '#334155',
+    width: '48%',
+  },
+  docMembersHeading: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#166534',
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  docTableWrap: {
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderRadius: 6,
+    overflow: 'hidden',
+  },
+  docTableHeaderRow: {
+    flexDirection: 'row',
+    backgroundColor: '#166534',
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+  },
+  docTh: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '800',
+  },
+  docTableRow: {
+    flexDirection: 'row',
+    paddingVertical: 5,
+    paddingHorizontal: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+    backgroundColor: '#FFFFFF',
+  },
+  docTd: {
+    fontSize: 9,
+    color: '#1E293B',
+  },
+  previewMoreNote: {
+    textAlign: 'center',
+    fontSize: 11,
+    color: '#64748B',
+    fontWeight: '700',
+    marginTop: 8,
+  },
+  previewTipBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#E8F5E9',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+  },
+  previewTipText: {
+    flex: 1,
+    fontSize: 11,
+    color: '#065F46',
+    lineHeight: 16,
+  },
+  bottomBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#1E293B',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderTopWidth: 1,
+    borderTopColor: '#334155',
+    ...SHADOWS.lg,
+  },
+  bottomBarLeft: {
+    flex: 1,
+  },
+  bottomBarCount: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  bottomBarSub: {
+    color: '#94A3B8',
+    fontSize: 11,
+    marginTop: 2,
+  },
+  bottomBarPrintBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.primary,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 14,
+    gap: 8,
+  },
+  bottomBarPrintBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '800',
   },
   emptyBox: {
     alignItems: 'center',

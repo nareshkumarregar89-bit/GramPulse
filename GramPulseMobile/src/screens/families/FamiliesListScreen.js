@@ -14,9 +14,12 @@ import { COLORS, SHADOWS, SIZES } from '../../constants/theme';
 import { useData } from '../../contexts/DataContext';
 import { Header } from '../../components/Header';
 import { FamilyCard } from '../../components/FamilyCard';
+import { useAuth } from '../../contexts/AuthContext';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 export function FamiliesListScreen({ navigation }) {
-  const { filteredFamilies, castes, mohallas, loading, refreshData } = useData();
+  const { filteredFamilies, castes, mohallas, loading, refreshData, hasAccess } = useData();
+  const { isAdmin, isPending } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMohalla, setSelectedMohalla] = useState('All');
   const [selectedCaste, setSelectedCaste] = useState('All');
@@ -144,9 +147,23 @@ export function FamiliesListScreen({ navigation }) {
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Feather name="search" size={48} color={COLORS.textMuted} />
-            <Text style={styles.emptyTitle}>No matching family records</Text>
-            <Text style={styles.emptySub}>Try searching with a different term or clear filters</Text>
+            <MaterialCommunityIcons
+              name={!hasAccess && !isAdmin ? 'shield-lock-outline' : 'search'}
+              size={48}
+              color={!hasAccess && !isAdmin ? '#D97706' : COLORS.textMuted}
+            />
+            <Text style={styles.emptyTitle}>
+              {!hasAccess && !isAdmin
+                ? 'डेटा एक्सेस अभी उपलब्ध नहीं है'
+                : 'कोई परिवार रिकॉर्ड नहीं मिला'}
+            </Text>
+            <Text style={[styles.emptySub, { textAlign: 'center' }]}>
+              {!hasAccess && !isAdmin
+                ? isPending
+                  ? 'आपके खाते की व्यवस्थापक द्वारा स्वीकृति लंबित है।'
+                  : 'प्रशासनिक रूप से गाँव आवंटित होने के बाद ही परिवार सूची दिखाई देगी।'
+                : 'फ़िल्टर बदलें या दूसरा खोज शब्द दर्ज करें'}
+            </Text>
           </View>
         }
       />

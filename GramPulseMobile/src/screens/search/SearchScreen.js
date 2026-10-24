@@ -7,13 +7,15 @@ import {
   FlatList,
   TouchableOpacity,
 } from 'react-native';
-import { Ionicons, Feather } from '@expo/vector-icons';
+import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, SHADOWS, SIZES } from '../../constants/theme';
 import { useData } from '../../contexts/DataContext';
+import { useTheme } from '../../contexts/ThemeContext';
 import { FamilyCard } from '../../components/FamilyCard';
 
 export function SearchScreen({ navigation }) {
-  const { families } = useData();
+  const { filteredFamilies } = useData();
+  const { colors, isDarkMode } = useTheme();
   const [query, setQuery] = useState('');
   const [searchFilter, setSearchFilter] = useState('all'); // 'all' | 'janAadhaar' | 'name' | 'mobile'
 
@@ -21,7 +23,7 @@ export function SearchScreen({ navigation }) {
     if (!query.trim()) return [];
     const q = query.toLowerCase().trim();
 
-    return families.filter((f) => {
+    return filteredFamilies.filter((f) => {
       const headEn = (f.familyHeadNameEnglish || '').toLowerCase();
       const headHi = (f.familyHeadNameHindi || '').toLowerCase();
       const head = (f.familyHeadName || '').toLowerCase();
@@ -54,31 +56,38 @@ export function SearchScreen({ navigation }) {
         house.includes(q)
       );
     });
-  }, [families, query, searchFilter]);
+  }, [filteredFamilies, query, searchFilter]);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Top Search App Bar */}
-      <View style={styles.topBar}>
+      <View style={[styles.topBar, { backgroundColor: isDarkMode ? '#064E3B' : colors.primary }]}>
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={22} color={COLORS.surface} />
+          <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
         </TouchableOpacity>
-        <View style={styles.searchInputWrapper}>
-          <Ionicons name="search" size={18} color={COLORS.textMuted} />
+        <View style={[styles.searchInputWrapper, { backgroundColor: isDarkMode ? '#1E293B' : '#FFFFFF' }]}>
+          <Ionicons name="search" size={18} color={colors.textMuted} />
           <TextInput
-            style={styles.input}
+            style={[styles.input, { color: colors.textPrimary }]}
             placeholder="Search Jan Aadhaar, Name, Mobile..."
-            placeholderTextColor={COLORS.textMuted}
+            placeholderTextColor={colors.textMuted}
             value={query}
             onChangeText={setQuery}
             autoFocus
           />
           {Boolean(query) && (
             <TouchableOpacity onPress={() => setQuery('')}>
-              <Ionicons name="close-circle" size={18} color={COLORS.textMuted} />
+              <Ionicons name="close-circle" size={18} color={colors.textMuted} />
             </TouchableOpacity>
           )}
         </View>
+        <TouchableOpacity
+          style={styles.qrBtn}
+          onPress={() => navigation.navigate('QrScanner')}
+          accessibilityLabel="Scan QR"
+        >
+          <MaterialCommunityIcons name="qrcode-scan" size={20} color="#FFFFFF" />
+        </TouchableOpacity>
       </View>
 
       {/* Filter Chips */}
@@ -179,6 +188,14 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  qrBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,

@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  Switch,
 } from 'react-native';
 import {
   Ionicons,
@@ -17,11 +18,14 @@ import * as Updates from 'expo-updates';
 import { COLORS, SHADOWS, SIZES } from '../../constants/theme';
 import { useAuth } from '../../contexts/AuthContext';
 import { useData } from '../../contexts/DataContext';
+import { useTheme } from '../../contexts/ThemeContext';
 import { Header } from '../../components/Header';
+import { getCleanUniqueAssignedVillages } from '../../constants/villages';
 
 export function ProfileScreen({ navigation }) {
-  const { currentUser, userProfile, userRole, isAdmin, assignedVillages, logout, loginDemoAdmin, loginDemoSurveyor } = useAuth();
-  const { families, isOnline, syncStatus, refreshData } = useData();
+  const { currentUser, userProfile, userRole, isAdmin, assignedVillages, logout } = useAuth();
+  const { families, deletedFamilies, isOnline, syncStatus, refreshData } = useData();
+  const { isDarkMode, toggleDarkMode, colors } = useTheme();
   const [isSyncing, setIsSyncing] = React.useState(false);
 
   const handleManualSync = async () => {
@@ -118,12 +122,31 @@ export function ProfileScreen({ navigation }) {
           </View>
 
           <View style={styles.villagesRow}>
-            {Array.from(new Set(assignedVillages || ['समोड़ी (Samodi)'])).map((v) => (
-              <View key={v} style={styles.villageBadge}>
-                <Ionicons name="checkmark-circle" size={16} color={COLORS.primary} />
-                <Text style={styles.villageBadgeText}>{v}</Text>
-              </View>
-            ))}
+            {(() => {
+              const clean = getCleanUniqueAssignedVillages(assignedVillages);
+              if (isAdmin) {
+                return (
+                  <View style={styles.villageBadge}>
+                    <Ionicons name="globe-outline" size={16} color={COLORS.primary} />
+                    <Text style={styles.villageBadgeText}>सभी गाँव (All Access)</Text>
+                  </View>
+                );
+              }
+              if (clean.length === 0) {
+                return (
+                  <View style={[styles.villageBadge, { backgroundColor: '#FEE2E2' }]}>
+                    <Ionicons name="alert-circle" size={16} color="#DC2626" />
+                    <Text style={[styles.villageBadgeText, { color: '#B91C1C' }]}>आवंटन लंबित (Unassigned)</Text>
+                  </View>
+                );
+              }
+              return clean.map((v) => (
+                <View key={v} style={styles.villageBadge}>
+                  <Ionicons name="checkmark-circle" size={16} color={COLORS.primary} />
+                  <Text style={styles.villageBadgeText}>{v}</Text>
+                </View>
+              ));
+            })()}
           </View>
         </View>
 
@@ -169,18 +192,70 @@ export function ProfileScreen({ navigation }) {
           </TouchableOpacity>
         </View>
 
-        {/* Data Print & Reports */}
-        <View style={[styles.sectionCard, SHADOWS.sm]}>
+        {/* Appearance & Dark Mode Toggle */}
+        <View style={[styles.sectionCard, SHADOWS.sm, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
           <View style={styles.sectionHeaderRow}>
-            <Ionicons name="print-outline" size={20} color={COLORS.primary} />
-            <Text style={styles.sectionTitle}>Data Print & PDF Reports (डेटा प्रिंट)</Text>
+            <Ionicons name={isDarkMode ? 'moon' : 'sunny'} size={20} color={isDarkMode ? '#FBBF24' : colors.primary} />
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
+              Appearance & Theme (थीम मोड)
+            </Text>
           </View>
-          <Text style={styles.roleSubtext}>
+          <Text style={[styles.roleSubtext, { color: colors.textSecondary }]}>
+            कम रोशनी या रात के समय आंखों के आराम के लिए डार्क मोड को सक्रिय करें
+          </Text>
+
+          <View style={styles.themeToggleRow}>
+            <View style={styles.themeToggleLeft}>
+              <Text style={[styles.themeToggleTitle, { color: colors.textPrimary }]}>
+                {isDarkMode ? 'डार्क मोड सक्रिय (Dark Mode ON)' : 'लाइट मोड सक्रिय (Light Mode ON)'}
+              </Text>
+              <Text style={[styles.themeToggleSub, { color: colors.textMuted }]}>
+                {isDarkMode ? 'डार्क स्लेट थीम चालू है' : 'मानक ब्राइट थीम चालू है'}
+              </Text>
+            </View>
+            <Switch
+              value={isDarkMode}
+              onValueChange={toggleDarkMode}
+              trackColor={{ false: '#CBD5E1', true: colors.primary }}
+              thumbColor="#FFFFFF"
+            />
+          </View>
+        </View>
+
+        {/* QR Code Scanner Tool */}
+        <View style={[styles.sectionCard, SHADOWS.sm, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+          <View style={styles.sectionHeaderRow}>
+            <MaterialCommunityIcons name="qrcode-scan" size={20} color={colors.primary} />
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
+              QR Code Scanner (क्यूआर कोड स्कैनर)
+            </Text>
+          </View>
+          <Text style={[styles.roleSubtext, { color: colors.textSecondary }]}>
+            परिवार पहचान पत्र, डिजिटल प्रमाण पत्र या राशन कार्ड का QR कोड मोबाइल कैमरे से तुरंत स्कैन करें
+          </Text>
+
+          <TouchableOpacity
+            style={[styles.actionCardBtn, { backgroundColor: colors.primary }]}
+            onPress={() => navigation.navigate('QrScanner')}
+            activeOpacity={0.8}
+          >
+            <MaterialCommunityIcons name="camera-iris" size={18} color="#FFFFFF" />
+            <Text style={styles.actionCardBtnText}>कैमरा स्कैनर खोलें (Scan QR Code)</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Data Print & Reports */}
+        <View style={[styles.sectionCard, SHADOWS.sm, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+          <View style={styles.sectionHeaderRow}>
+            <Ionicons name="print-outline" size={20} color={colors.primary} />
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Data Print & PDF Reports (डेटा प्रिंट)</Text>
+          </View>
+          <Text style={[styles.roleSubtext, { color: colors.textSecondary }]}>
             गाँववार सर्वेक्षण रिकॉर्ड्स एवं परिवारों के विस्तृत डॉसियर को पीडीएफ में डाउनलोड या प्रिंट करें
           </Text>
 
           <TouchableOpacity
-            style={styles.actionCardBtn}
+            style={[styles.actionCardBtn, { backgroundColor: colors.primary }]}
             onPress={() => navigation.navigate('DataPrint')}
             activeOpacity={0.8}
           >
@@ -191,22 +266,33 @@ export function ProfileScreen({ navigation }) {
 
         {/* Admin Control Panel (Admins Only) */}
         {isAdmin && (
-          <View style={[styles.sectionCard, SHADOWS.sm, { borderColor: '#C7D2FE', borderWidth: 1.5 }]}>
+          <View style={[styles.sectionCard, SHADOWS.sm, { backgroundColor: colors.surface, borderColor: '#C7D2FE', borderWidth: 1.5 }]}>
             <View style={styles.sectionHeaderRow}>
               <MaterialCommunityIcons name="shield-account" size={20} color="#4F46E5" />
               <Text style={[styles.sectionTitle, { color: '#312E81' }]}>Admin Control Panel (प्रबंधन)</Text>
             </View>
-            <Text style={styles.roleSubtext}>
-              नए सर्वेक्षकों को स्वीकृत करें, गाँव आवंटित करें, और खातों का प्रबंधन करें
+            <Text style={[styles.roleSubtext, { color: colors.textSecondary }]}>
+              सर्वेक्षक स्वीकृति, गाँव आवंटन एवं हटाए गए रिकॉर्ड्स की रिकवरी का प्रबंधन करें
             </Text>
 
             <TouchableOpacity
-              style={[styles.actionCardBtn, { backgroundColor: '#4F46E5' }]}
+              style={[styles.actionCardBtn, { backgroundColor: '#4F46E5', marginBottom: 10 }]}
               onPress={() => navigation.navigate('AdminUserManagement')}
               activeOpacity={0.8}
             >
               <Ionicons name="people-outline" size={18} color="#FFFFFF" />
               <Text style={styles.actionCardBtnText}>User & Surveyor Control (यूज़र प्रबंधन)</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.actionCardBtn, { backgroundColor: '#DC2626' }]}
+              onPress={() => navigation.navigate('DeletedRecords')}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="trash-outline" size={18} color="#FFFFFF" />
+              <Text style={styles.actionCardBtnText}>
+                रीसायकल बिन ({deletedFamilies?.length || 0} हटाए गए रिकॉर्ड्स)
+              </Text>
             </TouchableOpacity>
           </View>
         )}
@@ -485,5 +571,24 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '700',
+  },
+  themeToggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    marginTop: 4,
+  },
+  themeToggleLeft: {
+    flex: 1,
+    marginRight: 12,
+  },
+  themeToggleTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  themeToggleSub: {
+    fontSize: 12,
+    marginTop: 2,
   },
 });

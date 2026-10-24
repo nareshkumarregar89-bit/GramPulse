@@ -1,18 +1,36 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, StatusBar, Image } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import { COLORS, SHADOWS, SIZES } from '../constants/theme';
+import { useTheme } from '../contexts/ThemeContext';
 import { useData } from '../contexts/DataContext';
 import { VillagePickerModal } from './VillagePickerModal';
 
-export function Header({ title, showVillagePicker = true, rightAction, onSearchPress }) {
+export function Header({
+  title,
+  showVillagePicker = true,
+  rightAction,
+  onSearchPress,
+  showQrScanner = true,
+}) {
+  const navigation = useNavigation();
+  const { colors, isDarkMode, toggleDarkMode } = useTheme();
   const { selectedVillage } = useData();
   const [modalVisible, setModalVisible] = useState(false);
 
+  const handleOpenQrScanner = () => {
+    try {
+      navigation.navigate('QrScanner');
+    } catch (e) {
+      console.log('Navigation to QrScanner note:', e);
+    }
+  };
+
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.primaryDark} />
-      
+    <View style={[styles.container, { backgroundColor: isDarkMode ? '#064E3B' : colors.primary }]}>
+      <StatusBar barStyle="light-content" backgroundColor={isDarkMode ? '#022C22' : colors.primaryDark} />
+
       {/* Brand & Title */}
       <View style={styles.topRow}>
         <View style={styles.brandRow}>
@@ -29,11 +47,44 @@ export function Header({ title, showVillagePicker = true, rightAction, onSearchP
 
         {/* Right Action Icons */}
         <View style={styles.actionsRow}>
-          {onSearchPress && (
-            <TouchableOpacity style={styles.iconBtn} onPress={onSearchPress} activeOpacity={0.7}>
-              <Ionicons name="search" size={20} color={COLORS.surface} />
+          {/* Quick Dark Mode Toggle */}
+          <TouchableOpacity
+            style={styles.iconBtn}
+            onPress={toggleDarkMode}
+            activeOpacity={0.7}
+            accessibilityLabel="Toggle Dark Mode"
+          >
+            <Ionicons
+              name={isDarkMode ? 'sunny' : 'moon'}
+              size={18}
+              color={isDarkMode ? '#FBBF24' : '#FFFFFF'}
+            />
+          </TouchableOpacity>
+
+          {/* QR Code Camera Scanner Button */}
+          {showQrScanner && (
+            <TouchableOpacity
+              style={styles.iconBtn}
+              onPress={handleOpenQrScanner}
+              activeOpacity={0.7}
+              accessibilityLabel="Scan QR Code"
+            >
+              <MaterialCommunityIcons name="qrcode-scan" size={19} color="#FFFFFF" />
             </TouchableOpacity>
           )}
+
+          {/* Search Button */}
+          {onSearchPress && (
+            <TouchableOpacity
+              style={styles.iconBtn}
+              onPress={onSearchPress}
+              activeOpacity={0.7}
+              accessibilityLabel="Search"
+            >
+              <Ionicons name="search" size={19} color="#FFFFFF" />
+            </TouchableOpacity>
+          )}
+
           {rightAction}
         </View>
       </View>
@@ -45,11 +96,11 @@ export function Header({ title, showVillagePicker = true, rightAction, onSearchP
           onPress={() => setModalVisible(true)}
           activeOpacity={0.8}
         >
-          <Ionicons name="location-sharp" size={16} color={COLORS.accent} />
+          <Ionicons name="location-sharp" size={16} color={colors.accent} />
           <Text style={styles.villageText} numberOfLines={1}>
             {selectedVillage || 'Select Village'}
           </Text>
-          <Ionicons name="chevron-down" size={16} color={COLORS.surface} />
+          <Ionicons name="chevron-down" size={16} color="#FFFFFF" />
         </TouchableOpacity>
       )}
 
@@ -70,7 +121,6 @@ export function Header({ title, showVillagePicker = true, rightAction, onSearchP
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: COLORS.primary,
     paddingTop: 45,
     paddingHorizontal: SIZES.lg,
     paddingBottom: SIZES.md,
@@ -99,7 +149,7 @@ const styles = StyleSheet.create({
   appName: {
     fontSize: 18,
     fontWeight: '800',
-    color: COLORS.surface,
+    color: '#FFFFFF',
     letterSpacing: 0.5,
   },
   appSub: {
@@ -116,14 +166,14 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    backgroundColor: 'rgba(255, 255, 255, 0.18)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   villagePill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    backgroundColor: 'rgba(0, 0, 0, 0.22)',
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: SIZES.radiusFull,
@@ -134,7 +184,7 @@ const styles = StyleSheet.create({
   villageText: {
     fontSize: 13,
     fontWeight: '600',
-    color: COLORS.surface,
+    color: '#FFFFFF',
   },
   titleRow: {
     marginTop: 8,
@@ -142,6 +192,6 @@ const styles = StyleSheet.create({
   titleText: {
     fontSize: 20,
     fontWeight: '700',
-    color: COLORS.surface,
+    color: '#FFFFFF',
   },
 });

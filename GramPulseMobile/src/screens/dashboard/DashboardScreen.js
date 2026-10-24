@@ -16,7 +16,7 @@ import { StatCard } from '../../components/StatCard';
 import { FamilyCard } from '../../components/FamilyCard';
 
 export function DashboardScreen({ navigation }) {
-  const { stats, filteredFamilies, selectedVillage, loading, refreshData } = useData();
+  const { stats, filteredFamilies, selectedVillage, loading, refreshData, hasAccess } = useData();
   const { currentUser, userProfile, isAdmin, isPending, isUnassigned } = useAuth();
   const [refreshing, setRefreshing] = React.useState(false);
 
@@ -247,14 +247,30 @@ export function DashboardScreen({ navigation }) {
           ))
         ) : (
           <View style={styles.emptyCard}>
-            <MaterialCommunityIcons name="folder-open-outline" size={40} color={COLORS.textMuted} />
-            <Text style={styles.emptyTitle}>No families recorded in this village yet</Text>
-            <TouchableOpacity
-              style={styles.emptyBtn}
-              onPress={() => navigation.navigate('Survey')}
-            >
-              <Text style={styles.emptyBtnText}>Record First Survey</Text>
-            </TouchableOpacity>
+            <MaterialCommunityIcons
+              name={!hasAccess && !isAdmin ? 'shield-lock-outline' : 'folder-open-outline'}
+              size={40}
+              color={!hasAccess && !isAdmin ? '#D97706' : COLORS.textMuted}
+            />
+            <Text style={styles.emptyTitle}>
+              {!hasAccess && !isAdmin
+                ? 'डेटा एक्सेस अभी उपलब्ध नहीं है (Awaiting Approval)'
+                : 'इस गाँव में अभी तक कोई परिवार दर्ज नहीं है'}
+            </Text>
+            {!hasAccess && !isAdmin ? (
+              <Text style={{ fontSize: 12, color: COLORS.textMuted, textAlign: 'center', marginTop: 6, lineHeight: 18 }}>
+                {isPending
+                  ? 'आपका सर्वेक्षक खाता अभी व्यवस्थापक की स्वीकृति की प्रतीक्षा कर रहा है।'
+                  : 'प्रशासनिक रूप से कार्यक्षेत्र गाँव आवंटित होने के बाद ही परिवार दिखेंगे।'}
+              </Text>
+            ) : (
+              <TouchableOpacity
+                style={styles.emptyBtn}
+                onPress={() => navigation.navigate('Survey')}
+              >
+                <Text style={styles.emptyBtnText}>Record First Survey</Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
       </ScrollView>

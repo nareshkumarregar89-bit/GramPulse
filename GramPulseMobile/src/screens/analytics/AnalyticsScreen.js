@@ -10,16 +10,19 @@ import { COLORS, SHADOWS, SIZES } from '../../constants/theme';
 import { useData } from '../../contexts/DataContext';
 import { Header } from '../../components/Header';
 
+import { useAuth } from '../../contexts/AuthContext';
+
 export function AnalyticsScreen() {
-  const { stats, selectedVillage } = useData();
+  const { stats, selectedVillage, hasAccess } = useData();
+  const { isAdmin } = useAuth();
 
-  const totalPop = stats.totalPopulation || 1;
-  const malePercent = Math.round((stats.maleCount / totalPop) * 100);
-  const femalePercent = 100 - malePercent;
+  const totalPop = stats.totalPopulation || (hasAccess ? 1 : 0);
+  const malePercent = totalPop > 0 ? Math.round((stats.maleCount / totalPop) * 100) : 0;
+  const femalePercent = totalPop > 0 ? 100 - malePercent : 0;
 
-  const totalFam = stats.totalFamilies || 1;
-  const bplPercent = Math.round((stats.bplCount / totalFam) * 100);
-  const aplPercent = 100 - bplPercent;
+  const totalFam = stats.totalFamilies || (hasAccess ? 1 : 0);
+  const bplPercent = totalFam > 0 ? Math.round((stats.bplCount / totalFam) * 100) : 0;
+  const aplPercent = totalFam > 0 ? 100 - bplPercent : 0;
 
   const casteArray = Object.entries(stats.casteMap).sort((a, b) => b[1] - a[1]);
   const mohallaArray = Object.entries(stats.mohallaMap).sort((a, b) => b[1] - a[1]);
@@ -29,6 +32,19 @@ export function AnalyticsScreen() {
       <Header title="Village Demographics" showVillagePicker={true} />
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
+        {/* Authorization Restriction Notice */}
+        {!hasAccess && !isAdmin && (
+          <View style={[styles.villageCard, { backgroundColor: '#FEF3C7', borderColor: '#FDE68A', marginBottom: 12 }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <MaterialCommunityIcons name="shield-lock-outline" size={24} color="#D97706" />
+              <Text style={{ fontSize: 14, fontWeight: '800', color: '#92400E' }}>डेटा एक्सेस लंबित (Access Restricted)</Text>
+            </View>
+            <Text style={{ fontSize: 12, color: '#B45309', marginTop: 4, lineHeight: 18 }}>
+              सर्वेक्षण एवं जनसांख्यिकी आँकड़े केवल व्यवस्थापक द्वारा खाता स्वीकृत एवं गाँव आवंटित किए जाने के बाद दिखाई देंगे।
+            </Text>
+          </View>
+        )}
+
         {/* Village Summary Header */}
         <View style={[styles.villageCard, SHADOWS.sm]}>
           <Text style={styles.villageTitle}>

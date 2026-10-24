@@ -13,7 +13,7 @@ import {
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, SHADOWS, SIZES } from '../../constants/theme';
 import { useAuth } from '../../contexts/AuthContext';
-import { villagesList } from '../../constants/villages';
+import { villagesList, getCleanUniqueAssignedVillages } from '../../constants/villages';
 
 export function AdminUserManagementScreen({ navigation }) {
   const { 
@@ -70,9 +70,12 @@ export function AdminUserManagementScreen({ navigation }) {
     setIsAssigning(true);
     try {
       await assignVillageToUser(selectedUserForAssign.uid, selectedVillageToAssign);
+      const isUnassign = selectedVillageToAssign === 'unassign';
       Alert.alert(
-        'गाँव आवंटित (Village Assigned)',
-        `${selectedUserForAssign.name || selectedUserForAssign.email} को "${selectedVillageToAssign}" सफलतापूर्वक आवंटित कर दिया गया।`
+        isUnassign ? 'आवंटन हटाया गया (Unassigned)' : 'गाँव आवंटित (Village Assigned)',
+        isUnassign
+          ? `${selectedUserForAssign.name || selectedUserForAssign.email} का गाँव आवंटन हटा दिया गया है।`
+          : `${selectedUserForAssign.name || selectedUserForAssign.email} को "${selectedVillageToAssign === 'all' ? 'सभी गाँव (All Access)' : selectedVillageToAssign}" आवंटित किया गया।`
       );
       setSelectedUserForAssign(null);
     } catch (err) {
@@ -221,7 +224,7 @@ export function AdminUserManagementScreen({ navigation }) {
           const isUserPending = item.status === 'pending';
           const isUserInactive = item.status === 'inactive';
           const isItemProcessing = processingUid === item.uid;
-          const assignedList = Array.isArray(item.assignedVillages) ? item.assignedVillages : [];
+          const assignedList = getCleanUniqueAssignedVillages(item.assignedVillages || (item.assignedVillage ? [item.assignedVillage] : []));
 
           return (
             <View style={[styles.userCard, SHADOWS.sm]}>
@@ -376,22 +379,35 @@ export function AdminUserManagementScreen({ navigation }) {
             </Text>
 
             <View style={styles.villageOptionsList}>
-              {villagesList.map((villageName) => {
-                const isSelected = selectedVillageToAssign === villageName;
+              {[
+                { label: 'समोड़ी (Samodi)', value: 'समोड़ी (Samodi)' },
+                { label: 'कोटड़ी (Kotdi)', value: 'कोटड़ी (Kotdi)' },
+                { label: 'सभी गाँव (All Access)', value: 'all' },
+                { label: '❌ आवंटन हटाएं (Unassign / Revoke)', value: 'unassign' }
+              ].map((opt) => {
+                const isSelected = selectedVillageToAssign === opt.value;
                 return (
                   <TouchableOpacity
-                    key={villageName}
-                    style={[styles.villageOptionRow, isSelected && styles.villageOptionRowActive]}
-                    onPress={() => setSelectedVillageToAssign(villageName)}
+                    key={opt.value}
+                    style={[
+                      styles.villageOptionRow,
+                      isSelected && styles.villageOptionRowActive,
+                      opt.value === 'unassign' && { borderColor: '#FECACA', backgroundColor: '#FEF2F2' }
+                    ]}
+                    onPress={() => setSelectedVillageToAssign(opt.value)}
                     activeOpacity={0.7}
                   >
                     <Ionicons
                       name={isSelected ? 'radio-button-on' : 'radio-button-off'}
                       size={20}
-                      color={isSelected ? COLORS.primary : COLORS.textMuted}
+                      color={opt.value === 'unassign' ? '#DC2626' : isSelected ? COLORS.primary : COLORS.textMuted}
                     />
-                    <Text style={[styles.villageOptionText, isSelected && styles.villageOptionTextActive]}>
-                      {villageName}
+                    <Text style={[
+                      styles.villageOptionText,
+                      isSelected && styles.villageOptionTextActive,
+                      opt.value === 'unassign' && { color: '#DC2626', fontWeight: '700' }
+                    ]}>
+                      {opt.label}
                     </Text>
                   </TouchableOpacity>
                 );
